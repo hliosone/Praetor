@@ -12,11 +12,11 @@ const opt = <T>(v: unknown) => (v === null || v === undefined ? undefined : (v a
 export class MySqlKycStore implements KycStore {
   constructor(private readonly r: SqlRunner) {}
   async createSession(s: KycSession) {
-    await this.r.query('INSERT INTO kyc_sessions (id, user_ref, account, method, state, eudi_tx) VALUES (?, ?, ?, ?, ?, ?)', [s.id, s.userRef, s.account, s.method, s.state, s.eudiTx ?? null]);
+    await this.r.query('INSERT INTO kyc_sessions (id, user_ref, account, method, state, eudi_tx, recovery_key) VALUES (?, ?, ?, ?, ?, ?, ?)', [s.id, s.userRef, s.account, s.method, s.state, s.eudiTx ?? null, s.recoveryKey ? JSON.stringify(s.recoveryKey) : null]);
   }
   async getSession(id: string) {
     const [s] = await rows(this.r, 'SELECT * FROM kyc_sessions WHERE id = ?', [id]);
-    return s ? { id: String(s.id), userRef: String(s.user_ref), account: String(s.account), method: s.method as KycSession['method'], state: s.state as KycSession['state'], eudiTx: opt<string>(s.eudi_tx) } : undefined;
+    return s ? { id: String(s.id), userRef: String(s.user_ref), account: String(s.account), method: s.method as KycSession['method'], state: s.state as KycSession['state'], eudiTx: opt<string>(s.eudi_tx), recoveryKey: s.recovery_key ? JSON.parse(String(s.recovery_key)) : undefined } : undefined;
   }
   async decideSession(id: string) {
     return affected(await this.r.query("UPDATE kyc_sessions SET state = 'decided' WHERE id = ? AND state = 'pending'", [id])) === 1;
@@ -57,6 +57,16 @@ export class MySqlMandateStore implements MandateStore {
   }
   async markSigned(id: string) {
     return affected(await this.r.query("UPDATE mandate_drafts SET state = 'signed' WHERE id = ? AND state = 'pending'", [id])) === 1;
+  }
+  async saveSigned(id: string, credential: string) {
+    await this.r.query('UPDATE mandate_drafts SET signed_credential = ? WHERE id = ?', [credential, id]);
+  }
+  async signedOf(account: string) {
+    const list = await rows(this.r, "SELECT * FROM mandate_drafts WHERE account = ? AND state = 'signed' AND signed_credential IS NOT NULL", [account]);
+    return list.map((d) => ({ id: String(d.id), userRef: String(d.user_ref), account: String(d.account), inner: String(d.inner_credential), challenge: String(d.challenge) as Hex, state: 'signed' as const, signed: String(d.signed_credential) }));
+  }
+  async markRevoked(id: string) {
+    await this.r.query("UPDATE mandate_drafts SET state = 'revoked' WHERE id = ?", [id]);
   }
 }
 

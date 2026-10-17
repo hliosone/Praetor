@@ -10,13 +10,18 @@ import { Refused, type BankIdentity, type KycRecord } from './kyc.js';
 export const MANDATE_SCOPES = ['rebalance', 'pay', 'standing_orders'] as const;
 
 export type MandateDraftInput = { userRef: string; account: string; agentKey: string; scopes: string[]; mandateHash: string; agentMeasurement: string };
-export type MandateDraft = { id: string; userRef: string; account: string; inner: string; challenge: Hex; state: 'pending' | 'signed' };
+export type MandateDraft = { id: string; userRef: string; account: string; inner: string; challenge: Hex; state: 'pending' | 'signed' | 'revoked'; signed?: string };
 
 export interface MandateStore {
   put(d: MandateDraft): Promise<void>;
   get(id: string): Promise<MandateDraft | undefined>;
   /** pending -> signed, once. */
   markSigned(id: string): Promise<boolean>;
+  /** The countersigned credential, kept to revoke it later (F10). */
+  saveSigned(id: string, credential: string): Promise<void>;
+  /** The account's signed mandates that are not revoked yet. */
+  signedOf(account: string): Promise<MandateDraft[]>;
+  markRevoked(id: string): Promise<void>;
 }
 
 export class MemoryMandateStore implements MandateStore {
@@ -29,6 +34,9 @@ export class MemoryMandateStore implements MandateStore {
     d.state = 'signed';
     return true;
   }
+  async saveSigned(id: string, credential: string) { this.drafts.get(id)!.signed = credential; }
+  async signedOf(account: string) { return [...this.drafts.values()].filter((d) => d.account.toLowerCase() === account.toLowerCase() && d.state === 'signed' && d.signed); }
+  async markRevoked(id: string) { this.drafts.get(id)!.state = 'revoked'; }
 }
 
 export type MandateDeps = {
@@ -41,6 +49,7 @@ export type MandateDeps = {
     createCredential(a: { cptId: number; issuer: string; expiresAt: Date; claim: Record<string, unknown> }): Promise<Credential>;
     countersign(c: Credential, signerWeId: string): Promise<{ credential: Credential; hash: string }>;
     createEvidence(c: Credential, signerWeId: string): Promise<string>;
+    revoke(c: Credential, signerWeId: string): Promise<void>;
   };
   rpId: string;
   origin: string;
@@ -85,7 +94,22 @@ export class MandateService {
     const { bankWeId } = await this.d.identity();
     const { credential } = await this.d.weid.countersign(JSON.parse(draft.inner) as Credential, bankWeId);
     const mandateCredentialHash = await this.d.weid.createEvidence(credential, bankWeId) as Hex;
+    await this.d.store.saveSigned(draftId, JSON.stringify(credential));
     const claim = (JSON.parse(draft.inner) as Credential).claim as { agentKey: string; agentMeasurement: Hex };
     return { credential, mandateCredentialHash, account: draft.account, agentKey: claim.agentKey, agentMeasurement: claim.agentMeasurement };
+  }
+
+  /** F10 step 2: the account's mandates whose agent key Base no longer holds (revoked or replaced) lose their evidence. */
+  async revoke(account: string, stillActive: (agentKey: string) => Promise<boolean>): Promise<string[]> {
+    const { bankWeId } = await this.d.identity();
+    const revoked: string[] = [];
+    for (const m of await this.d.store.signedOf(account)) {
+      const { agentKey } = (JSON.parse(m.inner) as Credential).claim as { agentKey: string };
+      if (await stillActive(agentKey)) continue;
+      await this.d.weid.revoke(JSON.parse(m.signed!) as Credential, bankWeId);
+      await this.d.store.markRevoked(m.id);
+      revoked.push(m.id);
+    }
+    return revoked;
   }
 }

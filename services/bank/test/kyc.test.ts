@@ -105,6 +105,30 @@ describe('KycService', () => {
     expect(JSON.stringify([...store.records.values()].map((r) => ({ ...r, sealed: undefined })))).not.toMatch(/Lin Wei|1990-04-02|K1234567/);
   });
 
+  it('F10 recovery: a re-KYC that matches the stored person hands the new owner key to the recovery, and changes no record', async () => {
+    const ACC = '0x00000000000000000000000000000000000c0ffe';
+    const result = (sessionId: string, p = person) => ({ sessionId, decision: 'approved' as const, liveness: true, person: p, docHash: `0x${'1'.repeat(64)}`, selfieHash: `0x${'3'.repeat(64)}` });
+    const s = await svc.startSession('user-r', 'vendor', ACC);
+    await svc.vendorResult(result(s.sessionId));
+    await svc.suitability('user-r', [1, 1, 1, 1, 1]);
+    const before = JSON.stringify(store.records.get('user-r'));
+    const scheduled: unknown[] = [];
+    const onMatch = async (account: string, key: unknown) => { scheduled.push({ account, key }); };
+    const key = { credIdHash: `0x${'ab'.repeat(32)}`, x: '0x01', y: '0x02' };
+    const other = await svc.startRecovery('user-r', key);
+    await svc.vendorResult(result(other.sessionId, { ...person, documentNumber: 'Z9999999' }), onMatch);
+    expect(scheduled).toEqual([]);
+    const ok = await svc.startRecovery('user-r', key);
+    expect(ok.redirectUrl).toBe(`https://praetor.localhost/kyc-mock/?session=${ok.sessionId}`);
+    await svc.vendorResult(result(ok.sessionId), onMatch);
+    expect(scheduled).toEqual([{ account: ACC, key }]);
+    expect(JSON.stringify(store.records.get('user-r'))).toBe(before);
+  });
+
+  it('F10 recovery: only for a person whose KYC was issued through the provider', async () => {
+    await expect(svc.startRecovery('nobody', { credIdHash: `0x${'ab'.repeat(32)}`, x: '0x01', y: '0x02' })).rejects.toThrow(/no issued/);
+  });
+
   it('a sanctions hit rejects the session: no WeID, no credential', async () => {
     const s = await svc.startSession('user-2', 'vendor', '0x00000000000000000000000000000000000c0ffe');
     await svc.vendorResult({ sessionId: s.sessionId, decision: 'approved', liveness: true, person: { ...person, fullName: 'Blockedov Ivan' }, docHash: `0x${'1'.repeat(64)}`, selfieHash: `0x${'2'.repeat(64)}` });

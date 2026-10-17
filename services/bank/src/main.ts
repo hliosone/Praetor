@@ -8,7 +8,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { baseClients, IdentityRegistryAbi } from '@praetor/chain';
 import { resolveKey } from '@praetor/config';
 import { MandateRegistryAbi } from '@praetor/fisco-client';
-import { digest, praetorDomain, POLICY_ABI, type AuditEntry, type OwnerAction, type Policy } from '@praetor/protocol';
+import { digest, praetorDomain, POLICY_ABI, ZERO_HASH, type AuditEntry, type OwnerAction, type Policy } from '@praetor/protocol';
 import { startMember, type MemberContext } from '@praetor/member-kit';
 import type { Request, Response, NextFunction } from 'express';
 import { weidClient } from '@praetor/weid-client';
@@ -25,7 +25,8 @@ import { KyaBuilder } from './kya.js';
 import { createAgentDid } from './agent-did.js';
 import { checkAnchor } from './anchor-guard.js';
 import { signCaller } from '@praetor/protocol/caller-auth';
-import { PasskeyValidatorAbi } from '@praetor/chain';
+import { AgentKeyValidatorAbi, MandateHookAbi, PasskeyValidatorAbi } from '@praetor/chain';
+import { RecoveryService } from './recovery.js';
 
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/).transform((s) => s as Address);
 const bytes32 = z.string().regex(/^0x[0-9a-fA-F]{64}$/).transform((s) => s as Hex);
@@ -77,7 +78,7 @@ export function startBank(env: Record<string, string | undefined> = process.env)
   const nonces = new NonceBook();
   const verifier = flags.ATTESTATION_MODE === 'phala' ? phalaVerifier() : undefined;
   const attesters = new AttesterChecks({ nonces, mode: flags.ATTESTATION_MODE, allowed: flags.allowedAttester, verifier });
-  let services: { kyc: KycService; mandate: MandateService; kya: KyaBuilder; agentDid: (account: string) => Promise<{ agentWeId: string; agentDidHash: Hex }> } | undefined;
+  let services: { kyc: KycService; mandate: MandateService; kya: KyaBuilder; agentDid: (account: string, keyVersion: number) => Promise<{ agentWeId: string; agentDidHash: Hex }> } | undefined;
   const identityServices = (ctx: MemberContext) => {
     if (services) return services;
     const identity = memoIdentity(() => ensureBankIdentity(weid, new MySqlKv(ctx.runner)));
@@ -105,10 +106,11 @@ export function startBank(env: Record<string, string | undefined> = process.env)
     const WEID_ABI = parseAbi(['function isIdentityExist(address identity) view returns (bool)', 'function resolve(address identity) view returns (string created, string updated, bool deactivated, uint16 versionId, string[] authentication, string[] service)']);
     let weIdContract: Address | undefined;
     const contract = async () => (weIdContract ??= (await weid.contracts()).weId as Address);
-    const agentDid = (account: string) => createAgentDid({
+    // A rotated agent key (F10) is a new key version in agent-signer, with its own WeID.
+    const agentDid = (account: string, keyVersion: number) => createAgentDid({
       signer: {
-        createDid: async (a) => (await signer('POST', `/v1/agents/${a}/sign-weid`, { kind: 'createDid', keyVersion: 1, fields: {} })) as { address: Address; publicKeyECDSA: string },
-        addService: async (a, fields) => (await signer('POST', `/v1/agents/${a}/sign-weid`, { kind: 'addService', keyVersion: 1, fields })) as { rawTx: Hex },
+        createDid: async (a) => (await signer('POST', `/v1/agents/${a}/sign-weid`, { kind: 'createDid', keyVersion, fields: {} })) as { address: Address; publicKeyECDSA: string },
+        addService: async (a, fields) => (await signer('POST', `/v1/agents/${a}/sign-weid`, { kind: 'addService', keyVersion, fields })) as { rawTx: Hex },
       },
       weid: { createWeIdWithPubKey: (p) => weid.createWeIdWithPubKey(p), contracts: weid.contracts },
       fisco: {
@@ -138,10 +140,25 @@ export function startBank(env: Record<string, string | undefined> = process.env)
     }
   };
   const anchorOf = (m: unknown) => m as { seq: bigint; head: Hex; fiscoBlock: bigint; deadline: bigint };
+  // The bank's recovery transactions go out from its desk account; the notice is its own channel (D13: a log sink).
+  const recovery = (ctx: MemberContext) => new RecoveryService({
+    domain: { name: ctx.base.domainName, hook: ctx.base.mandateHook }, bankSignerKey,
+    now: async () => (await publicClient.getBlock()).timestamp,
+    schedule: async (a, payload, bankSigs) => {
+      if (!walletClient) throw new Error('DESK_OPERATOR_KEY missing: the bank cannot send the recovery');
+      const hash = await walletClient.writeContract({ address: ctx.base.mandateHook, abi: MandateHookAbi, functionName: 'scheduleRecovery', args: [a, payload, bankSigs], account: walletClient.account!, chain: walletClient.chain });
+      if ((await publicClient.waitForTransactionReceipt({ hash })).status !== 'success') throw new Error('scheduleRecovery reverted');
+      return hash;
+    },
+    notify: async (account, text) => { console.log(JSON.stringify({ channel: 'bank-notice', account, text })); },
+  });
   return startMember({
     role: 'bank', env, migrations: ['bank'],
     signGuards: () => ({ attesters: (m) => attesters.guard(m), audit: async (m) => { await checkAnchor(anchorOf(m), auditEntries); } }),
-    extendPublic: (r, ctx) => kycPublicRoutes(r, { kyc: identityServices(ctx).kyc, vendorHmac: flags.KYC_VENDOR_HMAC }),
+    extendPublic: (r, ctx) => kycPublicRoutes(r, {
+      kyc: identityServices(ctx).kyc, vendorHmac: flags.KYC_VENDOR_HMAC,
+      onRecoveryMatch: async (account, key) => { await recovery(ctx).schedule(account as Address, key); },
+    }),
     extend: (r, ctx) => {
       routes(r, ctx, {
         publicClient: publicClient as PublicClient, desk: walletClient as WalletClient, bankSignerKey,
@@ -163,7 +180,13 @@ export function startBank(env: Record<string, string | undefined> = process.env)
         const { ready } = await ctx.consortium.sign('audit', id);
         res.json({ ready, auditSeq });
       }));
-      kycRoutes(r, { kyc: identityServices(ctx).kyc, mandate: identityServices(ctx).mandate, kya: identityServices(ctx).kya, eudi: flags.EUDI_VERIFIER_BACKEND ? { backend: flags.EUDI_VERIFIER_BACKEND } : undefined });
+      kycRoutes(r, {
+        kyc: identityServices(ctx).kyc, mandate: identityServices(ctx).mandate, kya: identityServices(ctx).kya, eudi: flags.EUDI_VERIFIER_BACKEND ? { backend: flags.EUDI_VERIFIER_BACKEND } : undefined,
+        agentOf: async (account) => {
+          const [key, , revoked] = (await publicClient.readContract({ address: ctx.base.agentKeyValidator, abi: AgentKeyValidatorAbi, functionName: 'agentOf', args: [account as Address] })) as readonly [Address, number, boolean];
+          return { key, revoked };
+        },
+      });
     },
   });
 }
@@ -172,7 +195,7 @@ type Deps = {
   publicClient: PublicClient; desk: WalletClient; bankSignerKey: Hex;
   attest: { mode: 'simulator' | 'phala'; allowedAgent: string[]; nonces: NonceBook; verifier?: PhalaVerifier };
   kya: KyaBuilder;
-  agentDid(account: string): Promise<{ agentWeId: string; agentDidHash: Hex }>;
+  agentDid(account: string, keyVersion: number): Promise<{ agentWeId: string; agentDidHash: Hex }>;
 };
 
 function routes(r: import('express').Router, ctx: MemberContext, d: Deps) {
@@ -206,8 +229,8 @@ function routes(r: import('express').Router, ctx: MemberContext, d: Deps) {
 
   // F1 step 10: the agent's WeID with its AgentWallet and MCP services, signed inside agent-signer.
   r.post('/kya/agent-did', h(async (req, res) => {
-    const b = z.object({ account: address }).parse(req.body);
-    res.json(await d.agentDid(b.account));
+    const b = z.object({ account: address, keyVersion: z.number().int().min(1).max(16).default(1) }).parse(req.body);
+    res.json(await d.agentDid(b.account, b.keyVersion));
   }));
 
   // F1 step 12: the KYA attestation from what the bank verified itself (KYC record, quote, countersigned mandate).
@@ -216,10 +239,14 @@ function routes(r: import('express').Router, ctx: MemberContext, d: Deps) {
     const k = await d.kya.build(b.account, { agentDidHash: b.agentDidHash, validUntil: b.validUntil });
     const deadline = await c.deadline();
     const kya = { ...k, agentKey: getAddress(k.agentKey), jurisdiction: `0x${Buffer.from(k.jurisdiction).toString('hex')}` as Hex, nonce: 0n, deadline, fiscoRef: `0x${'00'.repeat(32)}` as Hex };
+    // F10 step 4: a KYA that replaces another agent links the two agent DIDs on FISCO (MandateRegistry.SuccessorLinked).
+    const previous = ((await c.pub.readContract({ address: mandates, abi: MandateRegistryAbi, functionName: 'kyaOf', args: [b.account] })) as { agentDidHash: Hex }).agentDidHash;
     const opened = await c.open('mandates', 'openKYA', [kya]);
     const signed = await c.sign('mandates', opened.proposalId);
+    const successorTx = previous !== ZERO_HASH && previous.toLowerCase() !== b.agentDidHash.toLowerCase()
+      ? (await c.call('mandates', 'linkSuccessor', [b.account, previous, b.agentDidHash])).transactionHash : null;
     const identityTx = await registerIdentity(d, ctx, b.account, k.kycCredentialHash, k.jurisdiction);
-    res.json(json({ board: 'mandates', proposalId: opened.proposalId, ready: signed.ready, identityTx, kya: { kycLevel: k.kycLevel, riskProfile: k.riskProfile, jurisdiction: k.jurisdiction } }));
+    res.json(json({ board: 'mandates', proposalId: opened.proposalId, ready: signed.ready, identityTx, successorTx, kya: { kycLevel: k.kycLevel, riskProfile: k.riskProfile, jurisdiction: k.jurisdiction } }));
   }));
 
   r.post('/policy/check', h(async (req, res) => {

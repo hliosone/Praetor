@@ -72,7 +72,9 @@ function adultOn(birthdate: string, now: Date): boolean {
   return true;
 }
 
-export type KycSession = { id: string; userRef: string; account: string; method: KycMethod; state: 'pending' | 'decided'; eudiTx?: string };
+/** A new owner passkey (F10 recovery): what the bank schedules on Base once the re-KYC matches. */
+export type OwnerKey = { credIdHash: string; x: string; y: string };
+export type KycSession = { id: string; userRef: string; account: string; method: KycMethod; state: 'pending' | 'decided'; eudiTx?: string; recoveryKey?: OwnerKey };
 export type KycRecord = {
   userRef: string;
   /** The Base account this person's KYC and mandates are bound to (set at the first session). */
@@ -170,6 +172,25 @@ export class KycService {
     return { sessionId: id, qr: qrUrl(this.d.eudi?.scheme ?? 'openid4vp', t), transactionId: t.transactionId };
   }
 
+  /** F10: the bank re-runs the provider's KYC itself; only a person matching the issued record can replace the keys. */
+  async startRecovery(userRef: string, key: OwnerKey) {
+    const r = await this.d.store.getRecord(userRef);
+    if (!r || r.state !== 'issued' || r.method !== 'vendor' || !r.sealed) throw new Refused('no issued PersonKYC from the provider for this user');
+    const id = randomUUID();
+    await this.d.store.createSession({ id, userRef, account: r.account, method: 'vendor', state: 'pending', recoveryKey: key });
+    return { sessionId: id, redirectUrl: `${this.d.publicUrl}/kyc-mock/?session=${id}` };
+  }
+
+  private async recoveryResult(s: KycSession, r: VendorResult, onMatch?: (account: string, key: OwnerKey) => Promise<void>) {
+    if (r.decision !== 'approved' || !r.liveness) return;
+    const rec = await this.d.store.getRecord(s.userRef);
+    if (!rec?.sealed) return;
+    const stored = openRecord<VendorResult['person']>(this.d.encKey, rec.sealed);
+    const same = (a: string, b: string) => a.normalize('NFKD').trim().toLowerCase() === b.normalize('NFKD').trim().toLowerCase();
+    const matches = same(stored.fullName, r.person.fullName) && stored.birthdate === r.person.birthdate && same(stored.nationality, r.person.nationality) && same(stored.documentNumber, r.person.documentNumber);
+    if (matches) await onMatch?.(s.account, s.recoveryKey!);
+  }
+
   private async decide(sessionId: string, method: KycMethod) {
     const s = await this.d.store.getSession(sessionId);
     if (!s || s.method !== method) throw new Refused('unknown session');
@@ -181,8 +202,9 @@ export class KycService {
     await this.d.store.putRecord({ userRef: s.userRef, account: s.account, method: s.method, state: 'rejected', reason });
   }
 
-  async vendorResult(r: VendorResult): Promise<void> {
+  async vendorResult(r: VendorResult, onRecoveryMatch?: (account: string, key: OwnerKey) => Promise<void>): Promise<void> {
     const s = await this.decide(r.sessionId, 'vendor');
+    if (s.recoveryKey) return this.recoveryResult(s, r, onRecoveryMatch);
     if (r.decision !== 'approved') return this.reject(s, 'provider');
     if (!r.liveness) return this.reject(s, 'liveness');
     if (!adultOn(r.person.birthdate, this.now())) return this.reject(s, 'age');

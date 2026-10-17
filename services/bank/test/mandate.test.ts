@@ -32,6 +32,7 @@ describe('MandateService', () => {
         createCredential: async (a) => { calls.push(`create:${a.issuer}:${a.cptId}`); return { id: 'inner', cptId: a.cptId, issuer: a.issuer, claim: a.claim, proof: {} } as Credential; },
         countersign: async (c, signer) => { calls.push(`countersign:${signer}`); return { credential: { id: 'outer', cptId: 107, issuer: signer, claim: { credentialList: [c] }, proof: {} } as unknown as Credential, hash: '0xouter' }; },
         createEvidence: async (_c, signer) => { calls.push(`evidence:${signer}`); return `0x${'e'.repeat(64)}`; },
+        revoke: async (c, signer) => { calls.push(`revoke:${c.id}:${signer}`); },
       },
       rpId: 'praetor.localhost',
       origin: 'https://praetor.localhost',
@@ -77,5 +78,16 @@ describe('MandateService', () => {
     record = { ...record!, state: 'issued' };
     await expect(svc.prepare({ ...draft, account: '0x00000000000000000000000000000000000000aa' })).rejects.toThrow(/account/);
     await expect(svc.prepare({ ...draft, scopes: ['withdraw'] })).rejects.toThrow(/scope/);
+  });
+
+  it('F10 step 2: revokes the countersigned mandate once Base no longer holds its agent key, and only then', async () => {
+    const p = await svc.prepare(draft);
+    await svc.sign(p.draftId, assertion(p.challenge));
+    calls = [];
+    expect(await svc.revoke(ACCOUNT, async () => true)).toEqual([]);
+    expect(calls).toEqual([]);
+    expect(await svc.revoke(ACCOUNT, async (agentKey) => agentKey.toLowerCase() !== draft.agentKey)).toEqual([p.draftId]);
+    expect(calls).toEqual([`revoke:outer:${W('b')}`]);
+    expect(await svc.revoke(ACCOUNT, async () => false)).toEqual([]);
   });
 });

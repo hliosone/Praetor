@@ -3,7 +3,7 @@
 import type { Request, Response, NextFunction, Router } from 'express';
 import { z } from 'zod';
 import type { Hex } from 'viem';
-import { checkVendorSignature, type KycService } from './kyc.js';
+import { checkVendorSignature, type KycService, type OwnerKey } from './kyc.js';
 import type { MandateService } from './mandate.js';
 import type { KyaBuilder } from './kya.js';
 import { createTransaction, pollTransaction, readIdentity } from './eudiw.js';
@@ -25,18 +25,22 @@ const vendorResult = z.object({
   selfieHash: bytes32,
 });
 
-export function kycPublicRoutes(r: Router, d: { kyc: KycService; vendorHmac: string }) {
+export function kycPublicRoutes(r: Router, d: { kyc: KycService; vendorHmac: string; onRecoveryMatch?: (account: string, key: OwnerKey) => Promise<void> }) {
   r.post('/kyc/vendor/callback', h(async (req, res) => {
     const raw = (req as unknown as { rawBody?: Buffer }).rawBody ?? Buffer.alloc(0);
     if (!checkVendorSignature(d.vendorHmac, raw, req.header('x-praetor-signature'))) return res.status(401).json({ error: 'unauthorized' });
-    await d.kyc.vendorResult(vendorResult.parse(req.body));
+    await d.kyc.vendorResult(vendorResult.parse(req.body), d.onRecoveryMatch);
     res.status(204).end();
   }));
 }
 
 export type EudiConfig = { backend: string; fetch?: typeof fetch };
 
-export function kycRoutes(r: Router, d: { kyc: KycService; mandate: MandateService; kya: KyaBuilder; eudi?: EudiConfig }) {
+export function kycRoutes(r: Router, d: {
+  kyc: KycService; mandate: MandateService; kya: KyaBuilder; eudi?: EudiConfig;
+  /** The account's agent key as the AgentKeyValidator holds it on Base (the bank reads the chain, not the caller). */
+  agentOf: (account: string) => Promise<{ key: string; revoked: boolean }>;
+}) {
   const f = d.eudi?.fetch ?? fetch;
 
   r.post('/kyc/sessions', h(async (req, res) => {
@@ -77,6 +81,20 @@ export function kycRoutes(r: Router, d: { kyc: KycService; mandate: MandateServi
   r.post('/kya/mandate/prepare', h(async (req, res) => {
     const b = z.object({ userRef, account: address, agentKey: address, scopes: z.array(z.string()).min(1).max(8), mandateHash: bytes32 }).parse(req.body);
     res.json(await d.mandate.prepare({ ...b, agentMeasurement: d.kya.measurementFor(b.account, b.agentKey) }));
+  }));
+
+  // F10 step 6: the bank's own re-KYC for a user who lost every passkey; a match schedules the new key on Base.
+  r.post('/recovery/sessions', h(async (req, res) => {
+    const b = z.object({ userRef, credIdHash: bytes32, x: hex, y: hex }).parse(req.body);
+    res.json(await d.kyc.startRecovery(b.userRef, { credIdHash: b.credIdHash, x: b.x, y: b.y }));
+  }));
+
+  // F10 step 2: after "Stop my agent" (or a rotation) the mandates of agent keys Base no longer holds are revoked.
+  r.post('/kya/mandate/revoke', h(async (req, res) => {
+    const b = z.object({ account: address }).parse(req.body);
+    const onChain = await d.agentOf(b.account);
+    const revoked = await d.mandate.revoke(b.account, async (agentKey) => !onChain.revoked && onChain.key.toLowerCase() === agentKey.toLowerCase());
+    res.json({ revoked });
   }));
 
   r.post('/kya/mandate/sign', h(async (req, res) => {
