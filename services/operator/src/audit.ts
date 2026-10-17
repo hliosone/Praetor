@@ -18,6 +18,10 @@ export interface AuditStore {
    *  store starts over. */
   bindTo(auditLog: string): Promise<void>;
   hasKey(key: string): Promise<boolean>;
+  /** The appended entry with the highest seq. */
+  lastAppended(): Promise<StoredRow | undefined>;
+  /** Drops every entry and cursor. */
+  clear(): Promise<void>;
   put(r: StoredRow): Promise<void>;
   setState(seq: number, state: StoredRow['state']): Promise<void>;
   pending(): Promise<StoredRow[]>;
@@ -32,6 +36,8 @@ export class MemoryAuditStore implements AuditStore {
     this.bound = auditLog.toLowerCase();
   }
   async hasKey(key: string) { return this.rows.some((r) => r.key === key); }
+  async lastAppended() { return this.rows.filter((r) => r.state === 'appended').sort((a, b) => b.entry.seq - a.entry.seq)[0]; }
+  async clear() { this.rows = []; }
   async put(r: StoredRow) { this.rows.push(structuredClone(r)); }
   async setState(seq: number, state: StoredRow['state']) { const r = this.rows.find((x) => x.entry.seq === seq); if (r) r.state = state; }
   async pending() { return this.rows.filter((r) => r.state === 'pending').map((r) => structuredClone(r)); }
@@ -62,6 +68,14 @@ export class AuditWriter {
       await this.store.put(row);
       await this.append(row);
     }
+  }
+
+  /** Drops a store FISCO contradicts (its last appended entry is not on this AuditLog): another log's entries. */
+  async reconcile() {
+    const last = await this.store.lastAppended();
+    if (!last) return;
+    const { seq } = await this.chain.latest();
+    if (last.entry.seq > Number(seq) || (await this.chain.headAt(BigInt(last.entry.seq))) !== last.entry.head) await this.store.clear();
   }
 
   /** Resolves entries left pending by a crash or a failed append: already on FISCO, or appended now. */

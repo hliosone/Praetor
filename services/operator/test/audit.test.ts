@@ -133,3 +133,25 @@ describe('audit store bound to its AuditLog', () => {
     expect(await store.list(1, 10)).toHaveLength(0);
   });
 });
+
+describe('audit store checked against FISCO', () => {
+  it('appended entries FISCO does not have (another AuditLog) are dropped before recording', async () => {
+    const store = new MemoryAuditStore();
+    await new AuditWriter(store, fakeChain().chain).record([ev(1), ev(2)]);
+    const fresh = fakeChain();
+    const w = new AuditWriter(store, fresh.chain);
+    await w.reconcile();
+    expect(await store.list(1, 10)).toHaveLength(0);
+    await w.record([ev(3)]);
+    expect((await store.list(1, 10)).map((r) => r.entry.seq)).toEqual([1]);
+  });
+
+  it('entries FISCO has are kept', async () => {
+    const store = new MemoryAuditStore();
+    const f = fakeChain();
+    const w = new AuditWriter(store, f.chain);
+    await w.record([ev(1), ev(2)]);
+    await w.reconcile();
+    expect(await store.list(1, 10)).toHaveLength(2);
+  });
+});

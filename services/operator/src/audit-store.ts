@@ -18,6 +18,11 @@ export class MySqlAuditStore implements AuditStore {
     await this.r.query("INSERT INTO audit_meta (name, value) VALUES ('auditLog', ?) ON DUPLICATE KEY UPDATE value = VALUES(value)", [want]);
   }
   private async rows(sql: string, p: unknown[]) { return ((await this.r.query(sql, p)) as Row[]).map(row); }
+  async lastAppended() { return (await this.rows("SELECT * FROM audit_entries WHERE state = 'appended' ORDER BY seq DESC LIMIT 1", []))[0]; }
+  async clear() {
+    await this.r.query('DELETE FROM audit_entries');
+    await this.r.query('DELETE FROM audit_cursors');
+  }
   async hasKey(key: string) { return ((await this.r.query('SELECT 1 FROM audit_entries WHERE source_key = ?', [key])) as unknown[]).length > 0; }
   async put(r: StoredRow) {
     await this.r.query('INSERT INTO audit_entries (seq, source_key, account, at_ms, entry, ref_id, state) VALUES (?, ?, ?, ?, ?, ?, ?)',

@@ -62,6 +62,7 @@ export function startOperator(env: Record<string, string | undefined> = process.
       await a.store.bindTo(fisco.auditLog);
       bound = true;
     }
+    await a.writer.reconcile();
     await a.writer.recover();
     const fpub = ctx.consortium.pub as PublicClient;
     const baseHead = await publicClient.getBlockNumber();
