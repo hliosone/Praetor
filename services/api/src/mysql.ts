@@ -4,6 +4,8 @@ import type { ApiStore, Passkey, User } from './store.js';
 import type { ApprovalRow, ApprovalState, ApprovalStore } from './approvals.js';
 import type { Period, ProposalRow, ProposalState, ProposalStore } from './standing-orders.js';
 import { randomUUID } from 'node:crypto';
+import type { Address, Hex } from 'viem';
+import type { MpBinding, MpBindingStore } from './mp-session.js';
 
 type Row = Record<string, unknown>;
 const rows = async (r: SqlRunner, sql: string, p: unknown[] = []) => (await r.query(sql, p)) as Row[];
@@ -71,4 +73,17 @@ export class MySqlProposalStore implements ProposalStore {
     return (await rows(this.r, 'SELECT * FROM standing_order_proposals WHERE account = ? ORDER BY created_at DESC LIMIT 100', [account.toLowerCase()])).map(proposal);
   }
   async update(id: string, state: ProposalState) { await this.r.query('UPDATE standing_order_proposals SET state = ? WHERE id = ?', [state, id]); }
+}
+
+export class MySqlMpBindingStore implements MpBindingStore {
+  constructor(private readonly r: SqlRunner) {}
+  // REPLACE removes the rows that collide on the openid hash or on the account (both unique), then inserts.
+  async put(openidHash: Hex, b: MpBinding) {
+    await this.r.query('REPLACE INTO mp_bindings (openid_hash, account, binding_hash) VALUES (?, ?, ?)', [openidHash.toLowerCase(), b.account.toLowerCase(), b.bindingHash.toLowerCase()]);
+  }
+  async get(openidHash: Hex) {
+    const [x] = await rows(this.r, 'SELECT account, binding_hash FROM mp_bindings WHERE openid_hash = ?', [openidHash.toLowerCase()]);
+    return x ? { account: String(x.account) as Address, bindingHash: String(x.binding_hash) as Hex } : undefined;
+  }
+  async removeAccount(account: Address) { await this.r.query('DELETE FROM mp_bindings WHERE account = ?', [account.toLowerCase()]); }
 }

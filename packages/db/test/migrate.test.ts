@@ -39,6 +39,14 @@ describe('migrator', () => {
     expect(ms[0]!.sql).toMatch(/CREATE TABLE IF NOT EXISTS staff_passkeys/);
   });
 
+  it('ships the api table of mini program links: one per account, keyed by the openid hash, no openid', () => {
+    const m = loadMigrations('api').find((x) => x.name === '0003_mp_bindings');
+    expect(m?.sql).toMatch(/CREATE TABLE IF NOT EXISTS mp_bindings/);
+    expect(m!.sql).toMatch(/openid_hash CHAR\(66\) NOT NULL PRIMARY KEY/);
+    expect(m!.sql).toMatch(/account CHAR\(42\) NOT NULL UNIQUE/);
+    expect(m!.sql.replace(/^\s*--.*$/gm, '')).not.toMatch(/\bopenid\b(?!_hash)/);
+  });
+
   it('ships the bundler migrations', () => {
     const ms = loadMigrations('bundler');
     expect(ms.map((m) => m.name)[0]).toBe('0001_init');
