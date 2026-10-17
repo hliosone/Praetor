@@ -31,7 +31,7 @@ Single source of truth for where the build stands. After a context reset: read `
 - [x] M8 mcp, agent-runner + OpenCode (fake LLM), scheduler, oracle-feeder (gate: e2e F4, F5)
 - [x] M9 api, notifier (gate: e2e F1, F2, F3, F6)
 - [x] M10 standing orders, payout partner, Alipay+/WeChat Pay mocks (gate: e2e F7)
-- [ ] M11 audit writer, anchors, verify, camt.053 (gate: e2e F8, XSD)
+- [x] M11 audit writer, anchors, verify, camt.053 (gate: e2e F8, XSD)
 - [ ] M12 WeCross router + EVM stub, watchdog (gate: integration + e2e F9 with `BRIDGE=wecross`)
 - [ ] M13 web app, Phone3D, i18n, PWA, sandbox, console (gate: Playwright F1 to F9, screenshots, axe)
 - [ ] M14 mini program (gate: logic tests, MANUAL steps)
@@ -57,3 +57,4 @@ Single source of truth for where the build stands. After a context reset: read `
 | M8 | 2026-10-17 12:02 | 2026-10-17 14:40 | 2 h 38 min |
 | M9 | 2026-10-17 14:40 | 2026-10-17 15:37 | 57 min |
 | M10 | 2026-10-17 15:37 | 2026-10-17 16:17 | 40 min |
+| M11 | 2026-10-17 16:17 | 2026-10-17 17:26 | 69 min |
