@@ -90,6 +90,20 @@ describe('sign-userop (mcp only)', () => {
     await call('mcp', 'POST', p, { ...base, entryPoint: '0x0000000000000000000000000000000000000001', userOp: toJson(op()) }).expect(400);
   });
 
+  it('after a rotation, signs with the version whose address is the on-chain agent key mcp names', async () => {
+    const { userOpHash } = await import('@praetor/userop');
+    const r = await call('mcp', 'POST', `/v1/agents/${ACCOUNT}/sign-userop`, { userOp: toJson(op()), chainId: 84532, entryPoint: ENTRY_POINT, agentKey: agentAddr(3) }).expect(200);
+    expect(await recoverAddress({ hash: hashMessage({ raw: userOpHash(op()) }), signature: r.body.signature })).toBe(agentAddr(3));
+  });
+
+  it('refuses an agent key that is none of the account\'s versions, and asking for both or neither', async () => {
+    const p = `/v1/agents/${ACCOUNT}/sign-userop`;
+    const base = { userOp: toJson(op()), chainId: 84532, entryPoint: ENTRY_POINT };
+    await call('mcp', 'POST', p, { ...base, agentKey: '0x0000000000000000000000000000000000000bad' }).expect(409);
+    await call('mcp', 'POST', p, { ...base, agentKey: agentAddr(2), keyVersion: 2 }).expect(400);
+    await call('mcp', 'POST', p, base).expect(400);
+  });
+
   it('rate-limits per account', async () => {
     const p = `/v1/agents/${ACCOUNT}/sign-userop`;
     for (let i = 0; i < 3; i++) await call('mcp', 'POST', p, { userOp: toJson(op({ nonce: BigInt(i) })), chainId: 84532, entryPoint: ENTRY_POINT, keyVersion: 1 }).expect(200);

@@ -12,7 +12,11 @@ export function chainReader(pub: PublicClient, d: Deployment): Ports['reader'] {
   return accountReader(pub, d);
 }
 
-export type SubmitConfig = { bundlerUrl: string; bundlerToken: string; signerUrl: string; signerSecret: string; keyVersion?: number };
+export type SubmitConfig = {
+  bundlerUrl: string; bundlerToken: string; signerUrl: string; signerSecret: string;
+  /** The account's agent key on Base: the signer signs with the version that has this address (F10 rotations). */
+  agentKeyOf(account: Address): Promise<Address>;
+};
 
 /** prepare (bundler) -> sign (agent-signer, mcp is its only sign-userop caller) -> send (bundler). */
 export function submitter(c: SubmitConfig): Ports['submit'] {
@@ -25,7 +29,7 @@ export function submitter(c: SubmitConfig): Ports['submit'] {
   return async (account: Address, calls: Call[]): Promise<Submission> => {
     const p = await bundler('/userop/prepare', { sender: account, callData: encodeExecute(calls), validator: 'agent' });
     const path = `/v1/agents/${account}/sign-userop`;
-    const body = json({ userOp: p.userOp, chainId: 84532, entryPoint: ENTRY_POINT, keyVersion: c.keyVersion ?? 1 });
+    const body = json({ userOp: p.userOp, chainId: 84532, entryPoint: ENTRY_POINT, agentKey: await c.agentKeyOf(account) });
     const r = await fetch(`${c.signerUrl}${path}`, { method: 'POST', body, headers: { 'content-type': 'application/json', ...signCaller('mcp', c.signerSecret, 'POST', path, Buffer.from(body)) } });
     const sig = (await r.json().catch(() => ({}))) as { signature?: Hex; error?: string };
     if (!r.ok || !sig.signature) throw new Error(`agent-signer: ${r.status} ${sig.error ?? ''}`);

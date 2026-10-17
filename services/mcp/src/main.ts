@@ -42,11 +42,12 @@ const bundlerTx = async (to: Address, data: Hex) => {
   const j = (await r.json().catch(() => ({}))) as { txHash?: Hex; success?: boolean };
   return { txHash: j.txHash ?? null, success: r.ok && j.success === true };
 };
+const reader = chainReader(publicClient as never, d);
 const ports: Ports = {
   tokens: { usdc: d.usdc, txau: d.txau, txag: d.txag, desk: d.treasuryDesk },
   explorer: env.EXPLORER_URL,
-  reader: chainReader(publicClient as never, d),
-  submit: submitter({ bundlerUrl: env.BUNDLER_URL, bundlerToken: env.INTERNAL_TOKEN_BUNDLER, signerUrl: env.AGENT_SIGNER_URL, signerSecret: env.SIGNER_HMAC_MCP }),
+  reader,
+  submit: submitter({ bundlerUrl: env.BUNDLER_URL, bundlerToken: env.INTERNAL_TOKEN_BUNDLER, signerUrl: env.AGENT_SIGNER_URL, signerSecret: env.SIGNER_HMAC_MCP, agentKeyOf: async (a) => (await reader.kya(a)).agentKey }),
   approvals: apiApprovals(env.API_URL, env.INTERNAL_TOKEN_API),
   proposals: apiProposals(env.API_URL, env.INTERNAL_TOKEN_API),
   labels: dbLabels(conn.runner),

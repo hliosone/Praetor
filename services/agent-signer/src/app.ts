@@ -39,6 +39,8 @@ class HttpError extends Error {
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
 const bytes32 = z.string().regex(/^0x[0-9a-fA-F]{64}$/);
 const keyVersion = z.coerce.number().int().min(1).max(1000);
+/** Rotations an account can go through before the signer stops looking a key up by its address (F10). */
+const MAX_KEY_VERSIONS = 16;
 
 export function createSignerApp(d: SignerDeps) {
   const now = d.now ?? (() => Math.floor(Date.now() / 1000));
@@ -68,6 +70,10 @@ export function createSignerApp(d: SignerDeps) {
     fn(req, res).catch(next);
   };
   const accountParam = (req: Request) => getAddress(address.parse(req.params.account));
+  const versionOf = async (account: Address, agentKey: Address) => {
+    for (let v = 1; v <= MAX_KEY_VERSIONS; v++) if (isAddressEqual((await keyFor(account, v)).address, agentKey)) return v;
+    throw new HttpError(409, 'no key version of this account has that address');
+  };
 
   app.get('/v1/info', h(async (_req, res) => {
     res.json({ ...(await d.keys.info()), simulator: d.simulator, version: d.version });
@@ -87,7 +93,9 @@ export function createSignerApp(d: SignerDeps) {
 
   app.post('/v1/agents/:account/sign-userop', only('mcp'), h(async (req, res) => {
     const account = accountParam(req);
-    const b = z.object({ userOp: z.unknown(), chainId: z.number().int(), entryPoint: address, keyVersion }).parse(req.body);
+    // mcp names either the key version or the account's on-chain agent key (after a rotation it does not know the version).
+    const b = z.object({ userOp: z.unknown(), chainId: z.number().int(), entryPoint: address, keyVersion: keyVersion.optional(), agentKey: address.optional() })
+      .refine((x) => (x.keyVersion === undefined) !== (x.agentKey === undefined), 'give keyVersion or agentKey').parse(req.body);
     if (b.chainId !== BASE_CHAIN_ID) throw new HttpError(400, 'unexpected chain');
     if (!isAddressEqual(b.entryPoint as Address, ENTRY_POINT)) throw new HttpError(400, 'unexpected entry point');
     const op = fromJson(b.userOp);
@@ -99,11 +107,12 @@ export function createSignerApp(d: SignerDeps) {
       throw new HttpError(400, 'callData is not execute');
     }
     if (calls.some((c) => isAddressEqual(c.to, account))) throw new HttpError(400, 'execute targets the account itself');
+    const version = b.keyVersion ?? (await versionOf(account, b.agentKey as Address));
     const t = now();
     const recent = (signed.get(account) ?? []).filter((x) => t - x < 3600);
     if (recent.length >= limit) throw new HttpError(429, 'rate limit');
     signed.set(account, [...recent, t]);
-    const agent = await keyFor(account, b.keyVersion);
+    const agent = await keyFor(account, version);
     res.json({ signature: await agent.signMessage({ message: { raw: userOpHash(op, b.chainId) } }) });
   }));
 
