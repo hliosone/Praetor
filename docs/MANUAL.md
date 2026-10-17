@@ -14,3 +14,12 @@ Steps are added during Phase B, each time something needs a human (phone Face ID
 | **You see** | Balances on https://sepolia.basescan.org for each funded address. |
 | **Claude checks** | `.env` values present (never printed), balances read on Base Sepolia, then starts Phase B. |
 | **Fallback** | Unfunded live addresses: Phase B runs everything on the fork; M16 (live run) waits in BLOCKERS.md. |
+
+## 1. KYC with a real EU Digital Identity Wallet (M6)
+
+| | |
+|---|---|
+| **You do** | Install a wallet holding a test PID (EUDI reference wallet with the test issuer, or Procivis One trial). In the web app (or with `curl` against bank-service through Claude), start KYC with the method "EU Digital Identity Wallet" and scan the QR code with the wallet; approve sharing the birthdate and nationality / issuing country. |
+| **You see** | The wallet asks for only the birthdate and the country fields. The Praetor page moves to "verified", then to suitability. |
+| **Claude checks** | `GET /kyc/sessions/:id` on bank-service turns `verified` with `kycLevel: 1` and the right jurisdiction; `docker compose logs bank` contains no birthdate; after suitability, PersonKYC evidence exists on FISCO (`weid-client getEvidence`). Automated stand-in: `services/bank/test/eudiw.test.ts` (SD-JWT fixtures) and the vendor-path integration test. |
+| **Fallback** | The public verifier backend (`EUDI_VERIFIER_BACKEND`) is down or refuses the test issuer: use the Demo KYC provider path (same PersonKYC, `kycLevel: 2`) and show the EUDI request built by `buildPresentationRequest` in the unit test. |
