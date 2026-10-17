@@ -95,7 +95,7 @@ For each of `agent-signer` and `soter-attester`:
 3. Read the CVM's app id and compose hash from the dashboard (or the service's `/v1/info`), and check it is a production, non-debug CVM.
 4. Point the server's `AGENT_SIGNER_URL` and `SOTER_ATTESTER_URL` at the CVMs (TLS inside the CVM is an open item of the checklist, item 6).
 
-Keys are derived inside the CVM (`getKey`), so the production agent keys differ from the simulator's: every existing account needs a new KYA and `SET_AGENT_KEY` for a key of the new TEE. The F10 rotation route (`POST /api/agent/rotate`) looks for the key Base holds among the TEE's key versions and finds none after a TEE change, so existing accounts take the onboarding route instead (`POST /api/onboarding/agent/create`, then the mandate, the KYA and `SET_AGENT_KEY`); accounts created after the switch need nothing.
+Keys are derived inside the CVM (`getKey`), so the production agent keys differ from the simulator's: every existing account needs a new KYA and `SET_AGENT_KEY` for a key of the new TEE. The F10 rotation route (`POST /api/agent/rotate`) looks for the key Base holds among the TEE's key versions and finds none after a TEE change, so existing accounts would take the onboarding route instead (`POST /api/onboarding/agent/create`, then the mandate, the KYA and `SET_AGENT_KEY`). This path is read from the code and has **not been run** (neither the bank's KYA over an account that already has one from another TEE, nor a web app screen for it); check it in Phase C. Accounts created after the switch need nothing.
 
 ## 8. Register the compose hashes with the bank
 

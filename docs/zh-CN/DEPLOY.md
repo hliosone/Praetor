@@ -97,7 +97,7 @@ make deploy-fisco ENV=live               # 写入 infra/deployments/fisco-live.j
 3. 从控制台（或服务的 `/v1/info`）读取 CVM 的 app id 和 compose 哈希，并确认它是生产（非调试）CVM。
 4. 将服务器上的 `AGENT_SIGNER_URL` 和 `SOTER_ATTESTER_URL` 指向这两台 CVM（CVM 内部的 TLS 是检查清单的未完成项，第 6 项）。
 
-密钥在 CVM 内部派生（`getKey`），因此生产环境的智能体密钥与模拟器派生的不同：每个现有账户都需要为新 TEE 中的密钥重新获得 KYA 并执行 `SET_AGENT_KEY`。F10 的轮换接口（`POST /api/agent/rotate`）会在 TEE 的各个密钥版本中查找 Base 上持有的那把密钥，更换 TEE 之后将找不到，因此现有账户改走开户接口（`POST /api/onboarding/agent/create`，然后是授权、KYA 和 `SET_AGENT_KEY`）；切换之后创建的账户无需任何操作。
+密钥在 CVM 内部派生（`getKey`），因此生产环境的智能体密钥与模拟器派生的不同：每个现有账户都需要为新 TEE 中的密钥重新获得 KYA 并执行 `SET_AGENT_KEY`。F10 的轮换接口（`POST /api/agent/rotate`）会在 TEE 的各个密钥版本中查找 Base 上持有的那把密钥，更换 TEE 之后将找不到，因此现有账户需改走开户接口（`POST /api/onboarding/agent/create`，然后是授权、KYA 和 `SET_AGENT_KEY`）。这条路径是从代码中推断出来的，**尚未运行过**（既未验证银行能否为已持有另一 TEE 所签 KYA 的账户签发新的 KYA，也没有对应的 Web 应用界面）；需在 Phase C 中验证。切换之后创建的账户无需任何操作。
 
 ## 8. 向银行登记 compose 哈希
 

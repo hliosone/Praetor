@@ -401,7 +401,7 @@ The tiers in one line each: **T0** never (hook refuses); **T1** the agent alone;
 | Base and FISCO contracts, protocol, bundler, member services, identity, TEEs on the simulator, agent with MCP, api, standing orders and payouts, audit and camt.053 | Built and tested; gates M1 to M11 passed |
 | WeCross transport | Built (M12); its gate (F9 with `BRIDGE=wecross`) is pending |
 | Web app with the consortium console, payees, devices, recovery page, web push, interim sandbox | Built (M13); the Playwright journey F1 to F10 and the sandbox spec are written; gate pending |
-| WeChat mini program | Built (M14, gate passed: logic tests and MANUAL steps); phones in Phase C |
+| WeChat mini program | Built (M14, gate passed: logic tests, MANUAL steps written); the phone steps run in Phase C |
 | Agent key rotation, devices and owner recovery (F10) | Built; `test/e2e/F10-rotation-recovery.test.ts` and the 48 h `test/warp/F10-recovery-execute.test.ts` are written; the M15 gate (F1 to F10 on the fork) is pending |
 | Guomi (SM) profile smoke | Run and recorded in [SMOKE.md](SMOKE.md): 11 self-test and 37 on-chain checks pass; WeIdentity scenario 39 of 43 (BLOCKERS B3) |
 | Base Sepolia deployment and live mode | Contracts deployed on Base Sepolia and the consortium on FISCO (D74, D75); the live evidence run is not collected yet (M16 gate pending) |

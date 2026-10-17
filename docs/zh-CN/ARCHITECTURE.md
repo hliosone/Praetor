@@ -405,7 +405,7 @@ spec 00 中独立的沙盒部署（域名 `Praetor-sandbox`，SANDBOX 密钥集�
 | Base 与 FISCO 合约、协议、bundler、成员服务、身份、模拟器上的 TEE、带 MCP 的智能体、api、定期付款与出款、审计与 camt.053 | 已构建并测试；M1 至 M11 关卡已通过 |
 | WeCross 传输 | 已构建（M12）；其关卡（`BRIDGE=wecross` 下的 F9）尚待完成 |
 | 带联盟控制台、收款方、设备、恢复页面、Web 推送、临时沙盒的 Web 应用 | 已构建（M13）；Playwright 旅程 F1 至 F10 和沙盒用例已编写；关卡尚待完成 |
-| 微信小程序 | 已构建（M14，关卡已通过：逻辑测试与 MANUAL 步骤）；手机测试在 Phase C |
+| 微信小程序 | 已构建（M14，关卡已通过：逻辑测试，MANUAL 步骤已编写）；手机上的步骤在 Phase C 中执行 |
 | 智能体密钥轮换、设备与所有者恢复（F10） | 已构建；`test/e2e/F10-rotation-recovery.test.ts` 与 48 小时的 `test/warp/F10-recovery-execute.test.ts` 已编写；M15 关卡（分叉链上的 F1 至 F10）尚待完成 |
 | 国密（SM）配置冒烟测试 | 已运行并记录在 [SMOKE.md](../SMOKE.md) 中：11 项自检和 37 项链上检查通过；WeIdentity 场景 43 项中 39 项通过（BLOCKERS B3） |
 | Base Sepolia 部署与实链模式 | 合约已部署到 Base Sepolia，联盟已部署到 FISCO（D74、D75）；实链证据尚未采集（M16 关卡尚待完成） |
