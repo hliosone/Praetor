@@ -29,6 +29,10 @@ export const WALLET_ROLES = [
   'REGULATOR_BASE_SIGNER_KEY',
   'OPERATOR_FISCO_KEY',
   'OPERATOR_BASE_SIGNER_KEY',
+  // Fixed instead of tool-generated: WeIdentity Build-Tools and the WeCross stub otherwise make a new
+  // FISCO key per run, and the committee must open each one in the deploy whitelist (Q32, Q40).
+  'WEID_ADMIN_KEY',
+  'WECROSS_FISCO_KEY',
 ] as const;
 
 const hex32 = () => randomBytes(32).toString('hex');

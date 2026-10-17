@@ -1,5 +1,8 @@
 # 03 · Contracts on Base Sepolia
 
+> **Changed in Phase B (2026-10-17, DECISIONS D8, D9, D10; QUESTIONS Q14 to Q17).** V1 showed that the deployed Safe7579 skips the hook when the uninstalled module is the hook itself. Therefore: PasskeyValidator accepts only `execute` and the launchpad's `setupSafe` (`0xd9ed0e8f`), never raw `installModule`/`uninstallModule`. A module change is a **single** `execute(account, 0, installModule|uninstallModule(...))`; MandateHook allows that one self-call shape (exception to "target == account is HIDDEN_CALL") only with a live `moduleApprovals[account][callHash(account, 84532, account, 0, innerData)]`, consumes it in the outer preCheck and hands it to the inner module preCheck through transient storage (setting `uninstalling` for a hook removal); never inside a batch. AgentKeyValidator rejects any `execute` whose call or batch entry targets the account itself. USDC's ERC-1271 overloads of `permit`, `transferWithAuthorization`, `receiveWithAuthorization` are SELECTOR_NOT_ALLOWED. The text below is read with these changes.
+
+
 Foundry project `contracts/base`, solc **0.8.28**, `evm_version = cancun`, optimizer on (200 runs), `via_ir` only where needed. Our contracts are SPDX "UNLICENSED" (repo is all-rights-reserved), except vendored MIT/Apache files, which keep their header. Libraries: forge-std, Coinbase **webauthn-sol** (MIT, pinned `619f20a` as in Alex's repo, with its FreshCryptoLib/solady deps), OpenZeppelin (MIT) for ECDSA/ERC20 helpers. **No GPL code**: own ERC-7579 interfaces (`IERC7579Module`, `IERC7579Hook`, `IERC7579Validator`, `IERC7579Executor`, account subset), own ERC-4337 v0.7 structs, own ERC-3643 implementation, own paymaster.
 
 ## Deployment (`script/Deploy.s.sol` → `infra/deployments/<env>.json`)

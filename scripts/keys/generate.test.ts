@@ -21,6 +21,14 @@ describe('key plan', () => {
       expect(names).toContain(shared);
     expect(new Set(names).size).toBe(names.length);
   });
+
+  it('has fixed FISCO keys for the WeIdentity admin and the WeCross stub in every set (Q32, Q40)', () => {
+    const names = plannedNames();
+    for (const set of KEY_SETS) {
+      expect(names).toContain(`${set}_WEID_ADMIN_KEY`);
+      expect(names).toContain(`${set}_WECROSS_FISCO_KEY`);
+    }
+  });
 });
 
 describe('fillEnv', () => {

@@ -1,5 +1,8 @@
 # 00 · Decisions
 
+> **Changed in Phase B (2026-10-17, DECISIONS D8, D9).** Init batch order is `[setRegistry(0,[],0), installModule(2, StandingOrders), installModule(4, MandateHook)]` (the hook installed first refuses the executor install, V1). PasskeyValidator accepts only `execute` and `setupSafe`; module changes go through a single `execute(self.installModule/uninstallModule)` gated by a MODULE_CHANGE approval (spec 03 note).
+
+
 Every line here is decided. Claude Code does not reopen them; if one turns out impossible, it applies the stated fallback, logs it in `docs/DECISIONS.md`, and continues.
 
 ## Scope: everything, nothing mocked except what is listed

@@ -4,7 +4,7 @@ Single source of truth for where the build stands. After a context reset: read `
 
 ## Now
 
-**Phase 0 is done. Waiting for the human's "go"** (answers in `docs/QUESTIONS.md` or in chat, empty `.env` values filled, LIVE addresses funded). After "go": step 1 of Phase B below.
+**Phase B in progress** (go received 2026-10-17 07:02 UTC, no answers: all QUESTIONS defaults apply, D3). No address funded and no human `.env` value: everything runs on the fork (BLOCKERS B1, B2). Resume at the first unchecked item below.
 
 ## Phase 0 (2026-10-17 03:30 to 04:30 UTC)
 
@@ -19,7 +19,7 @@ Single source of truth for where the build stands. After a context reset: read `
 
 ## Phase B
 
-- [ ] 1. Read the answers, check them against the spec, record them in `docs/DECISIONS.md`, update `spec/` only where an answer changes a decision (note at the top of the changed file; expected: spec 03 for Q14/Q16, spec 00 and 06 for Q15, spec 05 for Q34), update `CLAUDE.md` if needed, commit.
+- [x] 1. Read the answers, check them against the spec, record them in `docs/DECISIONS.md`, update `spec/` only where an answer changes a decision (note at the top of the changed file; expected: spec 03 for Q14/Q16, spec 00 and 06 for Q15, spec 05 for Q34), update `CLAUDE.md` if needed, commit.
 - [ ] M0 Monorepo scaffold, Makefile, compose skeleton (anvil fork with `--network optimism`, MySQL, Caddy), CI scripts, lint, gitleaks, docs skeleton check, attribution check (gate: `make up`, `make test` green; a test commit with a co-author trailer is rejected)
 - [ ] M1 `packages/protocol` (gate: vectors green on TS and Solidity; interface frozen)
 - [ ] M2 Base contracts (gate: forge unit/fuzz >= 10k/invariants, hook coverage >= 90%, Slither explained)
@@ -45,3 +45,4 @@ Single source of truth for where the build stands. After a context reset: read `
 | Step | Start (UTC) | End (UTC) | Duration |
 |---|---|---|---|
 | Phase 0 | 2026-10-17 03:30 | 2026-10-17 04:30 | about 1 h |
+| Phase B step 1 | 2026-10-17 07:02 | 2026-10-17 07:10 | 8 min |

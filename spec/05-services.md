@@ -1,5 +1,8 @@
 # 05 · Services
 
+> **Changed in Phase B (2026-10-17, DECISIONS D12, D15).** OpenCode tool lockdown: `"permission": {"*": "ask", "praetor_*": "allow"}` with agent-runner rejecting every permission request at once (the free tier answers 403 to `tools: {"*": false}`, V6); the per-account directory holds only its `opencode.json`. The FISCO status function is `AgentStatus.openStatus` (spec 04), not `proposeStatus`.
+
+
 All services: TypeScript on Node 22, pnpm workspace package under `services/<name>`, Express (reuse from BSA Sentry), `zod` for every request body, `pino` logs (PII redaction list applied globally), `vitest` tests, one Dockerfile per service, config **only** from env (see 11). Every service exposes `GET /health` (checks its dependencies) and `GET /version`. Internal services listen only on the Docker network; Caddy is the only public entry.
 
 Shared packages:

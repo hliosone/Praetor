@@ -1,5 +1,8 @@
 # 06 · Flows, end to end
 
+> **Changed in Phase B (2026-10-17, DECISIONS D9).** F1 step 4 init batch order: `[setRegistry(0,[],0), installModule(2, StandingOrders), installModule(4, MandateHook, GLOBAL)]`.
+
+
 Each flow is an e2e test in `test/e2e/F<n>-*.test.ts`, run against any `BASE_URL` (local stack or deployed server), with `CHAIN_MODE=fork|live`. Steps that need a human (Face ID on a phone, WeChat DevTools scan) have an automated stand-in in CI (software P-256 key; SOTER fixture replayed through a fake Tencent endpoint that only exists when `SOTER_FAKE_TENCENT=1`, refused by the prod config) and a manual check in `docs/MANUAL.md`.
 
 Legend: **W** = web app, **MP** = mini program, **API** = api service, **B** = bank-service, **R** = regulator-service, **O** = operator-service, **H** = MandateHook, **F:** = FISCO write, **B:** = Base write.

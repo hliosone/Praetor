@@ -69,7 +69,7 @@ Linux (Ubuntu 24.04), 16 CPUs, 30 GiB RAM, about 240 GB free. Docker 29.9 + Comp
 
 ## 7. Key sets
 
-`.env` holds three sets of every wallet key, `LOCAL_*` (anvil fork), `LIVE_*` (Base Sepolia, funded by the human), `SANDBOX_*` (judges' sandbox deployment), plus shared secrets (session, HMACs, VAPID, Alipay+ test RSA keys, EUDI verifier cert, MySQL passwords). Services read the unprefixed name first, then the active set's prefix (D1). EIP-712 domain names: `Praetor` (live), `Praetor-local` (fork), `Praetor-sandbox`, `Praetor-test` (unit tests). Anvil default keys only in pure unit tests; fork tests use `keccak256(label)` keys (V1 T8).
+`.env` holds three sets of every wallet key, `LOCAL_*` (anvil fork), `LIVE_*` (Base Sepolia, funded by the human), `SANDBOX_*` (judges' sandbox deployment), plus `*_WEID_ADMIN_KEY` and `*_WECROSS_FISCO_KEY` (fixed FISCO keys for WeIdentity Build-Tools and the WeCross stub, D14) and shared secrets (session, HMACs, VAPID, Alipay+ test RSA keys, EUDI verifier cert, MySQL passwords). Services read the unprefixed name first, then the active set's prefix (D1). EIP-712 domain names: `Praetor` (live), `Praetor-local` (fork), `Praetor-sandbox`, `Praetor-test` (unit tests). Anvil default keys only in pure unit tests; fork tests use `keccak256(label)` keys (V1 T8).
 
 ## 8. Proven facts and traps from Phase 0 (details in `spikes/V*/RESULT.md`)
 
