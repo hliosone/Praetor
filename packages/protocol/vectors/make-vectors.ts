@@ -128,6 +128,9 @@ export async function buildVectors(): Promise<Record<string, unknown>> {
     { amount: 1n, price8: 1n, decimals: 18 },
     { amount: 2n ** 128n, price8: 100_000_000n, decimals: 6 },
     { amount: 2n ** 128n + 1n, price8: 100_000_000n, decimals: 6 },
+    { amount: 1n, price8: 2n ** 128n, decimals: 6 },
+    { amount: 1n, price8: 1n, decimals: 37 },
+    { amount: 2n ** 128n, price8: 2n ** 128n - 1n, decimals: 36 },
   ].map((c) => {
     const v = valueUsd6(c.amount, c.price8, c.decimals);
     return { ...c, valueUsd6: v, refused: v === null };

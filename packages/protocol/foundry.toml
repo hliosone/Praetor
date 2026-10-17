@@ -1,0 +1,27 @@
+# Solidity twin of the protocol, tested against the same golden vectors as the TS side.
+[profile.default]
+src = "sol"
+test = "test-sol"
+out = "out"
+cache_path = "cache"
+libs = ["../../contracts/lib"]
+solc_version = "0.8.28"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+fs_permissions = [{ access = "read", path = "./vectors" }]
+remappings = [
+  "forge-std/=../../contracts/lib/forge-std/src/",
+  "webauthn-sol/=../../contracts/lib/webauthn-sol/src/",
+  "FreshCryptoLib/=../../contracts/lib/webauthn-sol/lib/FreshCryptoLib/solidity/src/",
+  "openzeppelin-contracts/=../../contracts/lib/webauthn-sol/lib/openzeppelin-contracts/",
+  "solady/=../../contracts/lib/webauthn-sol/lib/solady/src/",
+]
+
+# FISCO contracts use the same library compiled for paris (spec 00).
+[profile.paris]
+evm_version = "paris"
+test = "test-none"
+
+[lint]
+lint_on_build = false

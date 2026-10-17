@@ -24,9 +24,10 @@ export const merchantRef = (merchantId: string): Hex => k(merchantId);
 export const merchantKey = (partner: Address, ref: Hex): Hex =>
   keccak256(encodeAbiParameters([{ type: 'address' }, { type: 'bytes32' }], [partner, ref]));
 
-// USD value with 6 decimals; null when the amount is above 2^128 (the hook refuses INVALID_AMOUNT first).
+// USD value with 6 decimals; null (refused, never an overflow) when the amount is above 2^128, the price at or above 2^128 (so the product stays below 2^256), or
+// the decimals above 36 (the hook refuses INVALID_AMOUNT first, I12).
 export function valueUsd6(amount: bigint, price8: bigint, decimals: number): bigint | null {
-  if (amount > MAX_AMOUNT || amount < 0n || price8 < 0n) return null;
+  if (amount > MAX_AMOUNT || amount < 0n || price8 >= MAX_AMOUNT || price8 < 0n || decimals > 36 || decimals < 0) return null;
   return (amount * price8) / 10n ** BigInt(decimals + 2);
 }
 

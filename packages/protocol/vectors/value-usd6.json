@@ -40,5 +40,26 @@
     "decimals": 6,
     "valueUsd6": null,
     "refused": true
+  },
+  {
+    "amount": "1",
+    "price8": "340282366920938463463374607431768211456",
+    "decimals": 6,
+    "valueUsd6": null,
+    "refused": true
+  },
+  {
+    "amount": "1",
+    "price8": "1",
+    "decimals": 37,
+    "valueUsd6": null,
+    "refused": true
+  },
+  {
+    "amount": "340282366920938463463374607431768211456",
+    "price8": "340282366920938463463374607431768211455",
+    "decimals": 36,
+    "valueUsd6": "1157920892373161954235709850086879078529",
+    "refused": false
   }
 ]

@@ -55,6 +55,12 @@ describe('valueUsd6', () => {
     expect(valueUsd6(2n ** 128n, 100_000_000n, 6)).toBe(2n ** 128n);
     expect(valueUsd6(2n ** 128n + 1n, 100_000_000n, 6)).toBeNull();
   });
+
+  it('refuses a price at or above 2^128 or more than 36 decimals (no overflow path, I12)', () => {
+    expect(valueUsd6(1n, 2n ** 128n, 6)).toBeNull();
+    expect(valueUsd6(1n, 1n, 37)).toBeNull();
+    expect(valueUsd6(2n ** 128n, 2n ** 128n - 1n, 36)).toBe((2n ** 128n * (2n ** 128n - 1n)) / 10n ** 38n);
+  });
 });
 
 describe('EIP-712 digest', () => {

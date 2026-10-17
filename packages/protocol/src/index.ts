@@ -7,3 +7,4 @@ export * from './ownerAction.js';
 export * from './webauthn.js';
 export * from './auth.js';
 export * from './audit.js';
+export * from './events.js';

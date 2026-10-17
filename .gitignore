@@ -18,6 +18,8 @@ coverage/
 contracts/*/out/
 contracts/*/cache/
 contracts/*/broadcast/
+packages/protocol/out/
+packages/protocol/cache/
 spikes/**/out/
 spikes/**/cache/
 spikes/**/broadcast/

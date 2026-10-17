@@ -6,7 +6,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run && forge test --root . -q && FOUNDRY_PROFILE=paris forge build --root . -q",
     "typecheck": "tsc -p tsconfig.json",
     "vectors": "tsx vectors/make-vectors.ts"
   },
