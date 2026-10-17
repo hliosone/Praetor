@@ -79,6 +79,15 @@ describe('mini program sessions (spec 05)', () => {
     expect((await s.login('new')).account).toBe(ACCOUNT);
   });
 
+  it('a binding Base drops without the api (recovery executed, an unlink sent elsewhere) ends an open session at its next request', async () => {
+    const { s, bindings, setOnchain } = setup();
+    await s.linked(oh('openid-of-lin'), ACCOUNT, BINDING);
+    const r = await s.login('lin');
+    setOnchain(ZERO);
+    expect(await s.current(r.token)).toBeNull();
+    expect(await bindings.get(oh('openid-of-lin'))).toBeUndefined();
+  });
+
   it('unlinked(account) ends its sessions at once', async () => {
     const { s } = setup();
     await s.linked(oh('openid-of-lin'), ACCOUNT, BINDING);
