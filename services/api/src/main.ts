@@ -2,13 +2,14 @@
 import express from 'express';
 import pino from 'pino';
 import { z } from 'zod';
-import type { Address, Hex } from 'viem';
-import { MandateHookAbi, baseClients, baseNow, loadDeployments } from '@praetor/chain';
+import { parseAbiItem, type Address, type Hex } from 'viem';
+import { MandateHookAbi, StandingOrdersAbi, baseClients, baseNow, loadDeployments } from '@praetor/chain';
 import { connect, loadMigrations, migrate } from '@praetor/db';
 import { prepareAccount } from '@praetor/userop';
 import { createApiApp } from './app.js';
 import { clients } from './clients.js';
-import { MySqlApiStore, MySqlApprovalStore } from './mysql.js';
+import { MySqlApiStore, MySqlApprovalStore, MySqlProposalStore } from './mysql.js';
+import { StandingOrders, type Directory } from './standing-orders.js';
 import { Onboarding } from './onboarding.js';
 import { OwnerActions } from './owner-actions.js';
 import { Approvals } from './approvals.js';
@@ -35,6 +36,7 @@ const env = z.object({
   INTERNAL_TOKEN_AGENT: z.string().min(32),
   MCP_URL: z.string().url().default('http://mcp:3080'),
   NOTIFIER_URL: z.string().url().default('http://notifier:3210'),
+  PAYOUT_PARTNER_URL: z.string().url().default('http://payout-partner:3310'),
   INTERNAL_TOKEN_API: z.string().min(32),
   PORT: z.coerce.number().int().default(3200),
 }).parse(process.env);
@@ -76,11 +78,12 @@ const onboarding = new Onboarding({
   },
   now, c,
 });
+const notify = async (n: { account: Address; kind: string; text: string; link?: string }) => {
+  await fetch(`${env.NOTIFIER_URL}/notify`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${env.INTERNAL_TOKEN_API}` }, body: JSON.stringify(n), signal: AbortSignal.timeout(5000) });
+};
 const approvals = new Approvals({
   publicUrl: env.PUBLIC_URL,
-  notify: async (n) => {
-    await fetch(`${env.NOTIFIER_URL}/notify`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${env.INTERNAL_TOKEN_API}` }, body: JSON.stringify(n), signal: AbortSignal.timeout(5000) });
-  },
+  notify,
   store: new MySqlApprovalStore(conn.runner), domain: { name: d.domainName, hook: d.mandateHook }, now, credIdHashOf, bundler: c.bundler, attester: c.attester,
   resubmit: async (account, calls) => {
     const r = await fetch(`${env.MCP_URL}/internal/resubmit`, {
@@ -92,12 +95,29 @@ const approvals = new Approvals({
   },
 });
 const link = new WechatLink({ ownerActions, publicUrl: env.PUBLIC_URL, attester: c.attester });
+const ORDER_SET = parseAbiItem('event StandingOrderSet(address indexed account, uint32 indexed id, bytes32 orderHash)');
+const standingOrders = new StandingOrders({
+  now, ownerActions, standingOrders: d.standingOrders, proposals: new MySqlProposalStore(conn.runner), bundler: c.bundler, notify,
+  orders: async (account) => {
+    const logs = await pub.getLogs({ address: d.standingOrders, event: ORDER_SET, args: { account }, fromBlock: BigInt(d.deployBlock), toBlock: 'latest' });
+    const ids = [...new Set(logs.map((l) => Number(l.args.id)))];
+    return Promise.all(ids.map(async (id) => {
+      const [payee, amount, period, , nextDue, rail, merchantRef, active] = await pub.readContract({ address: d.standingOrders, abi: StandingOrdersAbi, functionName: 'orders', args: [account, id] });
+      return { id, payee, amount, period: Number(period), nextDue: BigInt(nextDue), rail: Number(rail), merchantRef, active };
+    }));
+  },
+  directory: async () => {
+    const r = await fetch(`${env.PAYOUT_PARTNER_URL}/merchants`, { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) throw new Error(`payout partner: ${r.status}`);
+    return r.json() as Promise<Directory>;
+  },
+});
 
 const app = createApiApp({
   store, sessionSecret: env.SESSION_SECRET, rpId: env.PUBLIC_HOST, origin: env.PUBLIC_URL,
   accountFor: async (p, salt) => ({ address: (await prepareAccount(pub as never, accountModules(p), salt)).address }),
   extend: (r, h, session) => apiRoutes(r, h, session, {
-    onboarding, ownerActions, approvals, link, bank: c.bank, runner: c.runner,
+    onboarding, ownerActions, approvals, link, standingOrders, bank: c.bank, runner: c.runner,
     agentKeyOf: async (account) => (await pub.readContract({ address: d.mandateHook, abi: MandateHookAbi, functionName: 'kyaOf', args: [account] }))[0] as Address,
   }),
   mount: (a, h) => {
@@ -106,7 +126,7 @@ const app = createApiApp({
     a.use('/mp', mp);
     const internal = express.Router();
     internal.use(express.json());
-    internalRoutes(internal, h, env.INTERNAL_TOKEN_API, approvals);
+    internalRoutes(internal, h, env.INTERNAL_TOKEN_API, approvals, standingOrders);
     a.use('/internal', internal);
   },
 });

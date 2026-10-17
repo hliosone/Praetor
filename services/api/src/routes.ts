@@ -9,6 +9,7 @@ import type { Onboarding } from './onboarding.js';
 import type { OwnerActions } from './owner-actions.js';
 import type { Approvals } from './approvals.js';
 import type { WechatLink } from './wechat-link.js';
+import type { StandingOrders } from './standing-orders.js';
 import type { Clients } from './clients.js';
 import { HttpError, type handler } from './app.js';
 
@@ -35,6 +36,7 @@ export type RouteModules = {
   ownerActions: OwnerActions;
   approvals: Approvals;
   link: WechatLink;
+  standingOrders: StandingOrders;
   bank: Pick<Clients['bank'], 'policyCheck'>;
   runner: Pick<Clients['runner'], 'chat'>;
   agentKeyOf(account: Address): Promise<Address>;
@@ -55,7 +57,7 @@ export function apiRoutes(r: Router, h: typeof handler, session: express.Request
     send(res, await m.onboarding.mandateSign(acct(res), b as never));
   }));
 
-  // Owner actions the web app prepares for the owner to sign (policy goes through /policy/propose).
+  // Owner actions the web app prepares for the owner to sign (policy and new standing orders have their own routes).
   r.post('/owner-actions/prepare', session, h(async (req, res) => {
     const b = z.discriminatedUnion('kind', [
       z.object({ kind: z.literal(K.SET_AGENT_KEY), validUntil: z.number().int() }),
@@ -63,11 +65,13 @@ export function apiRoutes(r: Router, h: typeof handler, session: express.Request
       z.object({ kind: z.literal(K.PAUSE_AGENT) }),
       z.object({ kind: z.literal(K.RESUME_AGENT) }),
       z.object({ kind: z.literal(K.REMOVE_PAYEE), payee: address }),
+      z.object({ kind: z.literal(K.CANCEL_STANDING_ORDER), id: z.number().int().min(1) }),
     ]).parse(req.body);
     const account = acct(res);
     const args = b.kind === K.SET_AGENT_KEY ? { kind: b.kind, account, agentKey: await m.agentKeyOf(account), validUntil: b.validUntil }
       : b.kind === K.REVOKE_AGENT_KEY ? { kind: b.kind, account, agentKey: await m.agentKeyOf(account) }
       : b.kind === K.REMOVE_PAYEE ? { kind: b.kind, account, payee: b.payee }
+      : b.kind === K.CANCEL_STANDING_ORDER ? { kind: b.kind, account, id: b.id }
       : { kind: b.kind, account };
     send(res, await m.ownerActions.prepare(account, args as never));
   }));
@@ -100,6 +104,21 @@ export function apiRoutes(r: Router, h: typeof handler, session: express.Request
     send(res, { state: 'rejected' });
   }));
 
+  const period = z.enum(['weekly', 'monthly']);
+  r.get('/standing-orders', session, h(async (_req, res) => send(res, await m.standingOrders.list(acct(res)))));
+  r.post('/standing-orders/propose', session, h(async (req, res) => {
+    const b = z.union([
+      z.object({ proposalId: z.string().uuid(), firstDue: big.optional() }).strict(),
+      z.object({ payee: address.optional(), merchant: z.string().max(64).optional(), amount: big, period, firstDue: big.optional() }).strict(),
+    ]).parse(req.body);
+    send(res, await m.standingOrders.propose(acct(res), b));
+  }));
+  r.post('/standing-orders/proposals/:id/dismiss', session, h(async (req, res) => {
+    await m.standingOrders.dismiss(acct(res), z.string().uuid().parse(req.params.id));
+    send(res, { state: 'dismissed' });
+  }));
+  r.post('/standing-orders/:id/trigger', session, h(async (req, res) => send(res, await m.standingOrders.trigger(acct(res), z.coerce.number().int().min(1).max(2 ** 32 - 1).parse(req.params.id)))));
+
   r.post('/wechat/link/start', session, h(async (_req, res) => send(res, await m.link.start(acct(res)))));
   r.get('/wechat/link/:id', session, h(async (req, res) => send(res, await m.link.status(acct(res), String(req.params.id)))));
   r.post('/wechat/link/:id/confirm', session, h(async (req, res) => send(res, await m.link.confirm(acct(res), String(req.params.id), z.object({ assertion }).parse(req.body).assertion as never))));
@@ -120,8 +139,8 @@ export function mpRoutes(r: Router, h: typeof handler, link: WechatLink) {
   r.post('/link/:id/soter', express.json(), h(async (req, res) => send(res, await link.soter(String(req.params.id), soter.parse(req.body)))));
 }
 
-/** Internal routes for mcp (INTERNAL_TOKEN_API): approval requests opened by the agent's tools. */
-export function internalRoutes(r: Router, h: typeof handler, token: string, approvals: Approvals) {
+/** Internal routes for mcp (INTERNAL_TOKEN_API): approval requests and standing-order proposals from the agent's tools. */
+export function internalRoutes(r: Router, h: typeof handler, token: string, approvals: Approvals, standingOrders: StandingOrders) {
   const want = Buffer.from(`Bearer ${token}`);
   r.use((req: Request, res: Response, next: NextFunction) => {
     const got = Buffer.from(req.header('authorization') ?? '');
@@ -137,6 +156,11 @@ export function internalRoutes(r: Router, h: typeof handler, token: string, appr
     const a = await approvals.get(address.parse(req.query.account), String(req.params.id));
     if (!a) return res.status(404).json({ error: 'unknown' });
     send(res, { state: a.state, registerTx: a.registerTx, executeTx: a.executeTx });
+  }));
+  // The agent's propose_standing_order: an owner request only (F7 step 1).
+  r.post('/standing-order-proposals', h(async (req, res) => {
+    const b = z.object({ account: address, payee: address.optional(), merchant: z.string().max(64).optional(), amount: big, period: z.enum(['weekly', 'monthly']), summary: z.string().max(280) }).parse(req.body);
+    send(res, await standingOrders.request(b.account, b));
   }));
 }
 

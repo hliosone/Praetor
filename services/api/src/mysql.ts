@@ -2,6 +2,7 @@
 import type { SqlRunner } from '@praetor/db';
 import type { ApiStore, Passkey, User } from './store.js';
 import type { ApprovalRow, ApprovalState, ApprovalStore } from './approvals.js';
+import type { Period, ProposalRow, ProposalState, ProposalStore } from './standing-orders.js';
 import { randomUUID } from 'node:crypto';
 
 type Row = Record<string, unknown>;
@@ -52,4 +53,22 @@ export class MySqlApprovalStore implements ApprovalStore {
     if (p.expiresAt) cols.push(['expires_at', p.expiresAt]);
     if (cols.length) await this.r.query(`UPDATE approval_requests SET ${cols.map(([c]) => `${c} = ?`).join(', ')} WHERE id = ?`, [...cols.map(([, v]) => v), id]);
   }
+}
+
+const proposal = (x: Row): ProposalRow => ({
+  id: String(x.id), account: String(x.account), payee: (x.payee as string | null) ?? null, merchant: (x.merchant as string | null) ?? null,
+  amount: String(x.amount), period: x.period as Period, summary: String(x.summary), state: x.state as ProposalState,
+});
+
+export class MySqlProposalStore implements ProposalStore {
+  constructor(private readonly r: SqlRunner) {}
+  async put(p: ProposalRow) {
+    await this.r.query('INSERT INTO standing_order_proposals (id, account, payee, merchant, amount, period, summary, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [p.id, p.account, p.payee, p.merchant, p.amount, p.period, p.summary, p.state]);
+  }
+  async get(id: string) { const [x] = await rows(this.r, 'SELECT * FROM standing_order_proposals WHERE id = ?', [id]); return x ? proposal(x) : undefined; }
+  async list(account: string) {
+    return (await rows(this.r, 'SELECT * FROM standing_order_proposals WHERE account = ? ORDER BY created_at DESC LIMIT 100', [account.toLowerCase()])).map(proposal);
+  }
+  async update(id: string, state: ProposalState) { await this.r.query('UPDATE standing_order_proposals SET state = ? WHERE id = ?', [state, id]); }
 }

@@ -60,3 +60,15 @@ describe('owner actions through the api (untrusted pipe: the owner signs the dig
     expect(sent).toHaveLength(0);
   });
 });
+
+describe('standing orders (F7 step 2)', () => {
+  it('ADD_STANDING_ORDER carries the order (payloadHash = its EIP-712 struct hash) and needs the bank', async () => {
+    const { oa, sent, cosigned } = setup();
+    const order = { account: ACCOUNT, id: 1, payee: AGENT, amount: 1_200_000_000n, period: 2_592_000, firstDue: 1_800_000_000n, rail: 1, merchantRef: `0x${'cc'.repeat(32)}` as Hex };
+    const p = await oa.prepare(ACCOUNT, { kind: K.ADD_STANDING_ORDER, account: ACCOUNT, order });
+    expect(p.ownerAction.payloadHash).toBe((await import('@praetor/protocol')).structHash('StandingOrder', order));
+    await oa.submit(ACCOUNT, { ownerAction: p.ownerAction, payload: p.payload, assertion: pk.authentication(b64(p.digest)) });
+    expect(cosigned).toHaveLength(1);
+    expect(sent).toHaveLength(1);
+  });
+});
