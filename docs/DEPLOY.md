@@ -44,7 +44,7 @@ Only `PRAETOR_ENV=prod` triggers the production refusals, so the rehearsal can s
 | `VAPID_SUBJECT` | a `mailto:` the push services can reach |
 | `FAKE_LLM_URL` | empty (agent-runner refuses it in prod; `compose.prod.yml` never starts the scripted model) |
 | `PRICE_CHECK_INTERVAL_S`, `HEARTBEAT_INTERVAL_S`, `HEARTBEAT_TTL_S` | `900`, `300`, `900` |
-| `STANDING_ORDERS_INTERVAL_S`, `AUDIT_FROM`, `ANCHOR_INTERVAL_S` | `60`, `deploy`, `3600` (`infra/live.env` sets `1800`) |
+| `STANDING_ORDERS_INTERVAL_S`, `AUDIT_FROM`, `ANCHOR_INTERVAL_S` | `60`, `deploy`, `3600` |
 | `BRIDGE`, `BRIDGE_WATCHDOG_S` | `wecross`, `120` |
 | `DEMO_SCALE` | `100` on live Base Sepolia (Q30) |
 | MySQL and OpenCode passwords | generated (prod refuses defaults) |
@@ -127,7 +127,7 @@ pnpm keys                      # the server's keys into .env (mode 600), or the 
 What the Makefile does today, and the closest command:
 
 - `make up PROD=1` adds `compose.prod.yml`, but without `LIVE=1` it still starts anvil (`up-base` and the default `dev` profile), and the default profiles include `tee-sim` (the TEE simulator).
-- `LIVE=1` drops anvil and the `dev` profile, but exports `FISCO_KEYSET=LOCAL` (D75, a laptop choice) and adds `infra/live.env`, whose values override `.env` (including `ANCHOR_INTERVAL_S=1800`).
+- `LIVE=1` drops anvil and the `dev` profile, but exports `FISCO_KEYSET=LOCAL` (D75, a laptop choice) and adds `infra/live.env`, whose values override `.env`.
 - Until a server target exists, the closest command is the following. It has **not been run**; check it in Phase C:
 
 ```bash

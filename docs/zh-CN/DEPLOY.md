@@ -46,7 +46,7 @@
 | `VAPID_SUBJECT` | 推送服务可以联系到的 `mailto:` 地址 |
 | `FAKE_LLM_URL` | 留空（agent-runner 在 prod 中拒绝该值；`compose.prod.yml` 从不启动脚本化模型） |
 | `PRICE_CHECK_INTERVAL_S`、`HEARTBEAT_INTERVAL_S`、`HEARTBEAT_TTL_S` | `900`、`300`、`900` |
-| `STANDING_ORDERS_INTERVAL_S`、`AUDIT_FROM`、`ANCHOR_INTERVAL_S` | `60`、`deploy`、`3600`（`infra/live.env` 设为 `1800`） |
+| `STANDING_ORDERS_INTERVAL_S`、`AUDIT_FROM`、`ANCHOR_INTERVAL_S` | `60`、`deploy`、`3600` |
 | `BRIDGE`、`BRIDGE_WATCHDOG_S` | `wecross`、`120` |
 | `DEMO_SCALE` | 在 live Base Sepolia 上为 `100`（Q30） |
 | MySQL 和 OpenCode 密码 | 自动生成（prod 拒绝默认密码） |
@@ -129,7 +129,7 @@ pnpm keys                      # 将服务器的密钥生成到 .env（权限 60
 Makefile 目前的行为，以及最接近的命令：
 
 - `make up PROD=1` 会加入 `compose.prod.yml`，但不加 `LIVE=1` 时仍会启动 anvil（`up-base` 和默认的 `dev` profile），并且默认 profile 包含 `tee-sim`（TEE 模拟器）。
-- `LIVE=1` 去掉了 anvil 和 `dev` profile，但会导出 `FISCO_KEYSET=LOCAL`（D75，这是针对笔记本电脑的选择），并加入 `infra/live.env`，其中的值会覆盖 `.env`（包括 `ANCHOR_INTERVAL_S=1800`）。
+- `LIVE=1` 去掉了 anvil 和 `dev` profile，但会导出 `FISCO_KEYSET=LOCAL`（D75，这是针对笔记本电脑的选择），并加入 `infra/live.env`，其中的值会覆盖 `.env`。
 - 在服务器专用目标出现之前，最接近的命令如下。它**尚未运行过**，需在 Phase C 中验证：
 
 ```bash
