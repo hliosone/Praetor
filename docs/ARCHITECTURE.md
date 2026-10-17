@@ -8,7 +8,7 @@ Praetor is an agent wallet (FinTechathon 2026, International Track, Topic F). An
 - **Bounded**: every call the account makes passes an on-chain **Mandate hook** that applies the user's rules and the bank's caps, default deny. Anything unusual needs the owner's Face ID (a passkey, or SOTER inside WeChat).
 - **Regulated**: a **FISCO BCOS** consortium (bank, regulator, operator) holds identity, approved assets, sanctions, the agent's status and an append-only audit log. Its decisions reach Base as member signatures that the hook verifies itself. One regulator signature freezes the agent; loosening needs two of three.
 
-This document is the technical documentation for judges: the picture first, then the core algorithms, the security design and the deployment. It describes the code as built at the end of milestone M17; where the build differs from `spec/`, the entry in [DECISIONS.md](DECISIONS.md) is cited. Chinese version: `docs/zh-CN/ARCHITECTURE.md`. Security evidence: [security/SELF_ASSESSMENT.md](security/SELF_ASSESSMENT.md).
+This document is the technical documentation for judges: the picture first, then the core algorithms, the security design and the deployment. It describes the code as built at the end of milestone M17; where the build differs from `spec/`, the entry in [DECISIONS.md](DECISIONS.md) is cited. Chinese version: [zh-CN/ARCHITECTURE.md](zh-CN/ARCHITECTURE.md). Security evidence: [security/SELF_ASSESSMENT.md](security/SELF_ASSESSMENT.md).
 
 ## 1. The system in one picture
 
