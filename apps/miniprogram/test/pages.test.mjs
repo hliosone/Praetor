@@ -34,6 +34,21 @@ describe('home', () => {
     expect(wx.named('ctx.arc')).toHaveLength(6);
   });
 
+  it('a sign-in that failed at launch (tunnel down) is retried by the next refresh', async () => {
+    let up = false;
+    const wx = fakeWx({ api: mpApi({
+      'POST /session': () => (up ? session(ACCOUNT)() : { statusCode: 502, data: { error: 'bad gateway' } }),
+      'GET /config': () => CFG, 'GET /portfolio': () => portfolio, 'GET /status': () => status(),
+      'GET /activity?limit=5': () => activity, 'GET /approvals?state=pending': () => ({ approvals: [] }),
+    }) });
+    await launch(wx);
+    const p = await start(page('home'));
+    expect(p.data).toMatchObject({ linked: false, error: 'Something went wrong: bad gateway' });
+    up = true;
+    await p.refresh();
+    expect(p.data).toMatchObject({ linked: true, error: '', total: '10,000.00' });
+  });
+
   it('frozen by the regulator: the red banner', async () => {
     const wx = fakeWx({ api: mpApi({
       'POST /session': session(ACCOUNT), 'GET /config': () => CFG, 'GET /portfolio': () => portfolio, 'GET /status': () => status('FROZEN'),

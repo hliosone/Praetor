@@ -23,6 +23,8 @@ Page({
   async refresh() {
     const app = getApp();
     await app.ready;
+    // The launch sign-in may have failed (tunnel down): try again rather than show a link card to a linked user.
+    if (app.loginError) await app.signIn();
     const lang = app.lang;
     this.setData({ t: i18n.table(lang) });
     wx.setNavigationBarTitle({ title: i18n.t(lang, 'home.title') });
