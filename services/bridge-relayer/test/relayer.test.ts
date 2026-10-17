@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { decodeFunctionData, encodeAbiParameters, keccak256, toHex, type Address, type Hex } from 'viem';
 import { MandateHookAbi } from '@praetor/chain';
 import { types } from '@praetor/protocol';
-import { Relayer, type OutboxMessage, type OutboxPort, type BasePort } from '../src/relayer.js';
+import { Relayer, type OutboxMessage, type OutboxPort, type BasePort, type WeCrossPort } from '../src/relayer.js';
 
 const HOOK = '0x00000000000000000000000000000000000000h0'.replace('h', 'a') as Address;
 const ANCHOR = '0x00000000000000000000000000000000000000b0' as Address;
@@ -37,13 +37,21 @@ class FakeBase implements BasePort {
   async now() { return this.clock; }
 }
 
+class FakeWeCross implements WeCrossPort {
+  asked: bigint[] = [];
+  async requested(id: bigint) { return this.asked.includes(id); }
+  async request(id: bigint) { this.asked.push(id); }
+}
+
 let outbox: FakeOutbox;
 let base: FakeBase;
-const relayer = (mode: 'relayer' | 'wecross' = 'relayer') => new Relayer(outbox, base, { hook: HOOK, anchor: ANCHOR, mode, watchdogS: 120n });
+let wecross: FakeWeCross;
+const relayer = (mode: 'relayer' | 'wecross' = 'relayer') => new Relayer(outbox, base, { hook: HOOK, anchor: ANCHOR, mode, watchdogS: 120n }, mode === 'wecross' ? wecross : undefined);
 
 beforeEach(() => {
   outbox = new FakeOutbox();
   base = new FakeBase();
+  wecross = new FakeWeCross();
 });
 
 describe('bridge-relayer (spec 05)', () => {
@@ -83,9 +91,27 @@ describe('bridge-relayer (spec 05)', () => {
 
   it('as a WeCross watchdog, waits BRIDGE_WATCHDOG_S before delivering', async () => {
     outbox.msgs = [statusMsg(0n, 1n, 1_950n)];
+    wecross.asked = [0n];
     expect((await relayer('wecross').tick())[0]!.outcome).toBe('waiting');
     base.clock = 2_100n;
     expect((await relayer('wecross').tick())[0]!.outcome).toBe('delivered');
+  });
+
+  it('with BRIDGE=wecross, asks WeCross once to deliver a new message (as the router account), then waits for it', async () => {
+    outbox.msgs = [statusMsg(0n, 1n, 1_990n)];
+    expect((await relayer('wecross').tick())[0]!.outcome).toBe('requested');
+    expect((await relayer('wecross').tick())[0]!.outcome).toBe('waiting');
+    expect(wecross.asked).toEqual([0n]);
+    expect(base.sent).toHaveLength(0);
+  });
+
+  it('with BRIDGE=wecross, a message WeCross already applied is recorded as a WeCross delivery after the watchdog delay', async () => {
+    outbox.msgs = [statusMsg(0n, 1n, 1_000n)];
+    wecross.asked = [0n];
+    base.error = 'BadNonce';
+    base.applied = 1n;
+    expect((await relayer('wecross').tick())[0]!.outcome).toBe('already-applied');
+    expect(outbox.marked[0]!.transport).toBe(1);
   });
 
   it('retries a transient failure on the next tick', async () => {

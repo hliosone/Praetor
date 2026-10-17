@@ -1,7 +1,7 @@
 import { decodeErrorResult, type Address, type Hex, type PublicClient, type WalletClient } from 'viem';
 import { AnchorAbi, MandateHookAbi, baseNow, type Deployment } from '@praetor/chain';
 import { BaseOutboxAbi, sendFisco } from '@praetor/fisco-client';
-import type { BasePort, OutboxMessage, OutboxPort } from './relayer.js';
+import type { BasePort, OutboxMessage, OutboxPort, WeCrossPort } from './relayer.js';
 
 export class FiscoOutbox implements OutboxPort {
   constructor(private pub: PublicClient, private wallet: WalletClient, private outbox: Address) {}
@@ -14,6 +14,19 @@ export class FiscoOutbox implements OutboxPort {
   async markDelivered(id: bigint, baseTx: Hex, transport: number): Promise<Hex> {
     const r = await sendFisco(this.pub, this.wallet, { address: this.outbox, abi: BaseOutboxAbi as never, functionName: 'markDelivered', args: [id, baseTx, transport] });
     return r.transactionHash;
+  }
+}
+
+/** BaseOutbox.requestWeCross, signed by the WeCross router's FISCO account: the hub records it as the requester. */
+export class FiscoWeCross implements WeCrossPort {
+  constructor(private pub: PublicClient, private wallet: WalletClient, private outbox: Address) {}
+
+  async requested(id: bigint): Promise<boolean> {
+    return (await this.pub.readContract({ address: this.outbox, abi: BaseOutboxAbi, functionName: 'requested', args: [id] })) as boolean;
+  }
+
+  async request(id: bigint): Promise<void> {
+    await sendFisco(this.pub, this.wallet, { address: this.outbox, abi: BaseOutboxAbi as never, functionName: 'requestWeCross', args: [id] });
   }
 }
 

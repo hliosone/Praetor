@@ -21,7 +21,13 @@ export interface BasePort {
   now(): Promise<bigint>;
 }
 
-export type Outcome = 'delivered' | 'already-applied' | 'blocked' | 'expired' | 'waiting' | 'failed';
+/** BRIDGE=wecross: BaseOutbox.requestWeCross, sent with the WeCross router's own FISCO key (D42). */
+export interface WeCrossPort {
+  requested(id: bigint): Promise<boolean>;
+  request(id: bigint): Promise<void>;
+}
+
+export type Outcome = 'delivered' | 'already-applied' | 'blocked' | 'expired' | 'waiting' | 'requested' | 'failed';
 export type TickResult = { id: bigint; outcome: Outcome; txHash?: Hex; error?: string };
 
 const KINDS = [
@@ -40,7 +46,7 @@ export function decodeMessage(m: OutboxMessage): { primaryType: (typeof KINDS)[n
 }
 
 export class Relayer {
-  constructor(private outbox: OutboxPort, private base: BasePort, private cfg: { hook: Address; anchor: Address; mode: 'relayer' | 'wecross'; watchdogS: bigint; batch?: number }) {}
+  constructor(private outbox: OutboxPort, private base: BasePort, private cfg: { hook: Address; anchor: Address; mode: 'relayer' | 'wecross'; watchdogS: bigint; batch?: number }, private wecross?: WeCrossPort) {}
 
   async tick(): Promise<TickResult[]> {
     const out: TickResult[] = [];
@@ -50,7 +56,13 @@ export class Relayer {
   }
 
   private async deliver(m: OutboxMessage, now: bigint): Promise<TickResult> {
-    if (this.cfg.mode === 'wecross' && now - m.enqueuedAt < this.cfg.watchdogS) return { id: m.id, outcome: 'waiting' };
+    if (this.cfg.mode === 'wecross' && now - m.enqueuedAt < this.cfg.watchdogS) {
+      if (this.wecross && !(await this.wecross.requested(m.id))) {
+        await this.wecross.request(m.id);
+        return { id: m.id, outcome: 'requested' };
+      }
+      return { id: m.id, outcome: 'waiting' };
+    }
     const { fn, message } = decodeMessage(m);
     const to = m.kind === ANCHOR_KIND ? this.cfg.anchor : this.cfg.hook;
     const data = m.kind === ANCHOR_KIND
@@ -62,7 +74,7 @@ export class Relayer {
         const applied = await this.base.appliedNonce(m.kind, message);
         const own = BigInt((message.nonce ?? message.epoch ?? message.seq) as bigint);
         if (applied >= own) {
-          await this.outbox.markDelivered(m.id, ZERO, 0);
+          await this.outbox.markDelivered(m.id, ZERO, this.cfg.mode === 'wecross' ? 1 : 0);
           return { id: m.id, outcome: 'already-applied' };
         }
         return { id: m.id, outcome: 'blocked', error: sim.error };

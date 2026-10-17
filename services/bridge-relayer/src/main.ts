@@ -9,7 +9,7 @@ import { baseEnvSchema, loadConfig, resolveKey } from '@praetor/config';
 import { baseClients, loadDeployments } from '@praetor/chain';
 import { fiscoClients } from '@praetor/fisco-client';
 import { Relayer, type TickResult } from './relayer.js';
-import { BaseAdapter, FiscoOutbox } from './adapters.js';
+import { BaseAdapter, FiscoOutbox, FiscoWeCross } from './adapters.js';
 
 const schema = baseEnvSchema.extend({
   BASE_RPC_URL: z.string().url(),
@@ -24,6 +24,12 @@ const schema = baseEnvSchema.extend({
   PORT: z.coerce.number().int().default(3030),
 });
 
+/** BRIDGE=wecross: interchain requests carry the WeCross router's FISCO identity, never the relayer's (D42). */
+function wecrossRequester(rpc: string, env: Record<string, string | undefined>, outbox: Address) {
+  const w = fiscoClients(rpc, resolveKey('WECROSS_FISCO_KEY', env));
+  return new FiscoWeCross(w.pub as PublicClient, w.wallet as WalletClient, outbox);
+}
+
 export async function startRelayer(env: Record<string, string | undefined> = process.env) {
   const cfg = loadConfig(schema, env);
   const log = pino({ level: cfg.LOG_LEVEL });
@@ -35,6 +41,7 @@ export async function startRelayer(env: Record<string, string | undefined> = pro
     new FiscoOutbox(f.pub as PublicClient, f.wallet as WalletClient, fisco.baseOutbox),
     new BaseAdapter(publicClient as PublicClient, base, { url: cfg.BUNDLER_URL, token: cfg.INTERNAL_TOKEN_BUNDLER }),
     { hook: base.mandateHook, anchor: base.anchor, mode: cfg.BRIDGE, watchdogS: BigInt(cfg.BRIDGE_WATCHDOG_S) },
+    cfg.BRIDGE === 'wecross' ? wecrossRequester(cfg.FISCO_RPC_URL, env, fisco.baseOutbox) : undefined,
   );
   let last: { at: number; results: TickResult[] } = { at: 0, results: [] };
   let running = true;
