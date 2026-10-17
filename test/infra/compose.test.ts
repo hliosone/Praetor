@@ -14,7 +14,7 @@ type Service = {
   healthcheck?: unknown;
   command?: string | string[];
 };
-const compose = parse(read('infra/compose.yml')) as {
+const compose = parse(read('infra/compose.yml'), { merge: true }) as {
   services: Record<string, Service>;
   networks: Record<string, { ipam?: { config?: { subnet: string }[] } }>;
 };
@@ -64,5 +64,24 @@ describe('infra/compose.yml', () => {
     for (const s of ['api', 'mcp', 'bank', 'regulator', 'operator', 'payout', 'weid', 'webase', 'wecross', 'bundler']) {
       expect(init).toContain(`create_db ${s} `);
     }
+  });
+});
+
+describe('FISCO BCOS nodes (spec 04, V2)', () => {
+  it('runs four sealers from our own image on fixed IPs, profile chain, no published port', () => {
+    for (let i = 0; i < 4; i++) {
+      const s = compose.services[`fisco-node${i}`];
+      expect(s, `fisco-node${i}`).toBeDefined();
+      expect(s!.build ?? s!.image).toBeTruthy();
+      expect(s!.profiles).toContain('chain');
+      expect(s!.ports ?? []).toEqual([]);
+      expect(JSON.stringify(s)).toContain(`10.88.1.1${i}`);
+    }
+  });
+
+  it('pins the release binary and build_chain.sh by sha256', () => {
+    const fetch = read('infra/fisco/fetch.sh');
+    expect(fetch).toContain('28eb054bb222b805e116bf7d2462709f99d1f460a732e978555abe61973b3cbb');
+    expect(fetch).toContain('ed667e1e346acbe2fea7b667856ddf05af9e4892ac0424ff9f703f0ea601dbe7');
   });
 });

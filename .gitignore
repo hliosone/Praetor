@@ -31,6 +31,7 @@ build/
 
 # FISCO / WeIdentity generated material (certs and node keys)
 infra/fisco/nodes/
+infra/fisco/downloads/
 spikes/**/nodes/
 spikes/**/downloads/
 

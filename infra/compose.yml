@@ -3,6 +3,19 @@
 # Only caddy publishes ports; anvil also listens on loopback 18545 for Foundry tests.
 name: praetor
 
+x-fisco: &fisco
+  build:
+    context: ./fisco
+  image: praetor/fisco-bcos:3.17.1
+  profiles: [chain]
+  restart: unless-stopped
+  healthcheck:
+    interval: 5s
+    timeout: 5s
+    retries: 60
+    start_period: 20s
+    test: ['CMD-SHELL', "curl -sf -H 'content-type: application/json' --data '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_blockNumber\",\"params\":[]}' http://127.0.0.1:8545 | grep -q result"]
+
 x-health: &health
   interval: 5s
   timeout: 5s
@@ -93,6 +106,35 @@ services:
     healthcheck:
       <<: *health
       test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3010/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+
+  # Four PBFT sealers (bank, regulator, operator, operator-2); web3 RPC only on the Docker network (spec 04).
+  fisco-node0:
+    <<: *fisco
+    volumes: ['./fisco/nodes/10.88.1.10/node0:/data']
+    networks:
+      praetor:
+        ipv4_address: 10.88.1.10
+
+  fisco-node1:
+    <<: *fisco
+    volumes: ['./fisco/nodes/10.88.1.11/node0:/data']
+    networks:
+      praetor:
+        ipv4_address: 10.88.1.11
+
+  fisco-node2:
+    <<: *fisco
+    volumes: ['./fisco/nodes/10.88.1.12/node0:/data']
+    networks:
+      praetor:
+        ipv4_address: 10.88.1.12
+
+  fisco-node3:
+    <<: *fisco
+    volumes: ['./fisco/nodes/10.88.1.13/node0:/data']
+    networks:
+      praetor:
+        ipv4_address: 10.88.1.13
 
   anvil:
     image: ghcr.io/foundry-rs/foundry:v1.7.1@sha256:8347b728d5d393dac1c018691b36f506d23b9dcd78341d40ea0fcb11c3a19cdd
