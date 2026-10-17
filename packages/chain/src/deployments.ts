@@ -33,6 +33,8 @@ export const deploymentSchema = z.object({
   anchor: address,
   paymaster: address,
   wecrossInbox: address,
+  // M12: deployments made before WeCross have no proxy.
+  wecrossProxy: address.optional(),
 });
 export type Deployment = z.infer<typeof deploymentSchema>;
 

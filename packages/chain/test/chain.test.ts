@@ -25,6 +25,14 @@ describe('deployments loader', () => {
     expect(d.mandateHook).toMatch(/^0x/);
   });
 
+  it('reads the WeCross proxy of a deployment when it has one (older files have none)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'dep-'));
+    writeFileSync(join(dir, 'w.json'), JSON.stringify({ ...sample, wecrossProxy: '0x' + 'ee'.repeat(20) }));
+    expect(loadDeployments(join(dir, 'w.json')).wecrossProxy).toBe('0x' + 'ee'.repeat(20));
+    writeFileSync(join(dir, "o.json"), JSON.stringify(sample));
+    expect(loadDeployments(join(dir, 'o.json')).wecrossProxy).toBeUndefined();
+  });
+
   it('refuses a file missing a contract or on another chain', () => {
     const dir = mkdtempSync(join(tmpdir(), 'dep-'));
     const missing = { ...sample };

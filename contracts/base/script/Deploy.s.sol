@@ -67,7 +67,8 @@ contract Deploy is Script, PraetorDeployer {
         vm.serializeAddress(k, "refusalLog", address(d.refusalLog));
         vm.serializeAddress(k, "anchor", address(d.anchor));
         vm.serializeAddress(k, "paymaster", address(d.paymaster));
-        string memory out = vm.serializeAddress(k, "wecrossInbox", address(d.wecrossInbox));
+        vm.serializeAddress(k, "wecrossInbox", address(d.wecrossInbox));
+        string memory out = vm.serializeAddress(k, "wecrossProxy", address(d.wecrossProxy));
         // Tests deploy to their own file (DEPLOY_OUT) so the stack's deployment stays the one services use.
         vm.writeJson(out, string.concat(vm.projectRoot(), "/../../infra/deployments/", vm.envOr("DEPLOY_OUT", env), ".json"));
     }

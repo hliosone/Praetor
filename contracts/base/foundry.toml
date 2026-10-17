@@ -23,6 +23,9 @@ remappings = [
   "@praetor/protocol/=../../packages/protocol/sol/",
 ]
 gas_reports = ["MandateHook", "RefusalLog", "PasskeyValidator", "AgentKeyValidator", "StandingOrders"]
+# The vendored WeCrossProxy (XA struct code) needs via_ir (V4); everything else compiles without it.
+additional_compiler_profiles = [{ name = "via-ir", via_ir = true }]
+compilation_restrictions = [{ paths = "src/vendor/wecross/**", via_ir = true }]
 
 [fuzz]
 runs = 10000

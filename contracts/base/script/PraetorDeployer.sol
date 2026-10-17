@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
+import {WeCrossProxyEVM} from "../src/vendor/wecross/WeCrossProxyEVM.sol";
 import {NoOwner} from "../src/NoOwner.sol";
 import {PriceOracle} from "../src/PriceOracle.sol";
 import {MandateHook} from "../src/MandateHook.sol";
@@ -54,6 +55,7 @@ abstract contract PraetorDeployer {
         Anchor anchor;
         PraetorPaymaster paymaster;
         WeCrossInbox wecrossInbox;
+        WeCrossProxyEVM wecrossProxy;
     }
 
     function _deployAll(Config memory c) internal returns (Deployment memory d) {
@@ -74,6 +76,9 @@ abstract contract PraetorDeployer {
         d.paymaster = new PraetorPaymaster(ENTRY_POINT, c.deployer, c.paymasterSigner);
         if (c.paymasterDeposit != 0) d.paymaster.deposit{value: c.paymasterDeposit}();
         d.wecrossInbox = new WeCrossInbox(address(d.hook), address(d.anchor));
+        // WeCross reaches Base through its proxy, by resource name (D42).
+        d.wecrossProxy = new WeCrossProxyEVM();
+        d.wecrossProxy.setPath("inbox", address(d.wecrossInbox));
         _configure(c, d);
         // Last, once, by the deployer (spec 03).
         d.hook.setModules(Modules({

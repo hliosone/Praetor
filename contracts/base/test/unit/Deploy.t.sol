@@ -52,6 +52,16 @@ contract DeployTest is Test, PraetorDeployer {
         assertTrue(d.compliance.countryAllowed("HK"));
     }
 
+    function test_theWeCrossProxyRoutesInboxToWeCrossInbox() public {
+        Config memory c = _config(address(new TestDollar(makeAddr("treasury"))));
+        vm.startPrank(c.deployer);
+        Deployment memory d = _deployAll(c);
+        vm.stopPrank();
+        (, string memory target,) = d.wecrossProxy.readlink("inbox");
+        assertEq(vm.parseAddress(target), address(d.wecrossInbox));
+        assertEq(d.wecrossProxy.owner(), c.deployer);
+    }
+
     function test_testDollarIsLabelledAndOwnerMinted() public {
         TestDollar pusd = new TestDollar(address(this));
         assertEq(pusd.symbol(), "pUSD");
