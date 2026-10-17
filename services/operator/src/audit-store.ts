@@ -8,6 +8,16 @@ const row = (x: Row): StoredRow => ({ entry: JSON.parse(x.entry), key: x.source_
 
 export class MySqlAuditStore implements AuditStore {
   constructor(private readonly r: SqlRunner) {}
+  async bindTo(auditLog: string) {
+    const [x] = (await this.r.query("SELECT value FROM audit_meta WHERE name = 'auditLog'")) as { value: string }[];
+    const want = auditLog.toLowerCase();
+    if (x?.value === want) return;
+    if (x) {
+      await this.r.query('DELETE FROM audit_entries');
+      await this.r.query('DELETE FROM audit_cursors');
+    }
+    await this.r.query("INSERT INTO audit_meta (name, value) VALUES ('auditLog', ?) ON DUPLICATE KEY UPDATE value = VALUES(value)", [want]);
+  }
   private async rows(sql: string, p: unknown[]) { return ((await this.r.query(sql, p)) as Row[]).map(row); }
   async hasKey(key: string) { return ((await this.r.query('SELECT 1 FROM audit_entries WHERE source_key = ?', [key])) as unknown[]).length > 0; }
   async put(r: StoredRow) {

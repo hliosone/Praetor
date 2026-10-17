@@ -114,3 +114,15 @@ describe('audit writer', () => {
     expect(f.appended).toHaveLength(1);
   });
 });
+
+describe('audit store bound to its AuditLog', () => {
+  it('starts over when the FISCO AuditLog is a new one (consortium redeployed), keeps its entries otherwise', async () => {
+    const store = new MemoryAuditStore();
+    await store.bindTo('0x00000000000000000000000000000000000000a1');
+    await new AuditWriter(store, fakeChain().chain).record([ev(1)]);
+    await store.bindTo('0x00000000000000000000000000000000000000a1');
+    expect(await store.list(1, 10)).toHaveLength(1);
+    await store.bindTo('0x00000000000000000000000000000000000000b2');
+    expect(await store.list(1, 10)).toHaveLength(0);
+  });
+});

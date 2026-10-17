@@ -55,8 +55,13 @@ export function startOperator(env: Record<string, string | undefined> = process.
     return (await r.json()) as { ready: boolean };
   };
 
+  let bound = false;
   async function tick(ctx: MemberContext) {
     const a = auditOf(ctx);
+    if (!bound) {
+      await a.store.bindTo(fisco.auditLog);
+      bound = true;
+    }
     await a.writer.recover();
     const fpub = ctx.consortium.pub as PublicClient;
     const baseHead = await publicClient.getBlockNumber();

@@ -14,6 +14,8 @@ export type SourceEvent = Omit<AuditEntryInput, 'seq'> & { key: string; refId: H
 export type StoredRow = { entry: AuditEntry & { head: Hex }; state: 'pending' | 'appended'; key: string; refId: Hex };
 
 export interface AuditStore {
+  /** The entries belong to one FISCO AuditLog: bound to another one (consortium redeployed), the store starts over. */
+  bindTo(auditLog: string): Promise<void>;
   hasKey(key: string): Promise<boolean>;
   put(r: StoredRow): Promise<void>;
   setState(seq: number, state: StoredRow['state']): Promise<void>;
@@ -23,6 +25,11 @@ export interface AuditStore {
 
 export class MemoryAuditStore implements AuditStore {
   rows: StoredRow[] = [];
+  bound: string | undefined;
+  async bindTo(auditLog: string) {
+    if (this.bound !== undefined && this.bound !== auditLog.toLowerCase()) this.rows = [];
+    this.bound = auditLog.toLowerCase();
+  }
   async hasKey(key: string) { return this.rows.some((r) => r.key === key); }
   async put(r: StoredRow) { this.rows.push(structuredClone(r)); }
   async setState(seq: number, state: StoredRow['state']) { const r = this.rows.find((x) => x.entry.seq === seq); if (r) r.state = state; }
