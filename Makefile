@@ -2,8 +2,8 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-ENV_FILES := --env-file infra/.env.example $(if $(wildcard .env),--env-file .env)
-COMPOSE := docker compose -f infra/compose.yml $(ENV_FILES)
+ENV_FILES = --env-file infra/.env.example $(if $(wildcard .env),--env-file .env) $(if $(wildcard .run/compose.env),--env-file .run/compose.env)
+COMPOSE = docker compose -f infra/compose.yml $(ENV_FILES)
 # Profiles that exist so far; later milestones add chain, wecross, agent, tee-sim, mocks.
 PROFILES ?= core dev
 PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
@@ -18,8 +18,14 @@ setup: ## Install the commit-msg hook and dependencies
 	@echo "commit-msg hook installed (core.hooksPath=scripts/git-hooks)"
 	pnpm install --frozen-lockfile
 
-up: ## Start the local stack (waits for healthchecks)
+up: ## Start the local stack (waits for healthchecks; deploys the contracts on a fresh fork)
+	bash scripts/dev/compose-env.sh
+	$(MAKE) --no-print-directory up-base
+	bash scripts/dev/ensure-fork-deploy.sh
 	$(COMPOSE) $(PROFILE_FLAGS) up -d --wait --build
+
+up-base:
+	$(COMPOSE) --profile core --profile dev up -d --wait anvil mysql caddy
 	@# The init script only runs on an empty volume; it is idempotent, so rerun it to add new service databases.
 	$(COMPOSE) exec -T mysql bash /docker-entrypoint-initdb.d/01-databases.sh
 

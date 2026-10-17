@@ -64,6 +64,36 @@ services:
       # MYSQL_PWD keeps the root password off the command line (visible in `ps`).
       test: ['CMD-SHELL', 'MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysql -uroot -h127.0.0.1 -e "SELECT 1 FROM mysql.user LIMIT 1" >/dev/null']
 
+  bundler:
+    build:
+      context: ..
+      dockerfile: infra/node-service.Dockerfile
+      args:
+        SERVICE: bundler
+    image: praetor/bundler:local
+    profiles: [core]
+    environment:
+      PRAETOR_ENV: ${PRAETOR_ENV}
+      CHAIN_MODE: ${CHAIN_MODE}
+      BASE_RPC_URL: ${BASE_RPC_URL}
+      DEPLOYMENTS_FILE: /app/${DEPLOYMENTS_FILE}
+      MYSQL_HOST: mysql
+      MYSQL_PASSWORD_BUNDLER: ${MYSQL_PASSWORD_BUNDLER}
+      INTERNAL_TOKEN_BUNDLER: ${INTERNAL_TOKEN_BUNDLER}
+      BUNDLER_KEY: ${BUNDLER_KEY}
+      PAYMASTER_SIGNER_KEY: ${PAYMASTER_SIGNER_KEY}
+    volumes:
+      - ./deployments:/app/infra/deployments:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      praetor:
+        ipv4_address: 10.88.0.10
+    healthcheck:
+      <<: *health
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3010/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+
   anvil:
     image: ghcr.io/foundry-rs/foundry:v1.7.1@sha256:8347b728d5d393dac1c018691b36f506d23b9dcd78341d40ea0fcb11c3a19cdd
     profiles: [dev]

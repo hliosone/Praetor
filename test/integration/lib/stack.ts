@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 export const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 export const ANVIL_URL = process.env.ANVIL_URL ?? 'http://127.0.0.1:18545';
@@ -17,7 +17,8 @@ export function dotenv(): Record<string, string> {
 export function compose(...args: string[]): string {
   return execFileSync(
     'docker',
-    ['compose', '-f', 'infra/compose.yml', '--env-file', 'infra/.env.example', '--env-file', '.env', ...args],
+    ['compose', '-f', 'infra/compose.yml', '--env-file', 'infra/.env.example', '--env-file', '.env',
+      ...(existsSync(`${repoRoot}.run/compose.env`) ? ['--env-file', '.run/compose.env'] : []), ...args],
     { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
   );
 }

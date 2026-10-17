@@ -48,3 +48,15 @@ describe('caddy', () => {
     expect(body).toBe('ok');
   });
 });
+
+describe('bundler container', () => {
+  it('is healthy inside the Docker network (RPC and its database)', () => {
+    const out = compose('exec', '-T', 'bundler', 'node', '-e', "fetch('http://127.0.0.1:3010/health').then(r => r.text()).then(t => console.log(t))");
+    expect(JSON.parse(out)).toEqual({ ok: true, rpc: true, db: true });
+  });
+
+  it('refuses callers without the internal token', () => {
+    const out = compose('exec', '-T', 'bundler', 'node', '-e', "fetch('http://127.0.0.1:3010/userop/0x00', {}).then(r => console.log(r.status))");
+    expect(out.trim()).toBe('401');
+  });
+});

@@ -1,0 +1,15 @@
+.git
+.env
+.env.*
+.run
+**/node_modules
+contracts/**/out
+contracts/**/cache
+contracts/**/broadcast
+spikes
+docs
+keys
+secrets
+coverage
+infra/fisco/nodes
+**/*.log
