@@ -77,8 +77,9 @@ export class WechatLink {
     const { payload } = ownerActionPayload({ kind: K.LINK_WECHAT, account, linkNonce: l.linkNonce, proof: l.proof, attesterSig: l.attesterSig });
     const r = await this.d.ownerActions.submit(account, { ownerAction: l.ownerAction, payload, assertion });
     if (r.success) {
-      l.state = 'linked';
+      // Recorded before the state turns "linked": the mini program signs in again as soon as it reads that state.
       if (l.openidHash) await this.d.onLinked?.({ account, openidHash: l.openidHash, bindingHash: l.proof.bindingHash });
+      l.state = 'linked';
     }
     return r;
   }

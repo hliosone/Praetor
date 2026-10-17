@@ -64,6 +64,18 @@ describe('F2 link WeChat', () => {
     expect(linked).toEqual([{ account: ACCOUNT, openidHash, bindingHash: `0x${'33'.repeat(32)}` }]);
   });
 
+  it('turns "linked" only once the link is recorded, so a mini program polling the state signs in to the account', async () => {
+    const seen: string[] = [];
+    let id = '';
+    const { link } = setup({ onLinked: async () => { seen.push((await link.view(id)).state); } });
+    const s = await link.start(ACCOUNT);
+    id = s.id;
+    await link.soter(s.id, { code: 'c', resultJSON: '{}', resultJSONSignature: 'sig', authMode: 'facial' }, { openidHash: keccak256(toHex('openid-a')), bindingHash: `0x${'33'.repeat(32)}` });
+    await link.confirm(ACCOUNT, s.id, pk.authentication(b64(s.digest)));
+    expect(seen).toEqual(['scanned']);
+    expect((await link.view(s.id)).state).toBe('linked');
+  });
+
   it('refuses a SOTER result from another WeChat user than the signed-in one, and stays waiting', async () => {
     const { link } = setup();
     const s = await link.start(ACCOUNT);
