@@ -42,3 +42,17 @@ describe('infra/compose.prod.yml', () => {
     expect(mk).toMatch(/^rehearsal:[\s\S]*?PROD=1[\s\S]*?e2e-smoke[\s\S]*?prod-refusals\.sh/m);
   });
 });
+
+describe('infra/live.env (M16, D74)', () => {
+  const live = read('infra/live.env');
+  it('runs on Base Sepolia with the live deployments at production intervals, and holds no secret', () => {
+    for (const l of ['CHAIN_MODE=live', 'BASE_RPC_URL=https://sepolia.base.org', 'DEPLOYMENTS_FILE=infra/deployments/base-sepolia.json', 'FISCO_DEPLOYMENTS_FILE=infra/deployments/fisco-live.json', 'DOMAIN_NAME=Praetor', 'HEARTBEAT_INTERVAL_S=300']) expect(live).toContain(l);
+    expect(live).not.toMatch(/[0-9a-fA-F]{40,}/);
+  });
+
+  it('is what make up LIVE=1 adds, without anvil', () => {
+    const mk = read('Makefile');
+    expect(mk).toContain('$(if $(LIVE),--env-file infra/live.env)');
+    expect(mk).toMatch(/PROFILES := \$\(filter-out dev,\$\(PROFILES\)\)/);
+  });
+});

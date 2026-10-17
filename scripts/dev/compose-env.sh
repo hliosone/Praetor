@@ -4,7 +4,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 mkdir -p .run
-mode="$(grep -E '^CHAIN_MODE=' .env 2>/dev/null | cut -d= -f2- || true)"
+# CHAIN_MODE from the environment first (make up LIVE=1 exports it), then .env, then the example.
+mode="${CHAIN_MODE:-$(grep -E '^CHAIN_MODE=' .env 2>/dev/null | cut -d= -f2- || true)}"
 mode="${mode:-$(grep -E '^CHAIN_MODE=' infra/.env.example | cut -d= -f2-)}"
 set_prefix=LOCAL
 [ "$mode" = live ] && set_prefix=LIVE

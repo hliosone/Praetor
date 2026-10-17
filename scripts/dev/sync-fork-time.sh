@@ -3,7 +3,7 @@
 # Live Base agrees with wall clocks, and the TEEs check expiries against theirs: move the fork forward (never back).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-mode="$(grep -hE '^CHAIN_MODE=' infra/.env.example .env 2>/dev/null | tail -1 | cut -d= -f2-)"
+mode="${CHAIN_MODE:-$(grep -hE '^CHAIN_MODE=' infra/.env.example .env 2>/dev/null | tail -1 | cut -d= -f2-)}"
 [ "$mode" = fork ] || exit 0
 rpc="${ANVIL_URL:-http://127.0.0.1:18545}"
 chain="$(cast block latest --rpc-url "$rpc" -f timestamp)"

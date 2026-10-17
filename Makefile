@@ -2,12 +2,19 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-ENV_FILES = --env-file infra/.env.example $(if $(wildcard .env),--env-file .env) $(if $(wildcard .run/compose.env),--env-file .run/compose.env)
+ENV_FILES = --env-file infra/.env.example $(if $(wildcard .env),--env-file .env) $(if $(LIVE),--env-file infra/live.env) $(if $(wildcard .run/compose.env),--env-file .run/compose.env)
+# LIVE=1 runs the stack on Base Sepolia (infra/live.env, LIVE_ keys, no anvil): the M16 evidence run (D74).
+ifneq ($(LIVE),)
+export CHAIN_MODE = live
+endif
 GRADLE_IMAGE = gradle@sha256:213476fe3598a433b19077b5b85ae95656cc0cba6fbc707d598c5a7ee865c52f
 # PROD=1 adds the production overrides (M18 rehearsal, prod server).
 COMPOSE = docker compose -f infra/compose.yml $(if $(PROD),-f infra/compose.prod.yml) $(ENV_FILES)
 # Profiles that exist so far; later milestones add chain, wecross, agent, tee-sim, mocks.
 PROFILES ?= core chain mocks tee-sim agent dev wecross
+ifneq ($(LIVE),)
+PROFILES := $(filter-out dev,$(PROFILES))
+endif
 PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 
 .PHONY: help setup install up down ps logs smoke-sm test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-web e2e-smoke rehearsal e2e-live redteam slither deploy-contracts deploy-fisco tunnel reset-fork up-base
@@ -41,7 +48,7 @@ fisco-image: ## Build the FISCO node image once (the nodes never rebuild it: see
 	@docker image inspect praetor/fisco-bcos:3.17.1 >/dev/null 2>&1 || docker build -t praetor/fisco-bcos:3.17.1 infra/fisco
 
 up-base:
-	$(COMPOSE) --profile core --profile dev up -d --wait anvil mysql caddy
+	$(COMPOSE) --profile core $(if $(LIVE),,--profile dev) up -d --wait $(if $(LIVE),,anvil) mysql caddy
 	@# The init script only runs on an empty volume; it is idempotent, so rerun it to add new service databases.
 	$(COMPOSE) exec -T mysql bash /docker-entrypoint-initdb.d/01-databases.sh
 
