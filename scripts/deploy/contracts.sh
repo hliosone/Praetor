@@ -33,4 +33,4 @@ fi
 
 cd contracts/base
 forge script script/Deploy.s.sol --rpc-url "$RPC" --broadcast --slow -q
-echo "deployed $ENV_NAME -> infra/deployments/$ENV_NAME.json"
+echo "deployed $ENV_NAME -> infra/deployments/${DEPLOY_OUT:-$ENV_NAME}.json"

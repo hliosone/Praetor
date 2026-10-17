@@ -13,8 +13,8 @@ const client = createPublicClient({ transport: http(ANVIL_URL) });
 
 describe('deploy-contracts ENV=fork', () => {
   beforeAll(async () => {
-    await run('bash', ['scripts/deploy/contracts.sh', 'fork'], { cwd: repoRoot, timeout: 600_000 });
-    d = JSON.parse(readFileSync(`${repoRoot}infra/deployments/fork.json`, 'utf8')) as Deployment;
+    await run('bash', ['scripts/deploy/contracts.sh', 'fork'], { cwd: repoRoot, timeout: 600_000, env: { ...process.env, DEPLOY_OUT: 'fork-it' } });
+    d = JSON.parse(readFileSync(`${repoRoot}infra/deployments/fork-it.json`, 'utf8')) as Deployment;
   }, 600_000);
 
   it('records chain, domain, fork block and every contract', () => {

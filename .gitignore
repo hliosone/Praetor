@@ -40,3 +40,4 @@ spikes/V2-fisco/nodes-sm/
 spikes/**/downloads/
 spikes/V2-fisco/sm_cert.cnf
 spikes/V3-weid/scenario/out/
+infra/deployments/*-it.json

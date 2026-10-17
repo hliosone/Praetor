@@ -11,9 +11,10 @@ import { ANVIL_URL, dotenv, repoRoot } from './stack.js';
 const run = promisify(execFile);
 export const pub = createPublicClient({ chain: baseSepolia, transport: http(ANVIL_URL) });
 
+/** A fresh Base deployment on the fork for one test file, written to fork-it.json (fork.json belongs to the stack). */
 export async function deployFork(): Promise<Deployment> {
-  await run('bash', ['scripts/deploy/contracts.sh', 'fork'], { cwd: repoRoot, timeout: 600_000 });
-  return loadDeployments(`${repoRoot}infra/deployments/fork.json`);
+  await run('bash', ['scripts/deploy/contracts.sh', 'fork'], { cwd: repoRoot, timeout: 600_000, env: { ...process.env, DEPLOY_OUT: 'fork-it' } });
+  return loadDeployments(`${repoRoot}infra/deployments/fork-it.json`);
 }
 
 export async function setBalance(address: Address, wei: bigint): Promise<void> {

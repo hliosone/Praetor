@@ -1,5 +1,6 @@
 #!/bin/bash
-# The anvil fork keeps no state across restarts: deploy the contracts again when the recorded hook has no code.
+# The anvil fork keeps no state across restarts: deploy the contracts again when the recorded hook has no code,
+# then the FISCO consortium bound to that new hook.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 mode="$(grep -hE '^CHAIN_MODE=' infra/.env.example .env 2>/dev/null | tail -1 | cut -d= -f2-)"
@@ -10,3 +11,5 @@ if [ -n "$hook" ] && [ "$(cast code "$hook" --rpc-url "${ANVIL_URL:-http://127.0
   exit 0
 fi
 bash scripts/deploy/contracts.sh fork
+# The FISCO boards sign under the Base hook's domain: a new hook means a new consortium deployment (local only).
+pnpm -s exec tsx scripts/fisco/deploy.ts local

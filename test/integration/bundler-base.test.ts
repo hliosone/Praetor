@@ -49,7 +49,7 @@ async function tx(to: Address, data: Hex) {
 beforeAll(async () => {
   d = await deployFork();
   await setBalance(privateKeyToAccount(localKey('BUNDLER_KEY')).address, 10n ** 19n);
-  bundler = await startBundler({ ...env, CHAIN_MODE: 'fork', PRAETOR_ENV: 'local', BASE_RPC_URL: ANVIL_URL, DEPLOYMENTS_FILE: `${repoRoot}infra/deployments/fork.json`, MYSQL_HOST, PORT: '0', LOG_LEVEL: 'warn' });
+  bundler = await startBundler({ ...env, CHAIN_MODE: 'fork', PRAETOR_ENV: 'local', BASE_RPC_URL: ANVIL_URL, DEPLOYMENTS_FILE: `${repoRoot}infra/deployments/fork-it.json`, MYSQL_HOST, PORT: '0', LOG_LEVEL: 'warn' });
   base = `http://127.0.0.1:${bundler.port}`;
 }, 600_000);
 
