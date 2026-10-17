@@ -11,8 +11,15 @@ test('sandbox: a demo account in one click, then a standing order and the audit 
   await withPasskeys(context, page);
   await page.goto('/sandbox');
   await shoot(page, 'sandbox');
-  await page.getByRole('button', { name: 'Create a demo account' }).click();
-  await expect(page.getByTestId('sandbox-account')).toHaveText(/^0x[0-9a-fA-F]{40}$/, { timeout: 480_000 });
+  // Docker changing the host's network interfaces makes Chrome abort requests in flight (net::ERR_NETWORK_CHANGED):
+  // like a visitor, click again once if that happens.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await page.getByRole('button', { name: 'Create a demo account' }).click();
+    const done = page.getByTestId('sandbox-account').or(page.getByRole('alert'));
+    await expect(done).toBeVisible({ timeout: 480_000 });
+    if (await page.getByTestId('sandbox-account').isVisible()) break;
+  }
+  await expect(page.getByTestId('sandbox-account')).toHaveText(/^0x[0-9a-fA-F]{40}$/);
   await expect(page.getByText('5,000 USDC (demo)')).toBeVisible();
   await page.getByRole('button', { name: 'Run a rent standing order' }).click();
   await expect(page.getByRole('cell', { name: 'Paid' })).toBeVisible({ timeout: 180_000 });
