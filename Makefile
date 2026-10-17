@@ -8,7 +8,7 @@ COMPOSE := docker compose -f infra/compose.yml $(ENV_FILES)
 PROFILES ?= core dev
 PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 
-.PHONY: help setup install up down ps logs test test-guards test-unit test-scripts lint gitleaks test-int e2e e2e-live redteam slither deploy-contracts tunnel
+.PHONY: help setup install up down ps logs test test-guards test-unit test-scripts test-contracts test-contracts-full test-fork lint gitleaks test-int e2e e2e-live redteam slither deploy-contracts tunnel
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -43,8 +43,18 @@ lint: ## Type-check every TypeScript package
 	pnpm -s exec tsc -p tsconfig.json
 	pnpm -s -r --if-present typecheck
 
-test-unit: test-scripts
+test-unit: test-scripts test-contracts
 	pnpm -s -r --if-present test
+
+# Every commit: the quick fuzz profile. Milestone gate: `make test-contracts-full` (10k fuzz runs, spec 10).
+test-contracts:
+	cd contracts/base && FOUNDRY_PROFILE=quick forge test --no-match-path 'test/fork/*' -q
+
+test-contracts-full: ## Base contracts with 10k fuzz runs and full invariants
+	cd contracts/base && forge test --no-match-path 'test/fork/*'
+
+test-fork: ## Base contracts fork tests on the real Safe7579 (needs network)
+	cd contracts/base && forge test --match-path 'test/fork/*'
 
 test-scripts:
 	pnpm -s test:scripts

@@ -1,0 +1,47 @@
+# Base Sepolia contracts (spec 03): solc 0.8.28, cancun, optimizer 200, via_ir only where needed.
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "out"
+cache_path = "cache"
+libs = ["../lib"]
+solc_version = "0.8.28"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+fs_permissions = [
+  { access = "read", path = "../../packages/protocol/vectors" },
+  { access = "read-write", path = "../../infra/deployments" },
+]
+remappings = [
+  "forge-std/=../lib/forge-std/src/",
+  "webauthn-sol/=../lib/webauthn-sol/src/",
+  "FreshCryptoLib/=../lib/webauthn-sol/lib/FreshCryptoLib/solidity/src/",
+  "openzeppelin-contracts/=../lib/webauthn-sol/lib/openzeppelin-contracts/",
+  "solady/=../lib/webauthn-sol/lib/solady/src/",
+  "@praetor/protocol/=../../packages/protocol/sol/",
+]
+gas_reports = ["MandateHook", "RefusalLog", "PasskeyValidator", "AgentKeyValidator", "StandingOrders"]
+
+[fuzz]
+runs = 10000
+seed = "0x7072616574"
+
+[invariant]
+runs = 256
+depth = 64
+fail_on_revert = false
+
+[profile.quick.fuzz]
+runs = 256
+
+[profile.quick.invariant]
+runs = 32
+depth = 32
+
+[rpc_endpoints]
+base_sepolia = "https://sepolia.base.org"
+
+[lint]
+lint_on_build = false

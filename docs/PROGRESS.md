@@ -47,4 +47,4 @@ Single source of truth for where the build stands. After a context reset: read `
 | Phase 0 | 2026-10-17 03:30 | 2026-10-17 04:30 | about 1 h |
 | Phase B step 1 | 2026-10-17 07:02 | 2026-10-17 07:04 | 2 min |
 | M0 | 2026-10-17 07:04 | 2026-10-17 07:12 | 8 min |
-| M1 | 2026-10-17 07:12 | 2026-10-17 07:33 | 21 min |
+| M1 | 2026-10-17 07:12 | 2026-10-17 07:24 | 12 min |
