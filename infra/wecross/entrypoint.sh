@@ -2,10 +2,11 @@
 # WeCross container (M12). Modes:
 #   setup            generate the router and account manager directories under /data (once): zone "payment",
 #                    chains fisco (BCOS3 stub, node0's SDK certs) and base (Praetor's EVM stub), the stub admin
-#                    account = WECROSS_FISCO_KEY, the account manager's database, admin and RSA key (PKCS#1, V4)
+#                    account = WECROSS_FISCO_KEY, the account manager's database, admin and RSA key (PKCS#1, V4);
+#                    then, on every run, the Base chain config from the current deployment, and WeCrossProxy and
+#                    WeCrossHub deployed on FISCO by the stub tool (once)
 #   account-manager  run the account manager in the foreground
 #   router           run the router in the foreground
-#   deploy-system    deploy WeCrossProxy and WeCrossHub on FISCO with the stub tool (once; prints their addresses)
 # /data holds TLS keys and passwords: it is git-ignored (infra/wecross/generated) and never logged.
 set -euo pipefail
 ROUTER_IP="${WECROSS_ROUTER_IP:-10.88.0.50}"
@@ -26,7 +27,7 @@ setup() {
   : "${WECROSS_FISCO_KEY:?}" "${WECROSS_ADMIN_PASSWORD:?}" "${MYSQL_PASSWORD_WECROSS:?}" "${WECROSS_AM_ENCRYPT_KEY:?}"
   local WECROSS_FISCO_ADDRESS
   WECROSS_FISCO_ADDRESS="$(address_of_hex "$WECROSS_FISCO_KEY")"
-  if [ -f /data/.ready ]; then echo "wecross: configuration present"; return; fi
+  if [ -f /data/.ready ]; then echo "wecross: configuration present"; base_chain; deploy_system; return; fi
   rm -rf /data/routers "$R" "$AM"
   cd /opt/WeCross
   bash build_wecross.sh -n payment -l "${ROUTER_IP}:8250:25500" -o /data/routers >/dev/null
@@ -51,26 +52,6 @@ PY
   local keyfile="${WECROSS_FISCO_ADDRESS,,}_secp256k1.key"
   pem_of_hex "$WECROSS_FISCO_KEY" > "conf/chains/fisco/admin/${keyfile}"
   printf "[account]\n    type='BCOS3_ECDSA_EVM'\n    accountFile='%s'\n    password=''\n" "$keyfile" > conf/chains/fisco/admin/account.toml
-  # Base (Praetor's EVM stub): the proxy routes "inbox" to WeCrossInbox.
-  mkdir -p conf/chains/base
-  python3 - "/deployments/${DEPLOYMENTS_NAME:-fork}.json" "${BASE_RPC_URL:?}" > conf/chains/base/stub.toml <<'PY'
-import json, sys
-d = json.load(open(sys.argv[1]))
-print(f"""[common]
-    name = 'base'
-    type = 'EVM'
-
-[chain]
-    rpcUrl = '{sys.argv[2]}'
-    chainId = {d['chainId']}
-
-[proxy]
-    address = '{d['wecrossProxy']}'
-
-[[resources]]
-    name = 'inbox'
-    address = '{d['wecrossInbox']}'""")
-PY
   # Account manager: same CA as the router, MySQL user "wecross", PKCS#1 RSA key (V4: PKCS#8 crashes it).
   cp -r /opt/WeCross-Account-Manager "$AM"
   cp conf/ca.crt conf/ssl.crt conf/ssl.key "$AM/conf/"
@@ -92,6 +73,42 @@ PY
   chmod -R go-rwx /data
   touch /data/.ready
   echo "wecross: configuration generated"
+  base_chain
+  deploy_system
+}
+
+# Base (Praetor's EVM stub): rewritten on every setup run, since a reset fork has new addresses.
+base_chain() {
+  cd "$R"
+  # The proxy routes "inbox" to WeCrossInbox.
+  mkdir -p conf/chains/base
+  python3 - "${DEPLOYMENTS_FILE:?}" "${BASE_RPC_URL:?}" > conf/chains/base/stub.toml <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+print(f"""[common]
+    name = 'base'
+    type = 'EVM'
+
+[chain]
+    rpcUrl = '{sys.argv[2]}'
+    chainId = {d['chainId']}
+
+[proxy]
+    address = '{d['wecrossProxy']}'
+
+[[resources]]
+    name = 'inbox'
+    address = '{d['wecrossInbox']}'""")
+PY
+}
+
+# WeCrossProxy and WeCrossHub on FISCO, once (the FISCO chain outlives consortium redeployments).
+deploy_system() {
+  [ -f /data/.system ] && return
+  cd "$R"
+  bash deploy_system_contract.sh -t BCOS3_ECDSA_EVM -c chains/fisco -P
+  bash deploy_system_contract.sh -t BCOS3_ECDSA_EVM -c chains/fisco -H
+  touch /data/.system
 }
 
 run_java_dir() { # start.sh daemonises java: run it, then follow its log in the foreground
@@ -104,10 +121,5 @@ case "${1:-}" in
   setup) setup ;;
   account-manager) run_java_dir "$AM" ;;
   router) run_java_dir "$R" ;;
-  deploy-system)
-    cd "$R"
-    bash deploy_system_contract.sh -t BCOS3_ECDSA_EVM -c chains/fisco -P
-    bash deploy_system_contract.sh -t BCOS3_ECDSA_EVM -c chains/fisco -H
-    ;;
-  *) echo "usage: entrypoint.sh setup|account-manager|router|deploy-system" >&2; exit 2 ;;
+  *) echo "usage: entrypoint.sh setup|account-manager|router" >&2; exit 2 ;;
 esac
