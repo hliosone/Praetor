@@ -14,3 +14,5 @@ fi
 bash scripts/deploy/contracts.sh fork
 # The FISCO boards sign under the Base hook's domain: a new hook means a new consortium deployment (local only).
 pnpm -s exec tsx scripts/fisco/deploy.ts local
+# Services read the deployment files at startup: make up restarts them when this marker exists.
+touch .run/deployments-changed

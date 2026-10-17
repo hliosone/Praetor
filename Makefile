@@ -8,7 +8,7 @@ COMPOSE = docker compose -f infra/compose.yml $(ENV_FILES)
 PROFILES ?= core chain dev
 PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 
-.PHONY: help setup install up down ps logs test test-guards test-unit test-scripts test-contracts test-contracts-full test-fork lint gitleaks test-int e2e e2e-live redteam slither deploy-contracts deploy-fisco tunnel
+.PHONY: help setup install up down ps logs test test-guards test-unit test-scripts test-contracts test-contracts-full test-fork lint gitleaks test-int e2e e2e-live redteam slither deploy-contracts deploy-fisco tunnel reset-fork up-base
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -24,6 +24,11 @@ up: ## Start the local stack (waits for healthchecks; deploys the contracts on a
 	$(MAKE) --no-print-directory up-base
 	bash scripts/dev/ensure-fork-deploy.sh
 	$(COMPOSE) $(PROFILE_FLAGS) up -d --wait --build
+	@if [ -f .run/deployments-changed ]; then $(COMPOSE) $(PROFILE_FLAGS) restart bundler bank regulator operator bridge-relayer && rm .run/deployments-changed; fi
+
+reset-fork: ## Fresh anvil fork, contracts and consortium redeployed, services restarted
+	$(COMPOSE) --profile dev restart anvil
+	$(MAKE) --no-print-directory up
 
 up-base:
 	$(COMPOSE) --profile core --profile dev up -d --wait anvil mysql caddy
