@@ -2,14 +2,18 @@
 import express from 'express';
 import pino from 'pino';
 import { z } from 'zod';
-import { parseAbiItem, type Address, type Hex } from 'viem';
-import { MandateHookAbi, StandingOrdersAbi, baseClients, baseNow, loadDeployments } from '@praetor/chain';
+import { readFileSync } from 'node:fs';
+import { erc20Abi, parseAbiItem, type Address, type Hex } from 'viem';
+import { AuditLogAbi, fiscoClients } from '@praetor/fisco-client';
+import { AnchorAbi, MandateHookAbi, StandingOrdersAbi, baseClients, baseNow, loadDeployments } from '@praetor/chain';
 import { connect, loadMigrations, migrate } from '@praetor/db';
 import { prepareAccount } from '@praetor/userop';
 import { createApiApp } from './app.js';
 import { clients } from './clients.js';
 import { MySqlApiStore, MySqlApprovalStore, MySqlProposalStore } from './mysql.js';
 import { StandingOrders, type Directory } from './standing-orders.js';
+import { Audit, type AuditRow } from './audit.js';
+import { balanceAt, camt053, camtErrors, statementEntries } from './statement.js';
 import { Onboarding } from './onboarding.js';
 import { OwnerActions } from './owner-actions.js';
 import { Approvals } from './approvals.js';
@@ -37,6 +41,9 @@ const env = z.object({
   MCP_URL: z.string().url().default('http://mcp:3080'),
   NOTIFIER_URL: z.string().url().default('http://notifier:3210'),
   PAYOUT_PARTNER_URL: z.string().url().default('http://payout-partner:3310'),
+  OPERATOR_URL: z.string().url().default('http://operator:3020'),
+  FISCO_RPC_URL: z.string().url(),
+  FISCO_DEPLOYMENTS_FILE: z.string(),
   INTERNAL_TOKEN_API: z.string().min(32),
   PORT: z.coerce.number().int().default(3200),
 }).parse(process.env);
@@ -95,6 +102,11 @@ const approvals = new Approvals({
   },
 });
 const link = new WechatLink({ ownerActions, publicUrl: env.PUBLIC_URL, attester: c.attester });
+async function standingOrdersDirectory(): Promise<Directory> {
+  const r = await fetch(`${env.PAYOUT_PARTNER_URL}/merchants`, { signal: AbortSignal.timeout(5000) });
+  if (!r.ok) throw new Error(`payout partner: ${r.status}`);
+  return r.json() as Promise<Directory>;
+}
 const ORDER_SET = parseAbiItem('event StandingOrderSet(address indexed account, uint32 indexed id, bytes32 orderHash)');
 const standingOrders = new StandingOrders({
   now, ownerActions, standingOrders: d.standingOrders, proposals: new MySqlProposalStore(conn.runner), bundler: c.bundler, notify,
@@ -106,18 +118,54 @@ const standingOrders = new StandingOrders({
       return { id, payee, amount, period: Number(period), nextDue: BigInt(nextDue), rail: Number(rail), merchantRef, active };
     }));
   },
-  directory: async () => {
-    const r = await fetch(`${env.PAYOUT_PARTNER_URL}/merchants`, { signal: AbortSignal.timeout(5000) });
-    if (!r.ok) throw new Error(`payout partner: ${r.status}`);
-    return r.json() as Promise<Directory>;
-  },
+  directory: () => standingOrdersDirectory(),
 });
+
+// F8: the operator's entries, the FISCO AuditLog and the Base Anchor, three independent sources.
+const fiscoPub = fiscoClients(env.FISCO_RPC_URL).pub;
+const auditLog = (JSON.parse(readFileSync(env.FISCO_DEPLOYMENTS_FILE, 'utf8')) as { auditLog: Address }).auditLog;
+const audit = new Audit({
+  entries: async (from, limit, account) => {
+    const r = await fetch(`${env.OPERATOR_URL}/audit/entries?from=${from}&limit=${limit}${account ? `&account=${account}` : ''}`, { headers: { authorization: `Bearer ${env.INTERNAL_TOKEN_MEMBERS}` }, signal: AbortSignal.timeout(20_000) });
+    if (!r.ok) throw new Error(`operator audit entries: ${r.status}`);
+    return ((await r.json()) as { entries: AuditRow[] }).entries;
+  },
+  fisco: {
+    latest: async () => { const [seq, head] = (await fiscoPub.readContract({ address: auditLog, abi: AuditLogAbi, functionName: 'latest' })) as readonly [bigint, Hex]; return { seq, head }; },
+    headAt: async (seq) => (await fiscoPub.readContract({ address: auditLog, abi: AuditLogAbi, functionName: 'headAt', args: [seq] })) as Hex,
+  },
+  anchor: { latest: async () => { const [seq, head, fiscoBlock] = await pub.readContract({ address: d.anchor, abi: AnchorAbi, functionName: 'latest' }); return { seq, head, fiscoBlock }; } },
+});
+const TRANSFER = parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 value)');
+const PAYOUT_REQUESTED = parseAbiItem('event PayoutRequested(uint256 indexed id, address indexed account, address indexed partner, uint256 amount, uint8 rail, bytes32 merchantRef, bytes32 paymentRef)');
+const statement = async (account: Address, fromMs: number, toMs: number) => {
+  const range = { fromBlock: BigInt(d.deployBlock), toBlock: 'latest' as const };
+  const [out, inc, payouts, balance] = await Promise.all([
+    pub.getLogs({ address: d.usdc, event: TRANSFER, args: { from: account }, ...range }),
+    pub.getLogs({ address: d.usdc, event: TRANSFER, args: { to: account }, ...range }),
+    pub.getLogs({ address: d.payoutRail, event: PAYOUT_REQUESTED, args: { account }, ...range }),
+    pub.readContract({ address: d.usdc, abi: erc20Abi, functionName: 'balanceOf', args: [account] }),
+  ]);
+  const times = new Map<bigint, number>();
+  for (const b of new Set([...out, ...inc].map((l) => l.blockNumber!))) times.set(b, Number((await pub.getBlock({ blockNumber: b })).timestamp) * 1000);
+  const dir = await standingOrdersDirectory().catch(() => null);
+  const names = Object.fromEntries(payouts.map((l) => [l.transactionHash!.toLowerCase(), dir?.merchants.find((m) => m.merchantRef.toLowerCase() === l.args.merchantRef!.toLowerCase())?.name ?? 'Payout partner']));
+  const all = statementEntries([...out, ...inc].map((l) => ({ txHash: l.transactionHash!, at: times.get(l.blockNumber!)!, from: l.args.from!, to: l.args.to!, value: l.args.value! })),
+    { account, desk: d.treasuryDesk, payoutRail: d.payoutRail, payouts: names });
+  const xml = camt053({
+    account, entries: all.filter((e) => e.at >= fromMs && e.at <= toMs), from: fromMs, to: toMs,
+    opening: balanceAt(all, balance, fromMs), closing: balanceAt(all, balance, toMs), now: Date.now(), network: 'Base Sepolia', chainId: d.chainId,
+  });
+  const errors = await camtErrors(xml);
+  if (errors.length) throw new Error(`camt.053 does not validate: ${errors[0]}`);
+  return xml;
+};
 
 const app = createApiApp({
   store, sessionSecret: env.SESSION_SECRET, rpId: env.PUBLIC_HOST, origin: env.PUBLIC_URL,
   accountFor: async (p, salt) => ({ address: (await prepareAccount(pub as never, accountModules(p), salt)).address }),
   extend: (r, h, session) => apiRoutes(r, h, session, {
-    onboarding, ownerActions, approvals, link, standingOrders, bank: c.bank, runner: c.runner,
+    onboarding, ownerActions, approvals, link, standingOrders, audit, statement, bank: c.bank, runner: c.runner,
     agentKeyOf: async (account) => (await pub.readContract({ address: d.mandateHook, abi: MandateHookAbi, functionName: 'kyaOf', args: [account] }))[0] as Address,
   }),
   mount: (a, h) => {

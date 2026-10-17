@@ -14,12 +14,14 @@
     "@praetor/chain": "workspace:*",
     "@praetor/config": "workspace:*",
     "@praetor/db": "workspace:*",
+    "@praetor/fisco-client": "workspace:*",
     "@praetor/protocol": "workspace:*",
     "@praetor/userop": "workspace:*",
     "@simplewebauthn/server": "13.3.3",
     "express": "4.21.2",
     "pino": "9.14.0",
     "viem": "2.57.5",
+    "xmllint-wasm": "5.3.0",
     "zod": "3.25.76"
   },
   "devDependencies": {

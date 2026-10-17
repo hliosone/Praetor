@@ -10,6 +10,7 @@ import type { OwnerActions } from './owner-actions.js';
 import type { Approvals } from './approvals.js';
 import type { WechatLink } from './wechat-link.js';
 import type { StandingOrders } from './standing-orders.js';
+import type { Audit } from './audit.js';
 import type { Clients } from './clients.js';
 import { HttpError, type handler } from './app.js';
 
@@ -37,6 +38,9 @@ export type RouteModules = {
   approvals: Approvals;
   link: WechatLink;
   standingOrders: StandingOrders;
+  audit: Audit;
+  /** camt.053.001.02 of the account over [fromMs, toMs], already validated against the XSD. */
+  statement(account: Address, fromMs: number, toMs: number): Promise<string>;
   bank: Pick<Clients['bank'], 'policyCheck'>;
   runner: Pick<Clients['runner'], 'chat'>;
   agentKeyOf(account: Address): Promise<Address>;
@@ -118,6 +122,21 @@ export function apiRoutes(r: Router, h: typeof handler, session: express.Request
     send(res, { state: 'dismissed' });
   }));
   r.post('/standing-orders/:id/trigger', session, h(async (req, res) => send(res, await m.standingOrders.trigger(acct(res), z.coerce.number().int().min(1).max(2 ** 32 - 1).parse(req.params.id)))));
+
+  // F8: the account's audit trail, the three-way verification, and the ISO 20022 statement.
+  const range = (q: unknown) => {
+    const b = z.object({ from: z.coerce.number().int().min(0).optional(), to: z.coerce.number().int().min(0).optional() }).parse(q);
+    return { from: b.from ?? 0, to: b.to ?? Date.now() };
+  };
+  r.get('/audit', session, h(async (req, res) => {
+    const { from, to } = range(req.query);
+    send(res, { entries: await m.audit.list(acct(res), from, to) });
+  }));
+  r.get('/audit/verify', session, h(async (_req, res) => send(res, await m.audit.verify())));
+  r.get('/statements/camt053', session, h(async (req, res) => {
+    const { from, to } = range(req.query);
+    res.type('application/xml').set('content-disposition', `attachment; filename="praetor-camt053-${acct(res).slice(2, 10)}.xml"`).send(await m.statement(acct(res), from, to));
+  }));
 
   r.post('/wechat/link/start', session, h(async (_req, res) => send(res, await m.link.start(acct(res)))));
   r.get('/wechat/link/:id', session, h(async (req, res) => send(res, await m.link.status(acct(res), String(req.params.id)))));

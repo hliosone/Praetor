@@ -18,6 +18,8 @@ Praetor itself is all rights reserved (see `NOTICE`). Each entry below keeps its
 | web3j | Apache-2.0 | WeCross EVM stub (M12) |
 | Safe | LGPL-3.0 | deployed contracts only, unmodified |
 | Safe7579 adapter and launchpad, Rhinestone registry | GPL-3.0 | deployed contracts only, own interfaces |
+| xmllint-wasm (libxml2) | MIT | npm dependency of the api (camt.053 schema check) |
+| ISO 20022 camt.053.001.02 schema | ISO 20022 (free to use) | `services/api/assets/`, unmodified |
 | DeepSeek models | DeepSeek License | through OpenCode Zen |
 | Caddy, MySQL, Foundry images | Apache-2.0, GPL-2.0, MIT / Apache-2.0 | container images, unmodified |
 
