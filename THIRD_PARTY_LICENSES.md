@@ -71,6 +71,7 @@ All 264 packages of the production tree are MIT (231), ISC (16), Apache-2.0 (10)
 | Foundry 1.7.1 (anvil) | MIT / Apache-2.0 | local fork of Base Sepolia |
 | Node 22.22.0, Debian bookworm-slim, Eclipse Temurin 8 / 11, Gradle, uv (Python 3.12) | various (MIT, GPL-2.0 with the Classpath exception for the JDK, Apache-2.0) | base images |
 | gitleaks 8.28.0 | MIT | secret scan in `make test` |
+| FISCO console 3.8.0 (Java SDK 3.8.0, bcos-sdk-jni, solcJ with FISCO's SM solc 0.8.26) | Apache-2.0 | downloaded by `make smoke-sm` (sha256-pinned), run in the pinned JDK image, never committed (M15 Guomi smoke) |
 
 ## Deployed contracts and services we only call
 

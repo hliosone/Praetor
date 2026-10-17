@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The SDK logs to files by default; the smoke keeps only its warnings, on stderr. -->
+<Configuration status="ERROR">
+  <Appenders>
+    <Console name="stderr" target="SYSTEM_ERR">
+      <PatternLayout pattern="sdk %p %c{1}: %m%n"/>
+    </Console>
+  </Appenders>
+  <Loggers>
+    <Root level="error">
+      <AppenderRef ref="stderr"/>
+    </Root>
+  </Loggers>
+</Configuration>

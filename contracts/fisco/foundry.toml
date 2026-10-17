@@ -26,5 +26,22 @@ runs = 10000
 [profile.quick.fuzz]
 runs = 256
 
+# Guomi profile build (spec 04, M15): the same sources with the opaque-signature board, assembled by
+# sm/assemble.sh into sm/build (the tree the SM smoke compiles with FISCO's SM solc). Tested here on the plain EVM.
+[profile.sm]
+src = "sm/build/src"
+test = "sm/test"
+# Own artifacts: out/ feeds packages/fisco-client (pnpm abis) and must only ever hold the main profile's build.
+out = "sm/build/out"
+cache_path = "sm/build/cache"
+remappings = [
+  "forge-std/=lib/forge-std/src/",
+  "openzeppelin-contracts/=lib/webauthn-sol/lib/openzeppelin-contracts/",
+  "@praetor/protocol/=sm/build/protocol/",
+]
+
+[profile.sm.fuzz]
+runs = 256
+
 [lint]
 lint_on_build = false
