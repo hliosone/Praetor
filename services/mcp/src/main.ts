@@ -5,7 +5,7 @@ import { encodeFunctionData, type Address, type Hex } from 'viem';
 import { StandingOrdersAbi, baseClients, loadDeployments } from '@praetor/chain';
 import { connect, loadMigrations, migrate } from '@praetor/db';
 import { createMcpApp } from './app.js';
-import { apiApprovals, chainReader, dbLabels, submitter } from './ports.js';
+import { apiApprovals, apiProposals, chainReader, dbLabels, submitter } from './ports.js';
 import { MySqlTokenStore } from './store.js';
 import { oauthRouter } from './oauth.js';
 import { MySqlOAuthStore } from './oauth-store.js';
@@ -48,6 +48,7 @@ const ports: Ports = {
   reader: chainReader(publicClient as never, d),
   submit: submitter({ bundlerUrl: env.BUNDLER_URL, bundlerToken: env.INTERNAL_TOKEN_BUNDLER, signerUrl: env.AGENT_SIGNER_URL, signerSecret: env.SIGNER_HMAC_MCP }),
   approvals: apiApprovals(env.API_URL, env.INTERNAL_TOKEN_API),
+  proposals: apiProposals(env.API_URL, env.INTERNAL_TOKEN_API),
   labels: dbLabels(conn.runner),
   standingOrders: { execute: (account, id) => bundlerTx(d.standingOrders, encodeFunctionData({ abi: StandingOrdersAbi, functionName: 'execute', args: [account, id] })) },
 };

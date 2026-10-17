@@ -33,6 +33,10 @@ export type Ports = {
     request(r: { account: Address; calls: Call[]; callHash: Hex; reason: string; summary: string }): Promise<{ id: string }>;
     get(account: Address, id: string): Promise<Record<string, unknown> | null>;
   };
+  /** The owner's requests in the api: a standing order the agent proposes waits there for the owner (never on-chain). */
+  proposals: {
+    standingOrder(r: { account: Address; payee?: Address; merchant?: string; amount: bigint; period: 'weekly' | 'monthly'; summary: string }): Promise<{ id: string }>;
+  };
   /** Names the owner gave to addresses (lower-case address -> label). */
   labels(account: Address): Promise<Record<string, string>>;
   /** StandingOrders.execute through the bundler's /tx (the executor itself checks nextDue). */
@@ -228,13 +232,21 @@ export class PraetorTools {
     return this.act(built.calls, `Rebalance: sell ${usd(built.usd6)} USD of ${a.sell} for ${a.buy}`, () => `Sold ${usd(built.usd6)} USD of ${a.sell} for ${a.buy}.`);
   }
 
-  /** An owner request only: a standing order exists on-chain only once the owner signs SET_STANDING_ORDER. */
-  async proposeStandingOrder(a: { payee: string; amount: string; period: 'weekly' | 'monthly'; rail?: 'usdc' | 'payout'; merchant?: string }): Promise<ToolResult> {
-    const built = await this.payCalls(a.payee, a.amount);
-    if (typeof built === 'string') return { text: built, isError: true };
-    const summary = `Standing order: ${usd(built.amount6)} USDC ${a.period} to ${(await this.p.labels(this.account))[built.to.toLowerCase()] ?? built.to}${a.merchant ? ` (merchant ${a.merchant})` : ''}`;
-    const { id } = await this.p.approvals.request({ account: this.account, calls: built.calls, callHash: `0x${'00'.repeat(32)}`, reason: 'STANDING_ORDER_PROPOSAL', summary });
-    return { text: `Proposed to the owner (request ${id}). Nothing is set until the owner signs it.`, structured: { requestId: id } };
+  /** An owner request only: a standing order exists on-chain only once the owner and the bank sign ADD_STANDING_ORDER. */
+  async proposeStandingOrder(a: { payee?: string; merchant?: string; amount: string; period: 'weekly' | 'monthly' }): Promise<ToolResult> {
+    if (!!a.payee === !!a.merchant) return { text: 'name either a payee (direct USDC) or a merchant code (paid through the payout partner)', isError: true };
+    const amount = parseUsd6(a.amount);
+    if (amount === null) return { text: 'amount must be a positive number of USDC with at most 6 decimals', isError: true };
+    let payee: Address | undefined;
+    let to = `merchant ${a.merchant}`;
+    if (a.payee) {
+      payee = (await this.resolvePayee(a.payee)) ?? undefined;
+      if (!payee) return { text: `unknown payee "${a.payee}": use an address or a payee name from get_mandate`, isError: true };
+      to = (await this.p.labels(this.account))[payee.toLowerCase()] ?? payee;
+    }
+    const summary = `${usd(amount)} USDC ${a.period} to ${to}`;
+    const { id } = await this.p.proposals.standingOrder({ account: this.account, ...(payee ? { payee } : { merchant: a.merchant }), amount, period: a.period, summary });
+    return { text: `Proposed to the owner (request ${id}): ${summary}. Nothing is set until the owner and the bank sign it.`, structured: { requestId: id } };
   }
 
   async triggerStandingOrder(id: number): Promise<ToolResult> {

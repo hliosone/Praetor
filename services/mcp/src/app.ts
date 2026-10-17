@@ -71,8 +71,8 @@ export function buildMcpServer(account: Address, ports: Ports): McpServer {
   }, async (a) => out(await t.rebalance(a)));
   s.registerTool('get_approval', { title: 'Approval request', description: 'State of an approval request created by pay or rebalance.', inputSchema: { id: z.string().max(64) } }, async ({ id }) => out(await t.getApproval(id)));
   s.registerTool('propose_standing_order', {
-    title: 'Propose a standing order', description: 'Asks the owner to set a recurring payment. Creates an owner request only; nothing happens on-chain until the owner signs it.',
-    inputSchema: { payee: z.string(), amount: usd, period: z.enum(['weekly', 'monthly']), rail: z.enum(['usdc', 'payout']).optional(), merchant: z.string().optional() },
+    title: 'Propose a standing order', description: 'Asks the owner to set a fixed recurring payment, either to a payee (direct USDC) or to a merchant code (paid through the payout partner, e.g. rent). Creates an owner request only; nothing happens on-chain until the owner and the bank sign it.',
+    inputSchema: { payee: z.string().max(100).optional(), merchant: z.string().max(64).optional(), amount: usd, period: z.enum(['weekly', 'monthly']) },
   }, async (a) => out(await t.proposeStandingOrder(a)));
   s.registerTool('trigger_standing_order', { title: 'Run a standing order', description: 'Executes a standing order the owner set, when it is due.', inputSchema: { id: z.number().int().min(0) } }, async ({ id }) => out(await t.triggerStandingOrder(id)));
   return s;

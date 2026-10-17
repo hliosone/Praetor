@@ -101,6 +101,18 @@ export function submitter(c: SubmitConfig): Ports['submit'] {
 }
 
 /** Approval requests live in the api (M9); without it they are refused plainly. */
+/** The agent's standing-order proposals, stored in the api as owner requests (F7 step 1). */
+export function apiProposals(apiUrl: string | undefined, token: string | undefined): Ports['proposals'] {
+  return {
+    standingOrder: async (req) => {
+      if (!apiUrl || !token) throw new Error('the owner request service is not available');
+      const r = await fetch(`${apiUrl}/internal/standing-order-proposals`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: json(req) });
+      if (!r.ok) throw new Error(`api standing-order proposal: ${r.status}`);
+      return r.json() as Promise<{ id: string }>;
+    },
+  };
+}
+
 export function apiApprovals(apiUrl: string | undefined, token: string | undefined): Ports['approvals'] {
   const call = async (method: string, path: string, body?: unknown) => {
     if (!apiUrl || !token) throw new Error('the approval service is not available');

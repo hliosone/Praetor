@@ -19,6 +19,7 @@ type Sent = { account: Address; calls: { to: Address; value: bigint; data: Hex }
 let sent: Sent[];
 let verdict: { reason: number; tier: number };
 let requested: unknown[];
+let proposed: unknown[];
 const ports = (): Ports => ({
   tokens: T,
   explorer: 'https://sepolia.basescan.org',
@@ -45,9 +46,10 @@ const ports = (): Ports => ({
     get: async (_a, id) => (id === 'apr_1' ? { state: 'pending' } : null),
   },
   labels: async () => ({ [CAFE.toLowerCase()]: 'Café Lumen' }),
+  proposals: { standingOrder: async (r) => { proposed.push(r); return { id: 'sop_1' }; } },
 });
 
-beforeEach(() => { sent = []; requested = []; verdict = { reason: Reason.OK, tier: Tier.T1_AUTONOMOUS }; });
+beforeEach(() => { sent = []; requested = []; proposed = []; verdict = { reason: Reason.OK, tier: Tier.T1_AUTONOMOUS }; });
 const tools = () => new PraetorTools(ACCOUNT, ports());
 
 describe('get_portfolio', () => {
@@ -154,5 +156,29 @@ describe('get_mandate and get_status', () => {
     expect(m.text).toMatch(/Café Lumen/);
     const st = await tools().getStatus();
     expect(st.text).toMatch(/ACTIVE/);
+  });
+});
+
+describe('propose_standing_order (F7 step 1)', () => {
+  it('a merchant order (payout rail) is an owner request only: nothing is sent, no approval is opened', async () => {
+    const r = await tools().proposeStandingOrder({ merchant: 'KOWLOON-LETTINGS', amount: '1200', period: 'monthly' });
+    expect(r.isError).toBeFalsy();
+    expect(proposed).toEqual([{ account: ACCOUNT, merchant: 'KOWLOON-LETTINGS', amount: 1_200_000_000n, period: 'monthly', summary: '1200.00 USDC monthly to merchant KOWLOON-LETTINGS' }]);
+    expect(sent).toHaveLength(0);
+    expect(requested).toHaveLength(0);
+    expect(r.text).toMatch(/sop_1/);
+  });
+
+  it('a direct order names a payee (label or address), resolved to its address', async () => {
+    await tools().proposeStandingOrder({ payee: 'Café Lumen', amount: '25', period: 'weekly' });
+    expect(proposed[0]).toMatchObject({ payee: getAddress(CAFE), amount: 25_000_000n, period: 'weekly', summary: '25.00 USDC weekly to Café Lumen' });
+  });
+
+  it('refuses a payee and a merchant together, neither, an unknown payee or a bad amount', async () => {
+    expect((await tools().proposeStandingOrder({ payee: CAFE, merchant: 'KOWLOON-LETTINGS', amount: '1', period: 'weekly' })).isError).toBe(true);
+    expect((await tools().proposeStandingOrder({ amount: '1', period: 'weekly' })).isError).toBe(true);
+    expect((await tools().proposeStandingOrder({ payee: 'Nobody', amount: '1', period: 'weekly' })).isError).toBe(true);
+    expect((await tools().proposeStandingOrder({ merchant: 'KOWLOON-LETTINGS', amount: '-1', period: 'weekly' })).isError).toBe(true);
+    expect(proposed).toHaveLength(0);
   });
 });
