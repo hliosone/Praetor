@@ -2,3 +2,6 @@
 export * from './webauthn.js';
 export * from './staff.js';
 export * from './proposal.js';
+export * from './app.js';
+export * from './consortium.js';
+export * from './start.js';

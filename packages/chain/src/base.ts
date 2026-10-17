@@ -11,13 +11,14 @@ export function baseClients(rpcUrl: string, key?: Hex) {
 }
 
 /** The only clock for deadlines and expiries: the latest Base block (the fork's clock moves with time warps). */
-export async function baseNow(client: Pick<PublicClient, 'getBlock'>): Promise<bigint> {
+// Structural types: viem's chain-specific clients (OP stack formatters) are not assignable to PublicClient.
+export async function baseNow(client: { getBlock(a: { blockTag: 'latest' }): Promise<{ timestamp: bigint }> }): Promise<bigint> {
   return (await client.getBlock({ blockTag: 'latest' })).timestamp;
 }
 
 /** The public RPC is load-balanced and a node may lag the receipt: block until reads see that block. */
 export async function waitSynced(
-  client: Pick<PublicClient, 'getBlockNumber'>,
+  client: { getBlockNumber(a?: { cacheTime?: number }): Promise<bigint> },
   blockNumber: bigint,
   { intervalMs = 1000, attempts = 60 }: { intervalMs?: number; attempts?: number } = {},
 ): Promise<void> {

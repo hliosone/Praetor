@@ -117,6 +117,9 @@ importers:
       '@noble/hashes':
         specifier: 1.8.0
         version: 1.8.0
+      '@praetor/chain':
+        specifier: workspace:*
+        version: link:../chain
       '@praetor/config':
         specifier: workspace:*
         version: link:../config
@@ -135,6 +138,9 @@ importers:
       express:
         specifier: 4.21.2
         version: 4.21.2
+      pino:
+        specifier: 9.14.0
+        version: 9.14.0
       viem:
         specifier: 2.57.5
         version: 2.57.5(typescript@5.9.3)(zod@3.25.76)

@@ -33,6 +33,12 @@ describe('migrator', () => {
     expect(log.filter((l) => l.startsWith('CREATE TABLE') && l !== 'CREATE TABLE IF')).toEqual(['CREATE TABLE a', 'CREATE TABLE b']);
   });
 
+  it('ships the member-service migrations (staff passkeys)', () => {
+    const ms = loadMigrations('member');
+    expect(ms[0]!.name).toBe('0001_staff');
+    expect(ms[0]!.sql).toMatch(/CREATE TABLE IF NOT EXISTS staff_passkeys/);
+  });
+
   it('ships the bundler migrations', () => {
     const ms = loadMigrations('bundler');
     expect(ms.map((m) => m.name)[0]).toBe('0001_init');
