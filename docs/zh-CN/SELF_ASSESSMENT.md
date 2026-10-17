@@ -15,7 +15,7 @@ Praetor 让 AI 智能体动用用户的资金，因此设计上要回答的问�
 | Slither，Praetor 自有 Base 代码 | High 0，Medium 27（全部已解释），Low 52 | [slither.md](../security/slither.md) |
 | Slither，内置（vendored）WeCross proxy | High 3，Medium 8，全部判定为不可利用；**自 M12 起 `make slither` 以非零码退出** | [slither.md](../security/slither.md) |
 | `pnpm audit --prod` | 4 个 high，7 个 moderate，2 个 low；每项均已评估，尚未升级任何依赖 | [deps.md](../security/deps.md) |
-| gitleaks（完整历史） | 无泄露，141 个提交 | [deps.md](../security/deps.md) |
+| gitleaks（完整历史） | 无泄露，本分支 154 个提交 | [deps.md](../security/deps.md) |
 | 集成与 e2e（流程 F1 至 F9） | 在 M3 至 M11 的关卡中全部通过（`docs/PROGRESS.md`）；本文未重新运行（共享的本地栈正被占用） | `test/integration`，`test/e2e` |
 | 红队（“N attacks, 0 executed”） | **在 M16 中构建**，结果写入 `docs/security/redteam.md` | [第 9 节](#9-红队测试结果) |
 | 渗透测试 | **Phase C**，报告写入 `docs/security/pentest.md` | [第 10 节](#10-渗透测试) |
@@ -150,7 +150,7 @@ Praetor 账户的每一次执行都经过 `MandateHook.preCheck`（I1），无�
 ## 8. 依赖、密钥与许可证
 
 - **依赖审计**（[deps.md](../security/deps.md)）：`pnpm audit --prod` 报告 4 个 high、7 个 moderate 和 2 个 low 公告。按实际用法不可达：MCP SDK 的 OAuth 客户端（我们使用 stdio）、drizzle 标识符（静态）、body-parser 限制、react-router（无 SSR，固定路由）、uuid。低风险：mysql2（需要内部网络上存在恶意 MySQL 服务器）。需要升级：express 的 qs 和 path-to-regexp（公开路由上的 DoS）。Java 部分的 OWASP dependency-check 以及镜像扫描是未完成事项。
-- **密钥**：`.env`（mode 600）被 git 忽略，密钥只追加不覆盖（`pnpm keys`），服务从不记录密钥值；gitleaks 在 `make test` 中运行，在 141 个提交中未发现泄露。
+- **密钥**：`.env`（mode 600）被 git 忽略，密钥只追加不覆盖（`pnpm keys`），服务从不记录密钥值；gitleaks 在 `make test` 中运行，在本分支的 154 个提交中未发现泄露。
 - **GPL 边界**（[THIRD_PARTY_LICENSES.md](../../THIRD_PARTY_LICENSES.md)）：`contracts/` 和 `packages/` 中没有 GPL 或 LGPL 源码（除 Apache-2.0 的内置 proxy 外，每个 Solidity 文件都是 `UNLICENSED`）；编译进 Base 合约的 51 个源文件中，26 个为 `UNLICENSED`，24 个为 MIT，1 个为 Apache-2.0。GPL 合约（Safe7579、launchpad、registry、EntryPoint）和 LGPL 的 Safe 仅以已部署合约的形式、通过我们自己的接口调用。
 
 ## 9. 红队测试结果

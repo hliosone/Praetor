@@ -15,7 +15,7 @@ Snapshot: 2026-10-17, end of M17. Milestones M12 (WeCross gate), M13 (web app), 
 | Slither, Praetor's Base code | High 0, Medium 27 (all explained), Low 52 | [slither.md](slither.md) |
 | Slither, vendored WeCross proxy | High 3, Medium 8, all triaged as not exploitable; **`make slither` exits non-zero since M12** | [slither.md](slither.md) |
 | `pnpm audit --prod` | 4 high, 7 moderate, 2 low; each assessed, none upgraded yet | [deps.md](deps.md) |
-| gitleaks (full history) | no leaks, 141 commits | [deps.md](deps.md) |
+| gitleaks (full history) | no leaks, 154 commits of this branch | [deps.md](deps.md) |
 | Integration and e2e (flows F1 to F9) | green at the gates of M3 to M11 (`docs/PROGRESS.md`); not re-run for this document (the shared local stack was in use) | `test/integration`, `test/e2e` |
 | Red team ("N attacks, 0 executed") | **built in M16**, results in `docs/security/redteam.md` | [section 9](#9-red-team-results-m16) |
 | Pentest | **Phase C**, report in `docs/security/pentest.md` | [section 10](#10-pentest-phase-c) |
@@ -148,7 +148,7 @@ The target is met. Branch coverage of the hook's libraries (80 % to 87 %) is low
 ## 8. Dependencies, secrets and licences
 
 - **Dependency audit** ([deps.md](deps.md)): `pnpm audit --prod` reports 4 high, 7 moderate and 2 low advisories. Not reachable as used: the MCP SDK OAuth client (we use stdio), drizzle identifiers (static), body-parser limits, react-router (no SSR, fixed routes), uuid. Low: mysql2 (needs a hostile MySQL server on the internal network). To upgrade: express's qs and path-to-regexp (DoS on public routes). OWASP dependency-check for the Java parts and image scanning are open items.
-- **Secrets**: `.env` (mode 600) is git-ignored, keys are append-only (`pnpm keys`), services never log values; gitleaks runs in `make test` and found no leak in 141 commits.
+- **Secrets**: `.env` (mode 600) is git-ignored, keys are append-only (`pnpm keys`), services never log values; gitleaks runs in `make test` and found no leak in the 154 commits of this branch.
 - **GPL boundary** ([THIRD_PARTY_LICENSES.md](../../THIRD_PARTY_LICENSES.md)): no GPL or LGPL source in `contracts/` or `packages/` (every Solidity file is `UNLICENSED` except the Apache-2.0 vendored proxy); the 51 sources compiled into the Base contracts are 26 `UNLICENSED`, 24 MIT, 1 Apache-2.0. GPL contracts (Safe7579, launchpad, registry, EntryPoint) and LGPL Safe are only deployed and called through our own interfaces.
 
 ## 9. Red-team results (M16)

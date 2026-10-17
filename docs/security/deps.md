@@ -32,7 +32,7 @@ Run on 2026-10-17 (M17) against the lockfiles of this commit. Licences of every 
 ## Secrets: gitleaks
 
 - `make test` runs `scripts/checks/gitleaks.sh` (gitleaks 8.28.0, pinned image, config `.gitleaks.toml`): the whole git history, staged and unstaged changes, and new untracked files.
-- Result on 2026-10-17: **no leaks**, 141 commits scanned (history scan run read-only with the repository's `.git` mounted, see the caveat below).
+- Result on 2026-10-17: **no leaks** in the 154 commits of this branch at the end of M17 (history scan run read-only with the repository's `.git` mounted, see the caveat below).
 - **Caveat found in M17:** inside a `git worktree` checkout, `.git` is a file pointing outside the mounted directory; the three git-mode scans then fail with "not a git repository" while the script still prints "gitleaks: no leaks" and exits 0. In the main checkout (how `make test` runs on the build machine and in CI) the scans work. The script should fail when gitleaks reports a git error.
 - Phase 0 also checked that none of the 72 generated `.env` values appears in `git log -p --all` (`docs/PHASE0.md`).
 
