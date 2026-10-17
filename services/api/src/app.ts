@@ -24,6 +24,8 @@ export type ApiDeps = {
     status(account: Address): Promise<unknown>;
     execute(account: Address): Promise<unknown>;
   };
+  /** Requests per minute per client address on the public sign-in, onboarding and recovery routes (default 60). */
+  rateLimitPerMinute?: number;
   extend?: (r: express.Router, h: typeof handler, session: ReturnType<typeof requireSession>) => void;
   /** Routers outside /api (the mini program's /mp, the internal routes for mcp). */
   mount?: (app: express.Express, h: typeof handler) => void;
@@ -45,6 +47,30 @@ export function createApiApp(d: ApiDeps) {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '128kb' }));
+  // Caddy, on the internal network, is the only client: the address that matters is the one it forwards.
+  app.set('trust proxy', 'uniquelocal');
+  // A write from another site is refused before anything runs; the CSRF token is the second lock (spec 08).
+  const ownOrigin = new URL(d.origin).origin;
+  app.use('/api', (req, res, next) => {
+    const o = req.header('origin');
+    if (req.method !== 'GET' && req.method !== 'HEAD' && o && o !== ownOrigin) return res.status(403).json({ error: 'cross-origin request refused' });
+    next();
+  });
+  const hits = new Map<string, { n: number; until: number }>();
+  const limited = (group: string): express.RequestHandler => (req, res, next) => {
+    const now = Date.now();
+    if (hits.size > 10_000) for (const [k, v] of hits) if (v.until < now) hits.delete(k);
+    const key = `${group}:${req.ip}`;
+    let w = hits.get(key);
+    if (!w || w.until < now) hits.set(key, (w = { n: 0, until: now + 60_000 }));
+    if (++w.n > (d.rateLimitPerMinute ?? 60)) return res.status(429).json({ error: 'too many requests' });
+    next();
+  };
+  app.use('/api/auth', limited('auth'));
+  app.use(['/api/onboarding/start', '/api/onboarding/passkey'], limited('onboarding'));
+  app.use('/api/recover', limited('recover'));
+  // Each mini program sign-in reaches WeChat's code2Session.
+  app.use('/mp/session', limited('mp'));
   const secure = d.origin.startsWith('https:');
   const challenges = new Map<string, { challenge: string; at: number }>();
   const takeChallenge = (key: string) => {

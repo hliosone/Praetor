@@ -1,7 +1,7 @@
 // The consortium console's relay (spec 07): staff log in with passkeys registered in their own member service; the api
 // only relays. Console writes need a staff session the member service confirms (proved with a staff passkey over a
-// single-use challenge); signatures are staff assertions the member service verifies itself. Agents' statuses are
-// chain data, shown without a session.
+// single-use challenge); signatures are staff assertions the member service verifies itself. The list of Praetor
+// accounts is chain data, but which accounts are Praetor's is not shown without a staff session (D70).
 import type { Request, Response, Router } from 'express';
 import { z } from 'zod';
 
@@ -29,7 +29,10 @@ export function consoleRoutes(r: Router, d: { member: MemberCall; agents(): Prom
     return session;
   };
 
-  r.get('/agents', h(async (_req, res) => res.json({ agents: await d.agents() })));
+  r.get('/agents', h(async (req, res) => {
+    if (!(await staff(req, res, role.parse(req.header('x-staff-role') ?? 'bank')))) return;
+    res.json({ agents: await d.agents() });
+  }));
   r.post('/:role/challenge', h(async (req, res) => relay(res, await d.member(role.parse(req.params.role), 'POST', '/staff/challenge'))));
   r.post('/:role/login', h(async (req, res) => {
     const b = z.object({ assertion: z.record(z.unknown()) }).parse(req.body);

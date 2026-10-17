@@ -14,9 +14,9 @@ type Proposal = { status: number; required: number; signers: string[]; digest: `
 const PILL = { ACTIVE: 'ok', RESTRICTED: 'wait', FROZEN: 'no' } as const;
 const PROPOSAL_STATUS = ['none', 'open', 'ready', 'closed'];
 
-async function call<T>(method: 'GET' | 'POST', path: string, body?: unknown, session?: string): Promise<T> {
+async function call<T>(method: 'GET' | 'POST', path: string, body?: unknown, session?: string, role?: Role): Promise<T> {
   const r = await fetch(`/api/console${path}`, {
-    method, headers: { 'content-type': 'application/json', ...(session ? { 'x-staff-session': session } : {}) }, body: body === undefined ? undefined : JSON.stringify(body),
+    method, headers: { 'content-type': 'application/json', ...(session ? { 'x-staff-session': session } : {}), ...(role ? { 'x-staff-role': role } : {}) }, body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await r.json().catch(() => null);
   if (!r.ok) throw new Error((data as { detail?: string; error?: string } | null)?.detail ?? (data as { error?: string } | null)?.error ?? `HTTP ${r.status}`);
@@ -112,7 +112,11 @@ function RolePanel({ role, selected, proposals, onOpened, onDone }: { role: Role
 
 export function Console() {
   const { t } = useI18n();
-  const agents = useLoad(() => call<{ agents: Agent[] }>('GET', '/agents'), [], 6000);
+  // The account list needs a staff session of any member (D70): the first role signed in on this console.
+  const agents = useLoad(async () => {
+    const signedIn = (['bank', 'regulator', 'operator'] as const).map((r) => [r, sessionStorage.getItem(`praetor.staff.${r}`)] as const).find(([, s]) => s);
+    return signedIn ? call<{ agents: Agent[] }>('GET', '/agents', undefined, signedIn[1]!, signedIn[0]) : { agents: [] };
+  }, [], 6000);
   const [selected, setSelected] = useState<string>();
   // Proposals opened from this console, shown in every member's panel: freeze needs one signature, loosen two.
   const [proposals, setProposals] = useState<Opened[]>([]);

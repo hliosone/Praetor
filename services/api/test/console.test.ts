@@ -20,9 +20,12 @@ function setup() {
 }
 
 describe('consortium console relay (spec 07)', () => {
-  it('lists the agents (chain data) without a session', async () => {
+  it('lists the agents only to a signed-in staff member of any member service (D70)', async () => {
     const { app } = setup();
-    expect((await request(app).get('/api/console/agents').expect(200)).body).toEqual({ agents: [{ account: '0x1', status: 'ACTIVE' }] });
+    await request(app).get('/api/console/agents').expect(401);
+    await request(app).get('/api/console/agents').set('x-staff-role', 'bank').set('x-staff-session', 'bad').expect(401);
+    await request(app).get('/api/console/agents').set('x-staff-role', 'nobody').set('x-staff-session', 'good').expect(400);
+    expect((await request(app).get('/api/console/agents').set('x-staff-role', 'regulator').set('x-staff-session', 'good').expect(200)).body).toEqual({ agents: [{ account: '0x1', status: 'ACTIVE' }] });
   });
 
   it('relays the staff login of a role to that member service', async () => {
