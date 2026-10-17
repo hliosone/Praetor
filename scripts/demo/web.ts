@@ -3,7 +3,7 @@
 import { type Hex } from 'viem';
 import { MandateHookAbi, baseNow } from '@praetor/chain';
 import { softPasskey, OwnerActionKind, type SoftPasskey } from '@praetor/protocol';
-import { pub, waitFor, type Stack } from './lib.js';
+import { pub, scriptAgent, waitFor, type Stack } from './lib.js';
 
 const b64 = (h: Hex) => Buffer.from(h.slice(2), 'hex').toString('base64url');
 
@@ -87,6 +87,9 @@ export async function onboardViaApi(web: WebClient, label: string, person: { ful
   const now = await baseNow(pub(s));
   const sk = await web.ok('POST', '/api/owner-actions/prepare', { kind: OwnerActionKind.SET_AGENT_KEY, validUntil: Number(now + 7_776_000n) });
   if (!(await web.ownerAction(sk)).success) throw new Error('SET_AGENT_KEY failed');
+  // Automated tests: the agent runs the scripted model with nothing queued until a test queues its steps, so a
+  // scheduler wake never has the real model act on a test account.
+  await scriptAgent(s, web.account!, []);
   return agent.agentKey as `0x${string}`;
 }
 

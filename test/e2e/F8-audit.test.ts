@@ -22,8 +22,9 @@ let entrySeq: number;
 const tag = Date.now().toString(36);
 const operator = (method: string, path: string) =>
   fetch(`${s.members.operator}${path}`, { method, headers: { 'content-type': 'application/json', authorization: `Bearer ${s.env.INTERNAL_TOKEN_MEMBERS}` } });
+// The password travels in the environment (`-e NAME` without a value), never on a command line an error would print.
 const sql = (q: string) =>
-  execFileSync('docker', ['exec', '-e', `MYSQL_PWD=${s.env.MYSQL_PASSWORD_OPERATOR}`, 'praetor-mysql-1', 'mysql', '-uoperator', 'operator', '-N', '-e', q], { encoding: 'utf8' }).trim();
+  execFileSync('docker', ['exec', '-e', 'MYSQL_PWD', 'praetor-mysql-1', 'mysql', '-uoperator', 'operator', '-N', '-e', q], { encoding: 'utf8', env: { ...process.env, MYSQL_PWD: s.env.MYSQL_PASSWORD_OPERATOR } }).trim();
 
 beforeAll(async () => {
   s = stack();
