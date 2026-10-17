@@ -19,7 +19,11 @@ beforeAll(async () => { s = stack(); await bootstrapConsortium(s); }, 600_000);
 describe('audit writer and anchors', () => {
   it('a heartbeat is audited twice (FISCO Ready, then applied on Base); the stored chain ends on the FISCO head', async () => {
     const [before] = await fiscoLatest();
-    const beat = await op('POST', '/heartbeat/beat').then((r) => r.json());
+    // Right after make up the operator's own first beat can hold the board for a moment: wait for ours to go through.
+    const beat = await waitFor('a heartbeat Ready on FISCO', async () => {
+      const r = await op('POST', '/heartbeat/beat');
+      return r.ok ? ((await r.json()) as { ready: boolean }) : undefined;
+    }, 120_000);
     expect(beat.ready).toBe(true);
     let kinds: string[] = [];
     await waitFor('heartbeat entries', async () => {
