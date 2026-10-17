@@ -72,6 +72,12 @@ describe('prepare', () => {
     expect((await b.prepare({ sender: ACCOUNT, callData: pay, validator: 'agent' })).userOp.callGasLimit).toBe(300_000n);
   });
 
+  it('without a simulation, gives a batch room per call: a rebalance (approve + swap through the hook) needs more than a transfer', async () => {
+    chain.estimate = null;
+    const batch = encodeExecute([{ to: A(5), value: 0n, data: '0x095ea7b3' }, { to: A(6), value: 0n, data: '0x12345678' }]);
+    expect((await b.prepare({ sender: ACCOUNT, callData: batch, validator: 'agent' })).userOp.callGasLimit).toBe(1_100_000n);
+  });
+
   it('sponsors only registered and initialized accounts, or our own launchpad init', async () => {
     await expect(b.prepare({ sender: A(0xdead), callData: pay, validator: 'agent' })).rejects.toThrow(NotSponsorable);
     await b.register(A(0xbeef));

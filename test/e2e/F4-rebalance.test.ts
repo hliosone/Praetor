@@ -4,7 +4,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { erc20Abi } from 'viem';
 import { PriceOracleAbi } from '@praetor/chain';
 import {
-  bootstrapConsortium, createAccount, fund, setDemoPrices, lastAgentTurn, onboard, pub, scriptAgent, shockPrice, stack, waitFor, waitHeartbeat, type Account, type Stack,
+  bootstrapConsortium, createAccount, ensureDeskLiquidity, fund, setDemoPrices, lastAgentTurn, onboard, pub, scriptAgent, shockPrice, stack, waitFor, waitHeartbeat, type Account, type Stack,
 } from '../../scripts/demo/lib.js';
 
 let s: Stack;
@@ -25,6 +25,7 @@ beforeAll(async () => {
   // The consortium and the seeded prices this flow starts from (idempotent; a fresh fork has neither).
   await bootstrapConsortium(s);
   await setDemoPrices(s);
+  await ensureDeskLiquidity(s);
   acc = await createAccount(s, `f4-${Date.now()}`);
   await onboard(s, acc);
   await fund(s, acc);

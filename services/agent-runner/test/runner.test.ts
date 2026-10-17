@@ -67,15 +67,35 @@ describe('instances', () => {
     expect(readFileSync(join(project, 'opencode.json'), 'utf8')).not.toContain('agt_secret');
   });
 
-  it('reuses a running instance and caps how many run at once', async () => {
+  it('reuses a running instance; at the cap, the least recently used idle instance makes room', async () => {
     const { m, states } = setup({ max: 1 });
     const a = await m.ensure(ACCOUNT);
     expect(await m.ensure(ACCOUNT)).toBe(a);
+    await m.ensure('0x00000000000000000000000000000000000000aa');
+    expect(states).toHaveLength(2);
+    expect(m.isRunning(ACCOUNT)).toBe(false);
+  });
+
+  it('keeps a model override across restarts of the runner (stored with the account)', async () => {
+    const { m, dir } = setup();
+    m.setModel(ACCOUNT, 'fake/scripted');
+    const opts = { dataDir: dir, basePort: 43000, password: 'pw', maxActive: 1, idleS: 1800, spawner: () => ({ stop() {} }), mcpUrl: 'x', defaultModel: 'opencode/real', warmDir: dir, issueToken: async () => 't' };
+    const again = new InstanceManager({ ...opts, fakeLlmUrl: 'http://fake-llm:3090' });
+    expect(again.modelOf(ACCOUNT)).toBe('fake/scripted');
+    expect(again.modelOf('0x00000000000000000000000000000000000000aa')).toBe('opencode/real');
+    // Without the fake LLM (prod) an override file is never honoured.
+    expect(new InstanceManager(opts).modelOf(ACCOUNT)).toBe('opencode/real');
+  });
+
+  it('never evicts a busy instance: a new account waits for a slot', async () => {
+    const { m, states } = setup({ max: 1 });
+    const a = await m.ensure(ACCOUNT);
+    a.busy = 1;
     const other = m.ensure('0x00000000000000000000000000000000000000aa');
     await new Promise((r) => setTimeout(r, 100));
     expect(states).toHaveLength(1);
+    a.busy = 0;
     m.release(ACCOUNT);
-    m.stopIdle(Date.now() + 1_900_000);
     await other;
     expect(states).toHaveLength(2);
   });

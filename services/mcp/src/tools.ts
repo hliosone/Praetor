@@ -162,10 +162,16 @@ export class PraetorTools {
     const usd6 = parseUsd6(amountUsd);
     if (usd6 === null) return 'amountUsd must be a positive number';
     const policy = await this.p.reader.policy(this.account);
-    const { price8 } = await this.p.reader.price(tIn);
-    const amountIn = (usd6 * 10n ** BigInt(this.decimals(tIn) + 2)) / price8;
+    const pIn = (await this.p.reader.price(tIn)).price8;
+    const pOut = (await this.p.reader.price(tOut)).price8;
+    const amountIn = (usd6 * 10n ** BigInt(this.decimals(tIn) + 2)) / pIn;
+    // The hook's rule (DecisionLib._swap): minOut >= oracleOut * (1 - maxSlippage), oracleOut at the oracle price
+    // without the desk's spread. The desk's quote (spread included) must still meet that floor.
+    const usdIn = (amountIn * pIn) / 10n ** BigInt(this.decimals(tIn) + 2);
+    const oracleOut = (usdIn * 10n ** BigInt(this.decimals(tOut) + 2)) / pOut;
+    const minOut = (oracleOut * BigInt(10_000 - (policy?.maxSlippageBps ?? 100))) / 10_000n;
     const quoted = await this.p.reader.quote(tIn, tOut, amountIn);
-    const minOut = (quoted * BigInt(10_000 - (policy?.maxSlippageBps ?? 100))) / 10_000n;
+    if (quoted < minOut) return `the desk price is beyond the mandate's slippage limit (${pct(policy?.maxSlippageBps ?? 100)}): not sent`;
     const calls: Call[] = [
       { to: tIn, value: 0n, data: encodeFunctionData({ abi: erc20Abi, functionName: 'approve', args: [this.p.tokens.desk, amountIn] }) },
       { to: this.p.tokens.desk, value: 0n, data: encodeFunctionData({ abi: TreasuryDeskAbi, functionName: 'swap', args: [tIn, tOut, amountIn, minOut] }) },

@@ -136,6 +136,7 @@ export function weidClient(o: WeidClientOptions) {
         claim: a.claim,
       }, a.issuer),
 
+    contracts: () => helper<{ weId: string; cpt?: string; authorityIssuer?: string; evidence?: string; specificIssuer?: string }>('/contracts', {}),
     issuerSetup: (bankWeId: string) => helper<{ authorityIssuer: boolean; kycProvider: boolean }>('/issuers/setup', { bankWeId }),
     countersign: async (credential: Credential, signerWeId: string) => {
       const r = await helper<{ credential: Credential; hash: string }>('/credentials/countersign', { credential, signerWeId });

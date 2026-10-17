@@ -42,6 +42,10 @@ export type PrepareRequest = { sender: Address; callData: Hex; validator: 'agent
 export type SendResult = { userOpHash: Hex; txHash: Hex | null; success: boolean | null; reasons: number[]; refusalLogTx: Hex | null; skipped: boolean; gasUsed?: bigint };
 
 const MIN_CALL_GAS = 300_000n;
+// Hook-checked executions cannot be simulated outside a userOp (the hook refuses a call without its validation
+// context), so a batch gets room per extra call: a rebalance (approve + swap with token compliance and the hook's
+// post-check) ran out of gas at 300k.
+const FALLBACK_PER_EXTRA_CALL = 800_000n;
 const FIRST_OP_VERIFICATION_GAS = 3_000_000n;
 const FIRST_OP_CALL_GAS = 2_000_000n;
 const SPONSORSHIP_TTL_S = 600n;
@@ -131,7 +135,8 @@ export class Bundler {
       const est = (await this.chain.estimateExecute(sender, callData)) * 13n / 10n;
       return est > MIN_CALL_GAS ? est : MIN_CALL_GAS;
     } catch {
-      return MIN_CALL_GAS;
+      const n = BigInt(Math.max(this.calls(callData).length, 1));
+      return MIN_CALL_GAS + (n - 1n) * FALLBACK_PER_EXTRA_CALL;
     }
   }
 

@@ -9,7 +9,23 @@ OUT=/weid/out
 genesis=$(curl -sf -H 'content-type: application/json' \
   --data '{"jsonrpc":"2.0","id":1,"method":"eth_getBlockByNumber","params":["0x0",false]}' "$FISCO_RPC_URL" | jq -r .result.hash)
 [ -n "$genesis" ] && [ "$genesis" != null ] || { echo "weid: FISCO not reachable"; exit 1; }
-if [ "$(cat "$OUT/deployed" 2>/dev/null)" = "$genesis" ]; then echo "weid: already deployed"; exit 0; fi
+# contracts.json: the deployed addresses (the agent DID updates of agent-signer target the WeId contract).
+contracts() {
+  python3 - "$1" "$OUT/contracts.json" <<'PY'
+import json, re, sys
+log = open(sys.argv[1]).read()
+names = {'weid': 'weId', 'cpt': 'cpt', 'authority issuer': 'authorityIssuer', 'evidence': 'evidence', 'specificIssuer': 'specificIssuer'}
+out = {}
+for label, key in names.items():
+    m = re.findall(r'%s contract address is (0x[0-9a-fA-F]{40})' % label, log)
+    if m: out[key] = m[-1]
+json.dump(out, open(sys.argv[2], 'w'))
+PY
+}
+if [ "$(cat "$OUT/deployed" 2>/dev/null)" = "$genesis" ]; then
+  [ -f "$OUT/contracts.json" ] || contracts /weid/src/deploy.log
+  echo "weid: already deployed"; exit 0
+fi
 rm -rf "${OUT:?}"/*
 SRC=/weid/src/WeIdentity-Build-Tools
 if [ ! -d "$SRC/.git" ]; then
@@ -50,5 +66,6 @@ cp resources/fisco.properties resources/weidentity.properties resources/conf/ca.
 sed -i 's#^sdk.cert-path=.*#sdk.cert-path=conf#' "$OUT/conf/fisco.properties"
 cp /work/admin.key "$OUT/private_key"
 chmod 600 "$OUT/private_key"
+contracts /weid/src/deploy.log
 echo "$genesis" > "$OUT/deployed"
 echo "weid: deployed"

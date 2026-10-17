@@ -114,9 +114,21 @@ describe('rebalance', () => {
     expect(swap!.to).toBe(T.desk);
     const s = decodeFunctionData({ abi: TreasuryDeskAbi, data: swap!.data });
     expect(s.functionName).toBe('swap');
-    const quoted = (amountIn * 318_000_000_000n) / 10n ** 20n;
-    expect(s.args).toEqual([getAddress(T.txau), getAddress(T.usdc), amountIn, (quoted * 9900n) / 10000n]);
+    // The hook's rule (DecisionLib._swap): minOut >= oracleOut * (1 - maxSlippage), oracleOut at the oracle price
+    // without the desk's spread; the desk quote (spread included) must still meet it.
+    const usdIn = (amountIn * 318_000_000_000n) / 10n ** 20n;
+    const oracleOut = (usdIn * 10n ** 8n) / 100_000_000n;
+    expect(s.args).toEqual([getAddress(T.txau), getAddress(T.usdc), amountIn, (oracleOut * 9900n) / 10000n]);
     expect(r.text).toMatch(/Sold 650.00 USD of tXAU/);
+  });
+
+  it('refuses locally when the desk quote cannot meet the slippage floor', async () => {
+    const p = ports();
+    p.reader.quote = async (_i, _o, amountIn) => (amountIn * 318_000_000_000n * 9800n) / 10n ** 20n / 10000n;
+    const r = await new PraetorTools(ACCOUNT, p).rebalance({ sell: 'tXAU', buy: 'USDC', amountUsd: '650' });
+    expect(r.isError).toBe(true);
+    expect(r.text).toMatch(/slippage/i);
+    expect(sent).toHaveLength(0);
   });
 
   it('refuses the same asset on both sides and unknown symbols', async () => {

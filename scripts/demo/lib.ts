@@ -277,8 +277,8 @@ export async function onboard(s: Stack, acc: Account, policy: Policy = linPolicy
 
 const fiat = parseAbi(['function masterMinter() view returns (address)', 'function configureMinter(address,uint256) returns (bool)', 'function mint(address,uint256) returns (bool)']);
 
-/** Lin's starting portfolio (spec 00): 5,300 USDC, 3,200 USD of tXAU, 1,500 USD of tXAG at the seeded prices. */
-export async function fund(s: Stack, acc: Account, usdc = 5_300_000_000n, xauUsd6 = 3_200_000_000n, xagUsd6 = 1_500_000_000n): Promise<void> {
+/** Fork only: Circle's FiatToken minted through an impersonated master minter. */
+async function mintUsdc(s: Stack, to: Address, amount: bigint) {
   const p = pub(s);
   const master = await p.readContract({ address: s.base.usdc, abi: fiat, functionName: 'masterMinter' });
   const minter = labelAddress('usdc-minter');
@@ -287,8 +287,20 @@ export async function fund(s: Stack, acc: Account, usdc = 5_300_000_000n, xauUsd
     await p.request({ method: 'anvil_setBalance' as never, params: [a, '0xde0b6b3a7640000'] as never });
   }
   const w = createWalletClient({ chain: baseSepolia, transport: http(s.baseRpc) });
-  await p.waitForTransactionReceipt({ hash: await w.writeContract({ address: s.base.usdc, abi: fiat, functionName: 'configureMinter', args: [minter, usdc], account: master, chain: baseSepolia }) });
-  await p.waitForTransactionReceipt({ hash: await w.writeContract({ address: s.base.usdc, abi: fiat, functionName: 'mint', args: [acc.address, usdc], account: minter, chain: baseSepolia }) });
+  await p.waitForTransactionReceipt({ hash: await w.writeContract({ address: s.base.usdc, abi: fiat, functionName: 'configureMinter', args: [minter, amount], account: master, chain: baseSepolia }) });
+  await p.waitForTransactionReceipt({ hash: await w.writeContract({ address: s.base.usdc, abi: fiat, functionName: 'mint', args: [to, amount], account: minter, chain: baseSepolia }) });
+}
+
+/** The treasury desk pays USDC for metal sold to it: keep it stocked on the fork (live: the treasury funds it). */
+export async function ensureDeskLiquidity(s: Stack, minUsdc = 50_000_000_000n): Promise<void> {
+  const bal = await pub(s).readContract({ address: s.base.usdc, abi: parseAbi(['function balanceOf(address) view returns (uint256)']), functionName: 'balanceOf', args: [s.base.treasuryDesk] });
+  if (bal < minUsdc) await mintUsdc(s, s.base.treasuryDesk, minUsdc * 2n - bal);
+}
+
+/** Lin's starting portfolio (spec 00): 5,300 USDC, 3,200 USD of tXAU, 1,500 USD of tXAG at the seeded prices. */
+export async function fund(s: Stack, acc: Account, usdc = 5_300_000_000n, xauUsd6 = 3_200_000_000n, xagUsd6 = 1_500_000_000n): Promise<void> {
+  const p = pub(s);
+  await mintUsdc(s, acc.address, usdc);
   const desk = createWalletClient({ chain: baseSepolia, transport: http(s.baseRpc), account: privateKeyToAccount(localKey(s, 'DESK_OPERATOR_KEY')) });
   for (const [token, usd6, price] of [[s.base.txau, xauUsd6, 265_000_000_000n], [s.base.txag, xagUsd6, 3_112_000_000n]] as const) {
     await p.waitForTransactionReceipt({ hash: await desk.writeContract({ address: token, abi: PraetorTokenAbi, functionName: 'mint', args: [acc.address, usd6 * 10n ** 20n / price], chain: baseSepolia }) });

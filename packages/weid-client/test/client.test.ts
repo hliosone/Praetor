@@ -153,3 +153,11 @@ describe('pinned checks', () => {
     expect(Object.keys(AGENT_MANDATE_CPT.properties).sort()).toEqual(['agentKey', 'agentMeasurement', 'mandateHash', 'principal', 'riskProfile', 'scopes', 'wallet']);
   });
 });
+
+describe('contracts', () => {
+  it('reads the deployed WeIdentity addresses from the helper', async () => {
+    const { calls, f } = fake({ weId: '0x76e95182042d96160342ab6370919c6523c1895e', cpt: '0x7c126c5d2ac9509ee68023217b36e4cc3f1cf648' });
+    expect((await weidClient(opts(f)).contracts()).weId).toBe('0x76e95182042d96160342ab6370919c6523c1895e');
+    expect(calls[0]!.url).toBe('http://helper/contracts');
+  });
+});

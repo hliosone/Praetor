@@ -60,6 +60,7 @@ public final class Helper {
         HttpServer server = HttpServer.create(new InetSocketAddress(Integer.parseInt(env("PORT", "6100"))), 0);
         server.setExecutor(Executors.newFixedThreadPool(4));
         server.createContext("/health", ex -> handle(ex, body -> health()));
+        server.createContext("/contracts", ex -> handle(ex, body -> contracts()));
         server.createContext("/issuers/setup", ex -> handle(ex, Helper::issuerSetup));
         server.createContext("/credentials/countersign", ex -> handle(ex, Helper::countersign));
         server.createContext("/credentials/verify", ex -> handle(ex, Helper::verify));
@@ -101,6 +102,15 @@ public final class Helper {
         String admin = WeIdUtils.getWeIdFromPrivateKey(readKey(adminKeyFile));
         ResponseData<Boolean> r = WEID.isWeIdExist(admin);
         return map("ok", r.getErrorCode() == 0 && Boolean.TRUE.equals(r.getResult()));
+    }
+
+    /** Addresses of the WeIdentity contracts (written by weid-deploy). */
+    private static Map<String, Object> contracts() throws IOException {
+        Path p = Paths.get(env("WEID_CONTRACTS_FILE", "/weid/out/contracts.json"));
+        if (!Files.exists(p)) throw new IllegalArgumentException("contracts.json missing");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> m = JSON.readValue(Files.readAllBytes(p), Map.class);
+        return m;
     }
 
     /** Admin registers the KYC_PROVIDER issuer type, recognizes the bank as authority issuer and adds it to the type. */

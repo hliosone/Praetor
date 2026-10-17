@@ -51,8 +51,8 @@ async function checkAccount(account: Address) {
     weights: weightsOf(holdings), bands: policy.bands.map((b) => ({ ...b, token: b.token.toLowerCase() })), symbols,
     rebalancesToday: rebalances, maxRebalancesPerDay: policy.maxRebalancesPerDay,
   });
-  if (!wake || !cooldown.take(account.toLowerCase(), Math.floor(Date.now() / 1000))) return;
-  const r = await fetch(`${env.AGENT_RUNNER_URL}/wake`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${env.INTERNAL_TOKEN_AGENT}` }, body: JSON.stringify({ account, ...wake }) });
+  if (!wake || !cooldown.take(account.toLowerCase(), Math.floor(Date.now() / 1000), wake.signature)) return;
+  const r = await fetch(`${env.AGENT_RUNNER_URL}/wake`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${env.INTERNAL_TOKEN_AGENT}` }, body: JSON.stringify({ account, reason: wake.reason, context: wake.context }) });
   log.info({ account, status: r.status, weights: wake.context.weights }, 'agent woken (band)');
 }
 

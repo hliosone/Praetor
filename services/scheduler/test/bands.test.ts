@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { weightsOf, bandWake, Cooldown } from '../src/bands.js';
+import { weightsOf, bandWake, breachSignature, Cooldown } from '../src/bands.js';
 
 const T = { usdc: '0xu', txau: '0xa', txag: '0xg' };
 const bands = [{ token: T.usdc, minBps: 4000, targetBps: 5500, maxBps: 6000 }, { token: T.txau, minBps: 2000, targetBps: 3000, maxBps: 3500 }, { token: T.txag, minBps: 0, targetBps: 1500, maxBps: 1500 }];
@@ -23,6 +23,11 @@ describe('band wake (F4 step 2)', () => {
   it('wakes when an asset is outside its band and rebalances are left today', () => {
     expect(bandWake({ weights, bands, symbols: sym, rebalancesToday: 0n, maxRebalancesPerDay: 1 })).toMatchObject({ reason: 'BAND', context: { rebalancesToday: 0, maxRebalancesPerDay: 1, weights } });
   });
+  it('ignores rounding at a band edge (tolerance), and an empty account', () => {
+    expect(bandWake({ weights: { USDC: 5294, tXAU: 3204, tXAG: 1501 }, bands, symbols: sym, rebalancesToday: 0n, maxRebalancesPerDay: 1 })).toBeNull();
+    expect(bandWake({ weights: { USDC: 0, tXAU: 0, tXAG: 0 }, bands, symbols: sym, rebalancesToday: 0n, maxRebalancesPerDay: 1 })).toBeNull();
+  });
+
   it('does not wake inside the bands, or when today\'s rebalances are used up', () => {
     expect(bandWake({ weights: { USDC: 5500, tXAU: 3000, tXAG: 1500 }, bands, symbols: sym, rebalancesToday: 0n, maxRebalancesPerDay: 1 })).toBeNull();
     expect(bandWake({ weights, bands, symbols: sym, rebalancesToday: 1n, maxRebalancesPerDay: 1 })).toBeNull();
@@ -30,11 +35,20 @@ describe('band wake (F4 step 2)', () => {
 });
 
 describe('cooldown', () => {
-  it('wakes an account at most once per window', () => {
+  it('wakes an account at most once per window for the same breach', () => {
     const c = new Cooldown(900);
-    expect(c.take('a', 1000)).toBe(true);
-    expect(c.take('a', 1500)).toBe(false);
-    expect(c.take('b', 1500)).toBe(true);
-    expect(c.take('a', 1901)).toBe(true);
+    expect(c.take('a', 1000, 'tXAU:36')).toBe(true);
+    expect(c.take('a', 1500, 'tXAU:36')).toBe(false);
+    expect(c.take('b', 1500, 'tXAU:36')).toBe(true);
+    expect(c.take('a', 1901, 'tXAU:36')).toBe(true);
+  });
+  it('a different breach (a new price move) wakes again at once', () => {
+    const c = new Cooldown(900);
+    expect(c.take('a', 1000, 'tXAG:16')).toBe(true);
+    expect(c.take('a', 1010, 'tXAU:36')).toBe(true);
+  });
+  it('the breach signature names the assets outside their bands and their weights in whole percent', () => {
+    const sym = { [T.usdc]: 'USDC', [T.txau]: 'tXAU', [T.txag]: 'tXAG' };
+    expect(breachSignature({ USDC: 4980, tXAU: 3610, tXAG: 1410 }, bands, sym)).toBe('tXAU:36');
   });
 });

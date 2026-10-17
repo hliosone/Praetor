@@ -12,11 +12,14 @@ export class Runner {
   private sessions = new Map<string, string>();
   private queues = new Map<string, Promise<unknown>>();
 
-  constructor(private readonly m: InstanceManager, private readonly turnTimeoutMs = 180_000) {}
+  private enqueued = new Map<string, number>();
+
+  constructor(private readonly m: InstanceManager, private readonly turnTimeoutMs = 180_000, private readonly log?: { info(o: object, m: string): void }) {}
 
   /** Turns of one account run one at a time. */
   turn(account: string, text: string): Promise<TurnResult> {
     const key = account.toLowerCase();
+    this.enqueued.set(key, Date.now());
     const prev = this.queues.get(key) ?? Promise.resolve();
     const next = prev.catch(() => undefined).then(() => this.run(key, text));
     this.queues.set(key, next);
@@ -40,6 +43,7 @@ export class Runner {
 
   private async run(account: string, text: string): Promise<TurnResult> {
     const i = await this.m.ensure(account);
+    this.log?.info({ account, queuedMs: Date.now() - this.enqueued.get(account)! }, 'turn starts');
     i.busy++;
     let rejecting = true;
     const rejector = (async () => {
