@@ -1,0 +1,13 @@
+# WeIdentity REST service 1.7.0 (develop@437042e) with Alex's one-line patch (SNAPSHOT SDK -> 3.1.1-rc.2), V3.
+# Custodial and unauthenticated by design: Docker network only (spec 05).
+FROM eclipse-temurin:11-jdk@sha256:e25e6f22a886aff4da695ac1a239c0f608ff997622a8c39d754066fffcd58ee3 AS build
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+RUN git clone -q https://github.com/WeBankBlockchain/WeIdentity-Rest-Service.git /src && cd /src && git checkout -q 437042e \
+  && sed -i 's/weid-java-sdk:3.1.1-rc.2-SNAPSHOT/weid-java-sdk:3.1.1-rc.2/' build.gradle && chmod +x gradlew
+RUN --mount=type=cache,target=/root/.gradle cd /src && ./gradlew -q build -x test
+
+FROM eclipse-temurin:11-jre@sha256:d218907a19a41f9036cf547a0a84a408cfb1bc56aeb2be090ae867563e086458
+COPY --from=build /src/dist /app
+COPY rest-entrypoint.sh /usr/local/bin/weid-rest
+WORKDIR /app
+ENTRYPOINT ["bash", "/usr/local/bin/weid-rest"]

@@ -1,0 +1,54 @@
+#!/bin/bash
+# One-shot WeIdentity deployment on the consortium chain (spec 04, V3): Build-Tools at e80d870 (3.1.1-rc.2) with the
+# fixed admin key from .env (Q32, opened in the FISCO deploy whitelist by the governance bootstrap). Writes the SDK
+# configuration the REST service and the helper share into /weid/out. Idempotent: a deployed chain is left alone.
+set -euo pipefail
+OUT=/weid/out
+: "${WEID_ADMIN_KEY:?}" "${MYSQL_PASSWORD_WEID:?}" "${FISCO_CHANNEL:?}" "${FISCO_RPC_URL:?}"
+# The marker holds the chain's genesis hash: a regenerated FISCO chain gets a fresh deployment.
+genesis=$(curl -sf -H 'content-type: application/json' \
+  --data '{"jsonrpc":"2.0","id":1,"method":"eth_getBlockByNumber","params":["0x0",false]}' "$FISCO_RPC_URL" | jq -r .result.hash)
+[ -n "$genesis" ] && [ "$genesis" != null ] || { echo "weid: FISCO not reachable"; exit 1; }
+if [ "$(cat "$OUT/deployed" 2>/dev/null)" = "$genesis" ]; then echo "weid: already deployed"; exit 0; fi
+rm -rf "${OUT:?}"/*
+SRC=/weid/src/WeIdentity-Build-Tools
+if [ ! -d "$SRC/.git" ]; then
+  git clone -q https://github.com/WeBankBlockchain/WeIdentity-Build-Tools.git "$SRC"
+fi
+git -C "$SRC" checkout -q e80d870
+cd "$SRC"
+cat > run.config <<CFG
+blockchain_address=${FISCO_CHANNEL}
+blockchain_fiscobcos_version=3
+org_id=praetor
+amop_id=praetor_amop
+chain_id=101
+group_id=group0
+sm_crypto=0
+persistence_type=mysql
+mysql_address=mysql:3306
+mysql_database=weid
+mysql_username=weid
+mysql_password=${MYSQL_PASSWORD_WEID}
+redis_address=
+redis_password=
+cns_profile_active=prd101
+CFG
+mkdir -p resources/conf
+cp /fisco-sdk/ca.crt /fisco-sdk/sdk.crt /fisco-sdk/sdk.key resources/conf/
+export GRADLE_USER_HOME=/weid/gradle
+bash compile.sh >/weid/src/compile.log 2>&1 || { tail -40 /weid/src/compile.log; exit 1; }
+umask 077
+mkdir -p /work
+# Build-Tools reads the admin key as a decimal integer; the hex key never leaves the container.
+# No trailing newline: GuideService parses the whole file as a BigInteger.
+python3 -c "import os,sys;sys.stdout.write(str(int(os.environ['WEID_ADMIN_KEY'],16)))" > /work/admin.key
+# Its JVM hangs after a failure (V3): timeout signals the whole process group.
+timeout -k 10 300 bash deploy.sh --private-key /work/admin.key >/weid/src/deploy.log 2>&1 || { tail -40 /weid/src/deploy.log; exit 1; }
+mkdir -p "$OUT/conf"
+cp resources/fisco.properties resources/weidentity.properties resources/conf/ca.crt resources/conf/sdk.crt resources/conf/sdk.key "$OUT/conf/"
+sed -i 's#^sdk.cert-path=.*#sdk.cert-path=conf#' "$OUT/conf/fisco.properties"
+cp /work/admin.key "$OUT/private_key"
+chmod 600 "$OUT/private_key"
+echo "$genesis" > "$OUT/deployed"
+echo "weid: deployed"

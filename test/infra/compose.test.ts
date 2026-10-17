@@ -13,6 +13,9 @@ type Service = {
   ports?: string[];
   healthcheck?: unknown;
   command?: string | string[];
+  labels?: Record<string, string>;
+  restart?: string;
+  depends_on?: Record<string, { condition?: string }>;
 };
 const compose = parse(read('infra/compose.yml'), { merge: true }) as {
   services: Record<string, Service>;
@@ -23,8 +26,18 @@ const services = Object.entries(compose.services);
 describe('infra/compose.yml', () => {
   it('gives every service a healthcheck and at least one profile', () => {
     for (const [name, s] of services) {
-      expect(s.healthcheck, `${name} healthcheck`).toBeTruthy();
+      if (s.labels?.['praetor.job'] !== 'oneshot') expect(s.healthcheck, `${name} healthcheck`).toBeTruthy();
       expect(s.profiles?.length, `${name} profiles`).toBeGreaterThan(0);
+    }
+  });
+
+  it('one-shot jobs never restart, and the stack waits for their success (or they are on-demand tools)', () => {
+    for (const [name, s] of services) {
+      if (s.labels?.['praetor.job'] !== 'oneshot') continue;
+      expect(s.restart, `${name} restart`).toBeUndefined();
+      if (s.profiles?.includes('tools')) continue;
+      const waiters = services.filter(([, o]) => o.depends_on?.[name]?.condition === 'service_completed_successfully');
+      expect(waiters.length, `${name} waiters`).toBeGreaterThan(0);
     }
   });
 

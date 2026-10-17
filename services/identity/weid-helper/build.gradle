@@ -1,0 +1,21 @@
+// WeIdentity helper (spec 05): what the REST service 1.7.0 has no endpoint for, on weid-java-sdk 3.1.1-rc.2
+// (the version Alex's spike and the REST service use).
+apply plugin: 'java'
+apply plugin: 'application'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+mainClassName = 'praetor.weid.Helper'
+
+repositories { mavenCentral() }
+
+dependencies {
+    implementation 'com.webank:weid-java-sdk:3.1.1-rc.2'
+    implementation 'org.apache.logging.log4j:log4j-slf4j-impl:2.20.0'
+    implementation 'org.apache.logging.log4j:log4j-core:2.20.0'
+}
+
+configurations.all {
+    exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+    exclude group: 'ch.qos.logback'
+}
