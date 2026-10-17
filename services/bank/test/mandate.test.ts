@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { toHex, type Hex } from 'viem';
+import { getAddress, toHex, type Hex } from 'viem';
 import { softPasskey } from '@praetor/protocol';
 import { MandateService, MemoryMandateStore, type MandateDeps } from '../src/mandate.js';
 import type { KycRecord } from '../src/kyc.js';
@@ -44,6 +44,14 @@ describe('MandateService', () => {
     expect(p.claim).toEqual({ principal: W('u'), wallet: `eip155:84532:${ACCOUNT}`, agentKey: draft.agentKey, scopes: draft.scopes, mandateHash: draft.mandateHash, riskProfile: 'balanced', agentMeasurement: draft.agentMeasurement });
     expect(p.challenge).toMatch(/^0x[0-9a-f]{64}$/);
     expect(calls).toEqual([`create:${W('u')}:2`]);
+  });
+
+  it('writes the wallet as the checksummed CAIP-10 account, like the agent DID, whatever case the caller used', async () => {
+    const MIXED = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+    expect(getAddress(MIXED)).not.toBe(MIXED);
+    record = { ...record!, account: MIXED };
+    const p = await svc.prepare({ ...draft, account: MIXED });
+    expect(p.claim.wallet).toBe(`eip155:84532:${getAddress(MIXED)}`);
   });
 
   it('countersigns and evidences only after the account passkey signs the challenge', async () => {

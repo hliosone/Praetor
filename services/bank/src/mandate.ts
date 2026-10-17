@@ -2,7 +2,7 @@
 // The bank prepares the user-signed inner credential, the user's passkey registered on the account signs a challenge
 // over that exact credential, and only then does the bank countersign it and record its evidence (revocable as a whole).
 import { randomUUID } from 'node:crypto';
-import { keccak256, toHex, type Hex } from 'viem';
+import { getAddress, keccak256, toHex, type Hex } from 'viem';
 import { verifyAssertion, type Assertion } from '@praetor/member-kit';
 import type { Credential } from '@praetor/weid-client';
 import { Refused, type BankIdentity, type KycRecord } from './kyc.js';
@@ -59,7 +59,7 @@ export class MandateService {
     if (i.scopes.length === 0 || i.scopes.some((s) => !(MANDATE_SCOPES as readonly string[]).includes(s))) throw new Refused('unknown scope');
     const { mandateCpt } = await this.d.identity();
     const claim = {
-      principal: r.userWeId, wallet: `eip155:84532:${i.account}`, agentKey: i.agentKey, scopes: i.scopes,
+      principal: r.userWeId, wallet: `eip155:84532:${getAddress(i.account)}`, agentKey: i.agentKey, scopes: i.scopes,
       mandateHash: i.mandateHash, riskProfile: r.riskProfile, agentMeasurement: i.agentMeasurement,
     };
     const now = this.d.now?.() ?? new Date();
