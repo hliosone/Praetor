@@ -149,7 +149,16 @@ The mini program is built and its logic tested in Phase B (`pnpm --filter @praet
 
 | | |
 |---|---|
-| **You do** | Nothing more if the LIVE addresses still hold what they had on 2026-10-17 (0.0133 ETH on the deployer, 44 USDC on the treasury). Optional margin: 0.01 ETH more to the deployer, 20 USDC to the treasury. Say "go live" when you want the run. |
+| **You do** | Nothing more if the LIVE addresses still hold what they had on 2026-10-17 (0.0133 ETH on the deployer, 44 USDC on the treasury). Optional margin: 0.01 ETH more to the deployer, 20 USDC to the treasury. Claude runs it in Phase B within this budget. |
 | **You see** | `docs/EVIDENCE.md` with BaseScan links for every executed and refused transaction of the evidence flows, and the FISCO transactions of each flow. |
 | **Claude checks** | `scripts/deploy/fund-live.ts` dry run, then `--send`; one deployment with a 0.004 ETH paymaster deposit; the evidence flows at `DEMO_SCALE=100`; `scripts/evidence/collect.ts base-sepolia`; balances after the run reported. |
 | **Fallback** | The ETH runs out mid-run: the flows done so far are in the evidence; the rest is shown on the fork (same code, `Praetor-local` domain). |
+
+## 11. Web push on a phone (M13, PWA)
+
+| | |
+|---|---|
+| **You do** | On the phone, open the web app on the public host, add it to the home screen (iOS needs the installed app for push), sign in, open Settings and tap "Enable notifications on this device", allow. Then trigger an approval (ask the agent to pay a new payee) or a refusal. |
+| **You see** | A system notification "Praetor: Approve? Pay ... USDC" (or the refusal text) even with the app closed; tapping it opens the app. |
+| **Claude checks** | The api stored the subscription (`push_subscriptions`), the notifier's outbox lists the `web-push` channel for the message; automated stand-in: the notifier's web push channel test (VAPID signing and the payload, with a fake push service). |
+| **Fallback** | No push service reachable from the server, or iOS without the installed app: the in-app feed and the WeChat Official Account (when configured) still carry every message. |

@@ -4,6 +4,7 @@ import { useI18n } from '../i18n/index.js';
 import { api } from '../lib/api.js';
 import { useLoad } from '../lib/useLoad.js';
 import { addDevice, cancelRecovery, type RecoveryStatus } from '../lib/devices.js';
+import { enablePush } from '../lib/push.js';
 
 export function Devices() {
   const { t } = useI18n();
@@ -23,6 +24,9 @@ export function Devices() {
         ))}
       </ul>
       <button onClick={act(async () => ((await addDevice()) ? t('settings.deviceAdded') : 'Refused on Base.'))}>{t('settings.addDevice')}</button>
+      <h2>{t('settings.notifications')}</h2>
+      <p className="muted small">{t('settings.notificationsText')}</p>
+      <button onClick={act(async () => { await enablePush(); return t('settings.pushOn'); })}>{t('settings.enablePush')}</button>
       {recovery.data?.state === 'scheduled' && recovery.data.payloadHash && (
         <div className="card stack" role="alert">
           <p>{t('settings.recoveryPending', { at: new Date(Number(recovery.data.executableAt) * 1000).toLocaleString() })}</p>

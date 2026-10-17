@@ -8,6 +8,7 @@ import { usd } from './api.js';
 import { encodeAbiParameters, keccak256 } from 'viem';
 import { digest, encodePolicy, praetorDomain } from '@praetor/protocol';
 import { checkOwnerAction } from './ownerAction.js';
+import { vapidKeyBytes } from './push.js';
 
 const N = BigInt('0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551');
 
@@ -75,5 +76,12 @@ describe('web app logic', () => {
     expect(checkOwnerAction({ ownerAction: oa, payload, digest: d }, c, account, 0, payload)).toBe(d);
     const other = encodePolicy(policyFromJson({ ...form, hardCap: '9000000000' }));
     expect(() => checkOwnerAction({ ownerAction: oa, payload, digest: d }, c, account, 0, other)).toThrow(/not the one on this page/);
+  });
+
+  it('turns the VAPID public key (base64url, 65 bytes uncompressed P-256) into the bytes PushManager.subscribe takes', () => {
+    const raw = Uint8Array.from({ length: 65 }, (_, i) => (i === 0 ? 4 : i));
+    const b64url = Buffer.from(raw).toString('base64url');
+    expect(Array.from(vapidKeyBytes(b64url))).toEqual(Array.from(raw));
+    expect(() => vapidKeyBytes('')).toThrow(/VAPID/);
   });
 });
