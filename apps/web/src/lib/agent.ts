@@ -10,6 +10,8 @@ export type MandateDraft = { draftId: string; challenge: `0x${string}`; claim: R
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function installAgent(agent: NewAgent, draft: MandateDraft): Promise<void> {
+  // The mandate is for the key this page shows (after a rotation, the new one), or the passkey does not sign it.
+  if (String(draft.claim.agentKey ?? '').toLowerCase() !== agent.agentKey.toLowerCase()) throw new Error('the mandate draft names another agent key than this page: not signing');
   await api('POST', '/onboarding/kya/sign', { draftId: draft.draftId, challenge: draft.challenge, agentDidHash: agent.agentDidHash, assertion: await assertDigest(draft.challenge) });
   // The KYA reaches Base through the consortium; then the agent key is installed (owner + bank).
   for (let i = 0; i < 90; i++) {
