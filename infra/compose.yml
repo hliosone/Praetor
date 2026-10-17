@@ -1,0 +1,79 @@
+# Praetor stack. Same file locally and in prod (spec 11); compose.prod.yml adds the prod overrides.
+# Profiles: core, chain, wecross, agent, tee-sim, mocks, dev. `make up` starts the profiles of the current env.
+# Only caddy publishes ports; anvil also listens on loopback 18545 for Foundry tests.
+name: praetor
+
+x-health: &health
+  interval: 5s
+  timeout: 5s
+  retries: 30
+  start_period: 10s
+
+networks:
+  praetor:
+    ipam:
+      config:
+        - subnet: 10.88.0.0/16
+
+volumes:
+  mysql-data:
+  caddy-data:
+  caddy-config:
+
+services:
+  caddy:
+    image: caddy:2.10.2-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    profiles: [core]
+    ports: ['80:80', '443:443']
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      praetor:
+        ipv4_address: 10.88.0.2
+    healthcheck:
+      <<: *health
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:2019/config/']
+
+  mysql:
+    image: mysql:8.4.6@sha256:869218921e61d6c3c89820955d63cca42971f0e3e6c1e2792247bbd944ebc6e9
+    profiles: [core, chain]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_PASSWORD_API: ${MYSQL_PASSWORD_API}
+      MYSQL_PASSWORD_MCP: ${MYSQL_PASSWORD_MCP}
+      MYSQL_PASSWORD_BANK: ${MYSQL_PASSWORD_BANK}
+      MYSQL_PASSWORD_REGULATOR: ${MYSQL_PASSWORD_REGULATOR}
+      MYSQL_PASSWORD_OPERATOR: ${MYSQL_PASSWORD_OPERATOR}
+      MYSQL_PASSWORD_PAYOUT: ${MYSQL_PASSWORD_PAYOUT}
+      MYSQL_PASSWORD_WEID: ${MYSQL_PASSWORD_WEID}
+      MYSQL_PASSWORD_WEBASE: ${MYSQL_PASSWORD_WEBASE}
+      MYSQL_PASSWORD_WECROSS: ${MYSQL_PASSWORD_WECROSS}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      praetor:
+        ipv4_address: 10.88.0.3
+    healthcheck:
+      <<: *health
+      # MYSQL_PWD keeps the root password off the command line (visible in `ps`).
+      test: ['CMD-SHELL', 'MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysql -uroot -h127.0.0.1 -e "SELECT 1 FROM mysql.user LIMIT 1" >/dev/null']
+
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:v1.7.1@sha256:8347b728d5d393dac1c018691b36f506d23b9dcd78341d40ea0fcb11c3a19cdd
+    profiles: [dev]
+    # --network optimism enables the RIP-7212 P-256 precompile at 0x100 (Q6, V1).
+    command: >-
+      "anvil --host 0.0.0.0 --port 8545 --fork-url ${BASE_LIVE_RPC_URL} --fork-block-number ${FORK_BLOCK}
+      --chain-id 84532 --network optimism --block-time 2 --silent"
+    ports: ['127.0.0.1:18545:8545']
+    networks:
+      praetor:
+        ipv4_address: 10.88.0.4
+    healthcheck:
+      <<: *health
+      test: ['CMD', 'cast', 'chain-id', '--rpc-url', 'http://127.0.0.1:8545']

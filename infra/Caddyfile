@@ -1,0 +1,17 @@
+# The only public entry (spec 11). Locally: Caddy's internal CA for praetor.localhost.
+# Routes are added as services land (api, mcp, web, console, kyc-mock, explorer).
+{
+	admin 127.0.0.1:2019
+}
+
+{$PUBLIC_HOST} {
+	tls internal
+
+	handle /health {
+		respond "ok" 200
+	}
+
+	handle {
+		respond "Praetor" 200
+	}
+}

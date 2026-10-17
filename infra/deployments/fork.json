@@ -1,0 +1,6 @@
+{
+  "env": "fork",
+  "chainId": 84532,
+  "forkBlock": 48226000,
+  "domainName": "Praetor-local"
+}
