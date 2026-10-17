@@ -30,7 +30,7 @@ Read the [architecture](docs/ARCHITECTURE.md) for the picture and the algorithms
 
 ## Quick start (local stack)
 
-Prerequisites: Linux or macOS with Docker (Compose v2), Node 22 with pnpm 10.29.1, Foundry 1.7.1, 16 GB of RAM recommended (the production server's size). Java runs only inside pinned images.
+Prerequisites: Linux x86_64 (tested on Ubuntu 24.04) with Docker (Compose v2), Node 22 with pnpm 10.29.1, Foundry 1.7.1, 16 GB of RAM recommended (the production server's size). Java runs only inside pinned images.
 
 ```bash
 git clone --recurse-submodules <repository> praetor && cd praetor   # or: git submodule update --init --recursive

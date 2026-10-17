@@ -30,7 +30,7 @@ FinTechathon 2026（深圳，微众银行 x 清华五道口），国际赛道，
 
 ## 快速开始（本地环境）
 
-前置条件：Linux 或 macOS，安装 Docker（Compose v2）、Node 22 与 pnpm 10.29.1、Foundry 1.7.1，建议 16 GB 内存（与生产服务器规格相同）。Java 只在固定版本的镜像中运行。
+前置条件：Linux x86_64（在 Ubuntu 24.04 上测试），安装 Docker（Compose v2）、Node 22 与 pnpm 10.29.1、Foundry 1.7.1，建议 16 GB 内存（与生产服务器规格相同）。Java 只在固定版本的镜像中运行。
 
 ```bash
 git clone --recurse-submodules <repository> praetor && cd praetor   # 或：git submodule update --init --recursive
