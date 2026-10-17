@@ -8,6 +8,8 @@ Praetor itself is all rights reserved (see `NOTICE`). Each entry below keeps its
 | OpenZeppelin Contracts | MIT | library (M2) |
 | forge-std | MIT / Apache-2.0 | test library |
 | viem | MIT | dependency |
+| @noble/hashes | MIT | dependency; its keccak is bundled into `apps/miniprogram/miniprogram/lib/protocol.js` with its licence comment (M14) |
+| esbuild | MIT | build tool of the mini program bundle (M14) |
 | @simplewebauthn | MIT | dependency (M9) |
 | web-push | MPL-2.0 | unmodified dependency (M9) |
 | three, @react-three/fiber, drei | MIT | dependency (M13) |
