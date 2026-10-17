@@ -1,6 +1,7 @@
-// Link check (spec 10, M17 gate "links checked"): every relative Markdown link and anchor in README*.md, docs/**
-// and spec/** must resolve to a file of the repository (tracked, or new and not ignored) and, for a Markdown
-// target, to a heading or an explicit id in it. External links (any URL scheme) are not fetched.
+// Link check (spec 10, M17 gate "links checked"): every relative Markdown link and anchor in the top-level Markdown
+// files (README*, THIRD_PARTY_LICENSES), docs/** and spec/** must resolve to a file of the repository (tracked, or
+// new and not ignored) and, for a Markdown target, to a heading or an explicit id in it. External links (any URL
+// scheme) are not fetched.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { posix } from 'node:path';
@@ -129,7 +130,7 @@ function main(): void {
     .split('\0')
     .filter((p) => p && existsSync(root + p));
   const paths = new Set(listed);
-  const scope = (p: string) => p.endsWith('.md') && (/^README[^/]*\.md$/.test(p) || p.startsWith('docs/') || p.startsWith('spec/'));
+  const scope = (p: string) => p.endsWith('.md') && (!p.includes('/') || p.startsWith('docs/') || p.startsWith('spec/'));
   const markdown = new Map<string, string>();
   for (const p of listed) if (p.endsWith('.md')) markdown.set(p, readFileSync(root + p, 'utf8'));
   const problems = checkLinks(markdown, paths, scope);
