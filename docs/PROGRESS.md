@@ -22,7 +22,7 @@ Single source of truth for where the build stands. After a context reset: read `
 - [x] 1. Read the answers, check them against the spec, record them in `docs/DECISIONS.md`, update `spec/` only where an answer changes a decision (note at the top of the changed file; expected: spec 03 for Q14/Q16, spec 00 and 06 for Q15, spec 05 for Q34), update `CLAUDE.md` if needed, commit.
 - [x] M0 Monorepo scaffold, Makefile, compose skeleton (anvil fork with `--network optimism`, MySQL, Caddy), CI scripts, lint, gitleaks, docs skeleton check, attribution check (gate: `make up`, `make test` green; a test commit with a co-author trailer is rejected)
 - [x] M1 `packages/protocol` (gate: vectors green on TS and Solidity; interface frozen)
-- [ ] M2 Base contracts (gate: forge unit/fuzz >= 10k/invariants, hook coverage >= 90%, Slither explained)
+- [x] M2 Base contracts (gate: forge unit/fuzz >= 10k/invariants, hook coverage >= 90%, Slither explained)
 - [ ] M3 userop, chain, bundler (gate: fork integration I1, I7, I11, gas snapshot)
 - [ ] M4 FISCO chain + contracts + fisco-client (gate: 4-node integration)
 - [ ] M5 member services governance, bridge-relayer, seed script (gate: F9 steps 1, 2, 5, 6, 7 + FROZEN refusal)
@@ -48,3 +48,4 @@ Single source of truth for where the build stands. After a context reset: read `
 | Phase B step 1 | 2026-10-17 07:02 | 2026-10-17 07:04 | 2 min |
 | M0 | 2026-10-17 07:04 | 2026-10-17 07:12 | 8 min |
 | M1 | 2026-10-17 07:12 | 2026-10-17 07:24 | 12 min |
+| M2 | 2026-10-17 07:24 | 2026-10-17 08:18 | 54 min |

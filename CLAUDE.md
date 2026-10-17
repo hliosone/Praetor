@@ -89,8 +89,13 @@ Linux (Ubuntu 24.04), 16 CPUs, 30 GiB RAM, about 240 GB free. Docker 29.9 + Comp
 ## 9. Commands
 
 ```bash
-make setup          # installs the commit-msg hook (core.hooksPath=scripts/git-hooks)
-make test           # guards (hook test, em dash check) + script tests; M0 extends it (gitleaks, all packages)
+make setup          # installs the commit-msg hook (core.hooksPath=scripts/git-hooks) and dependencies
+make test           # guards, gitleaks, type-check, unit tests of every package, Base contracts (quick fuzz)
+make up / down      # local stack (infra/compose.yml); make test-int and make e2e need it
+make test-contracts-full   # Base contracts with 10k fuzz runs and full invariants (milestone gate)
+make test-fork      # Base contracts on a Base Sepolia fork with the real Safe7579 (network)
+make slither        # fails on any High/Medium outside docs/security/slither.md
+make deploy-contracts ENV=fork|base-sepolia|sandbox   # writes infra/deployments/<env>.json
 pnpm keys           # fills missing keys/secrets into .env (mode 600), prints public addresses only
 ```
-M0 adds `make up / down / test-int / e2e / e2e-live / redteam / slither / deploy-contracts`. Repo layout to build: `spec/09-repo-and-reuse.md`.
+Contracts: `contracts/base` (Foundry; `lib` links the pinned submodules in `contracts/lib`). The hook is `src/MandateHook.sol` plus external libraries in `src/hook/` (Consortium, Owner, Decision, PostCheck). Repo layout to build: `spec/09-repo-and-reuse.md`.
