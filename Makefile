@@ -74,8 +74,8 @@ redteam: ## Red-team suite (real model)
 slither: ## Static analysis of the Base contracts
 	@echo "slither: M2" && exit 1
 
-deploy-contracts: ## Deploy contracts (ENV=fork|base-sepolia|sandbox)
-	@echo "deploy-contracts: M2" && exit 1
+deploy-contracts: ## Deploy the Base contracts (ENV=fork|base-sepolia|sandbox)
+	bash scripts/deploy/contracts.sh $(or $(ENV),fork)
 
 tunnel: ## cloudflared tunnel in front of Caddy, URL in .run/tunnel-url
 	@echo "tunnel: M13" && exit 1

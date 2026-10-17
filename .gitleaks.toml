@@ -5,3 +5,7 @@ useDefault = true
 [[allowlists]]
 description = "Golden vectors: public hashes, public test addresses and signatures from the public anvil test keys"
 paths = ['''^packages/protocol/vectors/[a-z0-9-]+\.json$''']
+
+[[allowlists]]
+description = "Deployment files: public contract and member addresses written by the deploy script"
+paths = ['''^infra/deployments/[a-z0-9-]+\.json$''']
