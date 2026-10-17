@@ -24,6 +24,11 @@ describe('anvil fork of Base Sepolia', () => {
     expect(BigInt(out)).toBe(1n);
   });
 
+  it('keeps its clock no more than a minute behind the wall clock (make up moves it forward)', async () => {
+    const b = await rpc<{ timestamp: string }>(ANVIL_URL, 'eth_getBlockByNumber', ['latest', false]);
+    expect(Math.floor(Date.now() / 1000) - Number(BigInt(b.timestamp))).toBeLessThan(60);
+  });
+
   it('serves Circle USDC from the fork', async () => {
     const symbol = await rpc<string>(ANVIL_URL, 'eth_call', [{ to: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', data: '0x95d89b41' }, 'latest']);
     expect(Buffer.from(symbol.slice(130, 138), 'hex').toString()).toBe('USDC');

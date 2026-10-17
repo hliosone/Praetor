@@ -29,3 +29,13 @@ describe('caller HMAC (service to service)', () => {
     expect(g.once(h['x-praetor-signature'], 1_800_000_001)).toBe(false);
   });
 });
+
+describe('identical requests in the same second', () => {
+  it('get distinct signatures (a nonce is signed), so the replay guard does not refuse the second', () => {
+    const a = signCaller('api', secrets.api, 'GET', '/v1/info', Buffer.alloc(0), 1_800_000_000);
+    const b = signCaller('api', secrets.api, 'GET', '/v1/info', Buffer.alloc(0), 1_800_000_000);
+    expect(a['x-praetor-signature']).not.toBe(b['x-praetor-signature']);
+    expect(verifyCaller(b, secrets, 'GET', '/v1/info', Buffer.alloc(0), 1_800_000_000)).toBe('api');
+    expect(verifyCaller({ ...b, 'x-praetor-nonce': a['x-praetor-nonce'] }, secrets, 'GET', '/v1/info', Buffer.alloc(0), 1_800_000_000)).toBeNull();
+  });
+});

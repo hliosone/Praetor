@@ -41,6 +41,7 @@ export type MemberOptions = {
   env?: Record<string, string | undefined>;
   extend?: (r: Router, ctx: MemberContext) => void;
   extendPublic?: (r: Router, ctx: MemberContext) => void;
+  signGuards?: (ctx: MemberContext) => import('./app.js').MemberDeps['signGuards'];
   /** Extra migration sets of this member's database (packages/db/migrations/<name>). */
   migrations?: string[];
   jobs?: (ctx: MemberContext) => () => void;
@@ -71,7 +72,7 @@ export async function startMember(o: MemberOptions): Promise<{ server: Server; p
     base: await publicClient.getBlockNumber().then(() => true, () => false),
     db: await conn.runner.query('SELECT 1').then(() => true, () => false),
   });
-  const app = createMemberApp({ role: o.role, consortium, staff, token: cfg.INTERNAL_TOKEN_MEMBERS, health, version: '0.1.0', log, extend: o.extend ? (r) => o.extend!(r, ctx) : undefined, extendPublic: o.extendPublic ? (r) => o.extendPublic!(r, ctx) : undefined });
+  const app = createMemberApp({ role: o.role, consortium, staff, token: cfg.INTERNAL_TOKEN_MEMBERS, health, version: '0.1.0', log, signGuards: o.signGuards?.(ctx), extend: o.extend ? (r) => o.extend!(r, ctx) : undefined, extendPublic: o.extendPublic ? (r) => o.extendPublic!(r, ctx) : undefined });
   const server = await new Promise<Server>((resolve) => {
     const s = app.listen(cfg.PORT, () => resolve(s));
   });

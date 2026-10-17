@@ -23,6 +23,7 @@ export type Stack = {
   bundler: string;
   members: Record<Role, string>;
   signer: string;
+  attester: string;
   rpId: string;
   origin: string;
 };
@@ -36,6 +37,7 @@ export function stack(over: Partial<Stack> = {}): Stack {
     bundler: process.env.BUNDLER_URL ?? 'http://10.88.0.10:3010',
     members: { bank: 'http://10.88.0.21:3020', regulator: 'http://10.88.0.22:3020', operator: 'http://10.88.0.23:3020' },
     signer: process.env.AGENT_SIGNER_URL_HOST ?? 'http://10.88.0.50:3050',
+    attester: process.env.SOTER_ATTESTER_URL_HOST ?? 'http://10.88.0.51:3060',
     rpId: 'praetor.localhost',
     origin: 'https://praetor.localhost',
     ...over,
@@ -60,6 +62,27 @@ export async function http2(url: string, token: string, body?: unknown): Promise
 
 const member = (s: Stack, role: Role, path: string, body?: unknown) => http2(`${s.members[role]}${path}`, s.env.INTERNAL_TOKEN_MEMBERS!, body);
 export const bundler = (s: Stack, path: string, body?: unknown) => http2(`${s.bundler}${path}`, s.env.INTERNAL_TOKEN_BUNDLER!, body);
+
+/** soter-attester (TEE) as the api, its only caller. */
+export async function attesterCall(s: Stack, path: string, body?: unknown): Promise<{ status: number; body: any }> {
+  const method = body === undefined ? 'GET' : 'POST';
+  const raw = body === undefined ? '' : json(body);
+  const r = await fetch(`${s.attester}${path}`, { method, body: raw || undefined, headers: { 'content-type': 'application/json', ...signCaller('api', s.env.ATTESTER_HMAC_API!, method, path, Buffer.from(raw)) } });
+  return { status: r.status, body: await r.json().catch(() => null) };
+}
+
+/** The SOTER attester TEE, activated on the hook: the bank verifies its quote, then co-signs the activation. */
+export async function activateSoterAttester(s: Stack): Promise<Address> {
+  const { attester } = await ok(attesterCall(s, '/v1/info'), 'attester info');
+  const [, active] = await read<readonly [Hex, boolean]>(s, 'attesterOf', [attester]);
+  if (active) return attester;
+  const { nonce } = await ok(member(s, 'bank', '/attesters/nonce', { attester }), 'attester nonce');
+  const { quote } = await ok(attesterCall(s, '/v1/attest', { nonce }), 'attester quote');
+  const { measurement } = await ok(member(s, 'bank', '/attesters/verify', { attester, nonce, quote }), 'attester quote check');
+  await openAndSign(s, 'bank', '/attesters', { attester, measurement, active: true }, ['bank']);
+  await waitFor('attester active on Base', async () => (await read<readonly [Hex, boolean]>(s, 'attesterOf', [attester]))[1]);
+  return attester;
+}
 
 /** agent-signer (TEE) as one of its callers: api (address, attest) or mcp (sign-userop). */
 export async function signer(s: Stack, caller: 'api' | 'mcp' | 'bank', path: string, body?: unknown): Promise<{ status: number; body: any }> {

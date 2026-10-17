@@ -14,6 +14,7 @@
     "@praetor/db": "workspace:*",
     "@praetor/fisco-client": "workspace:*",
     "@praetor/protocol": "workspace:*",
+    "@praetor/soter-attester": "workspace:*",
     "@praetor/userop": "workspace:*",
     "@praetor/weid-client": "workspace:*",
     "@types/node": "22.20.5",

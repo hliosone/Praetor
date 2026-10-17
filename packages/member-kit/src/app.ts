@@ -29,6 +29,9 @@ export type MemberDeps = {
   /** Routes outside the token gate, each authenticating its caller itself (bank: the KYC provider's HMAC callback).
    *  `req.rawBody` holds the exact bytes received. */
   extendPublic?: (r: Router, helpers: { h: typeof h }) => void;
+  /** Member-specific checks before this member signs a proposal of a board (bank: an attester activation needs a
+   *  verified quote). Throwing (with a `status`) refuses the signature. */
+  signGuards?: Partial<Record<(typeof BOARDS)[number], (message: unknown) => Promise<void>>>;
   /** Where unexpected (5xx) failures are reported; the first line of the message only. */
   log?: { error: (o: object, msg: string) => void };
 };
@@ -93,6 +96,7 @@ export function createMemberApp(d: MemberDeps) {
     const { assertion } = z.object({ assertion: assertionSchema }).parse(req.body);
     const p = await d.consortium.read(board, id);
     await d.staff.verify(p.digest, assertion);
+    await d.signGuards?.[board]?.(p.message);
     res.json(json(await d.consortium.sign(board, id)));
   }));
   app.post('/proposals/:board/:id/reissue', h(async (req, res) => {

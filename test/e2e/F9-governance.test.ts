@@ -6,7 +6,7 @@ import { encodeFunctionData, keccak256, parseAbi, toHex, type Address, type Hex 
 import { MandateHookAbi, baseNow } from '@praetor/chain';
 import { Reason, callHash, digest, passkeyAuth, praetorDomain } from '@praetor/protocol';
 import {
-  agentOp, bootstrapConsortium, bundler, createAccount, fund, labelAddress, onboard, openAndSign, pub, setDemoPrices, stack, waitFor,
+  activateSoterAttester, agentOp, bootstrapConsortium, bundler, createAccount, fund, labelAddress, onboard, openAndSign, pub, setDemoPrices, stack, staffAssertion, waitFor,
   type Account, type Stack,
 } from '../../scripts/demo/lib.js';
 
@@ -126,10 +126,20 @@ describe('F9 consortium governance (BRIDGE=relayer)', () => {
   it('7d: caps per profile (bank) and attesters (bank activates, any member deactivates)', async () => {
     await openAndSign(s, 'bank', '/caps', { riskProfile: 3, perTxCap: '12000000000', dailyCap: '20000000000', monthlyCap: '100000000000' }, ['bank']);
     await waitFor('growth caps on Base', async () => (await read<readonly [bigint, bigint, bigint]>('capsOf', [3]))[0] === 12_000_000_000n);
-    const attester = labelAddress(`attester-${Date.now()}`);
-    await openAndSign(s, 'bank', '/attesters', { attester, measurement: keccak256(toHex('rtmr3')), active: true }, ['bank']);
-    await waitFor('attester active', async () => (await read<readonly [Hex, boolean]>('attesterOf', [attester]))[1]);
-    await openAndSign(s, 'operator', '/attesters', { attester, measurement: keccak256(toHex('rtmr3')), active: false }, ['operator']);
+    // The bank refuses to co-sign an activation without a verified quote of that attester (M7).
+    const fake = labelAddress(`attester-${Date.now()}`);
+    const o = await openAndSign(s, 'bank', '/attesters', { attester: fake, measurement: keccak256(toHex('rtmr3')), active: true }, []);
+    const p = await (await fetch(`${s.members.bank}/proposals/${o.board}/${o.proposalId}`, { headers: { authorization: `Bearer ${s.env.INTERNAL_TOKEN_MEMBERS}` } })).json();
+    const refused = await fetch(`${s.members.bank}/proposals/${o.board}/${o.proposalId}/sign`, {
+      method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${s.env.INTERNAL_TOKEN_MEMBERS}` },
+      body: JSON.stringify({ assertion: staffAssertion(s, 'bank', p.digest as Hex) }),
+    });
+    expect(refused.status).toBe(409);
+    const attester = await activateSoterAttester(s);
+    const [measurement] = await read<readonly [Hex, boolean]>('attesterOf', [attester]);
+    await openAndSign(s, 'operator', '/attesters', { attester, measurement, active: false }, ['operator']);
     await waitFor('attester inactive', async () => !(await read<readonly [Hex, boolean]>('attesterOf', [attester]))[1]);
+    await openAndSign(s, 'bank', '/attesters', { attester, measurement, active: true }, ['bank']);
+    await waitFor('attester active again', async () => (await read<readonly [Hex, boolean]>('attesterOf', [attester]))[1]);
   });
 });

@@ -20,10 +20,10 @@ class FakeConsortium implements ConsortiumPort {
   async deadline() { return 1_900_000_000n; }
 }
 
-async function setup() {
+async function setup(signGuards?: Parameters<typeof createMemberApp>[0]['signGuards']) {
   const consortium = new FakeConsortium();
   const staff = new StaffAuth(new MemoryStaffStore(), { enrolToken: 'enrol-tok', rpId: RP, origin: ORIGIN });
-  const app = createMemberApp({ role: 'regulator', consortium, staff, token: TOKEN, health: async () => ({ fisco: true }), version: 't' });
+  const app = createMemberApp({ role: 'regulator', consortium, staff, token: TOKEN, health: async () => ({ fisco: true }), version: 't', signGuards });
   const pk = softPasskey('staff-alice', RP, ORIGIN);
   await request(app).post('/staff/enrol').set(auth).send({ token: 'enrol-tok', credentialId: pk.credIdHash, x: toHex(pk.x), y: toHex(pk.y), label: 'alice' }).expect(204);
   const assertion = (challenge: Hex) => {
@@ -54,6 +54,14 @@ describe('member service API (spec 05)', () => {
     const r = await request(app).post('/proposals/status/7/sign').set(auth).send({ assertion: assertion(DIGEST) }).expect(200);
     expect(r.body.ready).toBe(true);
     expect(consortium.signed).toEqual([{ board: 'status', id: 7n }]);
+  });
+
+  it('runs the board guard before signing: a refusal signs nothing', async () => {
+    const seen: unknown[] = [];
+    const { app, consortium, assertion } = await setup({ status: async (m) => { seen.push(m); throw Object.assign(new Error('not verified'), { status: 403 }); } });
+    await request(app).post('/proposals/status/7/sign').set(auth).send({ assertion: assertion(DIGEST) }).expect(403);
+    expect(seen).toEqual([{ status: 2 }]);
+    expect(consortium.signed).toEqual([]);
   });
 
   it('exposes the opens every member may do, with validation', async () => {

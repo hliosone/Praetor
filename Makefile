@@ -23,6 +23,7 @@ up: ## Start the local stack (waits for healthchecks; deploys the contracts on a
 	bash infra/fisco/gen.sh
 	$(MAKE) --no-print-directory fisco-image
 	$(MAKE) --no-print-directory up-base
+	bash scripts/dev/sync-fork-time.sh
 	bash scripts/dev/ensure-fork-deploy.sh
 	$(COMPOSE) $(PROFILE_FLAGS) up -d --wait --build
 	@if [ -f .run/deployments-changed ]; then $(COMPOSE) $(PROFILE_FLAGS) restart bundler bank regulator operator bridge-relayer && rm .run/deployments-changed; fi

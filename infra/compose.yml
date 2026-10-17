@@ -345,6 +345,38 @@ services:
       <<: *health
       test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3050/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
 
+  soter-attester:
+    build:
+      context: ..
+      dockerfile: infra/node-service.Dockerfile
+      args:
+        SERVICE: soter-attester
+    image: praetor/soter-attester:local
+    profiles: [tee-sim]
+    restart: unless-stopped
+    environment:
+      PRAETOR_ENV: ${PRAETOR_ENV}
+      ATTESTATION_MODE: ${ATTESTATION_MODE}
+      ATTESTER_HMAC_API: ${ATTESTER_HMAC_API}
+      DEPLOYMENTS_FILE: /app/${DEPLOYMENTS_FILE}
+      MP_APPID: ${MP_APPID}
+      MP_SECRET: ${MP_SECRET}
+      WECHAT_API_BASE: ${WECHAT_API_BASE}
+      SOTER_FAKE_TENCENT: ${SOTER_FAKE_TENCENT}
+      DSTACK_ENDPOINT: /var/run/dstack/dstack.sock
+    volumes:
+      - dstack-sock:/var/run/dstack
+      - ./deployments:/app/infra/deployments:ro
+    depends_on:
+      dstack-sim:
+        condition: service_healthy
+    networks:
+      praetor:
+        ipv4_address: 10.88.0.51
+    healthcheck:
+      <<: *health
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3060/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+
   # WeIdentity (spec 05, V3): one-shot deployment, then the REST service (custodial keys) and our SDK helper.
   # Docker network only: neither has authentication.
   weid-deploy:

@@ -23,3 +23,12 @@ Steps are added during Phase B, each time something needs a human (phone Face ID
 | **You see** | The wallet asks for only the birthdate and the country fields. The Praetor page moves to "verified", then to suitability. |
 | **Claude checks** | `GET /kyc/sessions/:id` on bank-service turns `verified` with `kycLevel: 1` and the right jurisdiction; `docker compose logs bank` contains no birthdate; after suitability, PersonKYC evidence exists on FISCO (`weid-client getEvidence`). Automated stand-in: `services/bank/test/eudiw.test.ts` (SD-JWT fixtures) and the vendor-path integration test. |
 | **Fallback** | The public verifier backend (`EUDI_VERIFIER_BACKEND`) is down or refuses the test issuer: use the Demo KYC provider path (same PersonKYC, `kycLevel: 2`) and show the EUDI request built by `buildPresentationRequest` in the unit test. |
+
+## 2. Real TEE attestations on Phala Cloud (M7, with the deployment in step M18)
+
+| | |
+|---|---|
+| **You do** | Once agent-signer and soter-attester run in Phala CVMs (deployment rehearsal), give Claude their compose hashes from the Phala dashboard. |
+| **You see** | Each CVM's dashboard shows the app id and compose hash; the services' `/v1/info` say `simulator: false`. |
+| **Claude checks** | Puts the hashes in `ALLOWED_COMPOSE_HASHES_AGENT` / `_ATTESTER` (Phala encrypted env), sets `ATTESTATION_MODE=phala`, runs one KYA and one attester activation: bank-service verifies both quotes through `https://cloud-api.phala.com/api/v1/attestations/verify` and refuses a quote whose compose hash is not listed. Automated stand-in: the simulator path (`test/integration/agent-signer.test.ts`, `bank-kya.test.ts`, `soter-attester.test.ts`) and the Phala path with a scripted verifier (`services/bank/test/attestation.test.ts`). |
+| **Fallback** | The verify API is unreachable or its response shape differs: keep the CVMs, show the quotes and compose hashes, and say plainly that the bank's prod verification was exercised only against a scripted verifier. |

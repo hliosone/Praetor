@@ -20,6 +20,7 @@ import { ensureBankIdentity, memoIdentity } from './identity.js';
 import { MySqlKv, MySqlKycStore, MySqlMandateStore } from './stores.js';
 import { MOCK_SANCTIONS } from './sanctions-mock.js';
 import { NonceBook, phalaVerifier, verifyTeeQuote, type PhalaVerifier } from './attestation.js';
+import { AttesterChecks } from './attesters.js';
 import { PasskeyValidatorAbi } from '@praetor/chain';
 
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/).transform((s) => s as Address);
@@ -68,6 +69,8 @@ export function startBank(env: Record<string, string | undefined> = process.env)
   const { publicClient, walletClient } = baseClients(flags.BASE_RPC_URL, deskKey);
   const weid = weidClient({ restUrl: flags.WEID_REST_URL, helperUrl: flags.WEID_HELPER_URL });
   const nonces = new NonceBook();
+  const verifier = flags.ATTESTATION_MODE === 'phala' ? phalaVerifier() : undefined;
+  const attesters = new AttesterChecks({ nonces, mode: flags.ATTESTATION_MODE, allowed: flags.allowedAttester, verifier });
   let services: { kyc: KycService; mandate: MandateService } | undefined;
   const identityServices = (ctx: MemberContext) => {
     if (services) return services;
@@ -88,12 +91,20 @@ export function startBank(env: Record<string, string | undefined> = process.env)
   };
   return startMember({
     role: 'bank', env, migrations: ['bank'],
+    signGuards: () => ({ attesters: (m) => attesters.guard(m) }),
     extendPublic: (r, ctx) => kycPublicRoutes(r, { kyc: identityServices(ctx).kyc, vendorHmac: flags.KYC_VENDOR_HMAC }),
     extend: (r, ctx) => {
       routes(r, ctx, {
         publicClient: publicClient as PublicClient, desk: walletClient as WalletClient, bankSignerKey, allowUnattested: flags.KYA_ALLOW_UNATTESTED === '1',
-        attest: { mode: flags.ATTESTATION_MODE, allowedAgent: flags.allowedAgent, nonces, verifier: flags.ATTESTATION_MODE === 'phala' ? phalaVerifier() : undefined },
+        attest: { mode: flags.ATTESTATION_MODE, allowedAgent: flags.allowedAgent, nonces, verifier },
       });
+      r.post('/attesters/nonce', h(async (req, res) => {
+        res.json({ nonce: attesters.nonce(address.parse(req.body?.attester)) });
+      }));
+      r.post('/attesters/verify', h(async (req, res) => {
+        const b = z.object({ attester: address, nonce: bytes32, quote: z.string().regex(/^(0x)?[0-9a-fA-F]+$/).max(40_000) }).parse(req.body);
+        res.json(await attesters.verify(b.attester, b.nonce, b.quote));
+      }));
       kycRoutes(r, { ...identityServices(ctx), eudi: flags.EUDI_VERIFIER_BACKEND ? { backend: flags.EUDI_VERIFIER_BACKEND } : undefined });
     },
   });
