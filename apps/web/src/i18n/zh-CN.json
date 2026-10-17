@@ -16,7 +16,7 @@
   "payments.title": "定期付款", "payments.add": "新增定期付款", "payments.trigger": "到期则立即支付", "payments.cancel": "取消",
   "agent.title": "与智能体对话", "agent.send": "发送", "agent.placeholder": "问问资产状况，或让它付款、再平衡",
   "audit.title": "审计链", "audit.verify": "验证", "audit.verified": "已验证：记录与 FISCO 及 Base 锚点一致", "audit.mismatch": "第 {n} 条不一致", "audit.export": "导出 camt.053",
-  "settings.title": "设置", "settings.wechat": "绑定微信", "settings.language": "语言",
+  "settings.title": "设置", "settings.wechat": "绑定微信", "settings.unlink": "解除微信绑定", "settings.language": "语言",
   "onb.title": "创建你的 Praetor 账户", "onb.passkey": "通行密钥", "onb.account": "钱包", "onb.kyc": "身份", "onb.suitability": "风险画像", "onb.agent": "智能体", "onb.mandate": "授权", "onb.policy": "策略",
   "onb.email": "邮箱", "onb.create": "创建通行密钥", "onb.deploy": "创建我的钱包", "onb.kycStart": "通过演示 KYC 机构验证", "onb.kycWait": "等待机构的审核结果", "onb.answers": "关于风险偏好的五个问题", "onb.saveProfile": "保存风险画像", "onb.createAgent": "在 TEE 中创建智能体", "onb.review": "查看并签署授权", "onb.sign": "用面容 ID 签署", "onb.policySet": "设置我的策略", "onb.done": "你的智能体已就绪。",
   "common.loading": "加载中", "common.error": "出错了：{e}", "common.tx": "交易", "common.back": "返回"

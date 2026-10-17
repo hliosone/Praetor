@@ -1,10 +1,12 @@
-// Settings (spec 07): WeChat link (QR for the mini program, then the passkey confirms), language, sign out.
+// Settings (spec 07): WeChat link (QR for the mini program, then the passkey confirms) and unlink (owner alone, passkey),
+// language, sign out.
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../i18n/index.js';
 import { api } from '../lib/api.js';
-import { assertDigest } from '../lib/passkey.js';
+import { assertDigest, signAndSubmit } from '../lib/passkey.js';
+import type { Prepared } from '../lib/api.js';
 
 export function Settings() {
   const { t, lang, setLang } = useI18n();
@@ -32,6 +34,12 @@ export function Settings() {
             }}>Confirm with my passkey</button>
           </>
         )}
+        <button className="danger" onClick={async () => {
+          try {
+            const r = await signAndSubmit(await api<Prepared>('POST', '/owner-actions/prepare', { kind: 4 }));
+            setMsg(r.success ? 'WeChat unlinked on Base.' : 'Refused.');
+          } catch (e) { setMsg((e as Error).message); }
+        }}>{t('settings.unlink')}</button>
         {msg && <p role="status">{msg}</p>}
       </section>
       <section className="panel stack">

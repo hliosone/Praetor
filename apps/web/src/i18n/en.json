@@ -16,7 +16,7 @@
   "payments.title": "Standing orders", "payments.add": "Add a standing order", "payments.trigger": "Pay now if due", "payments.cancel": "Cancel",
   "agent.title": "Chat with your agent", "agent.send": "Send", "agent.placeholder": "Ask how you are doing, or ask it to pay or rebalance",
   "audit.title": "Audit trail", "audit.verify": "Verify", "audit.verified": "Verified: the entries match FISCO and the Base anchor", "audit.mismatch": "Mismatch at #{n}", "audit.export": "Export camt.053",
-  "settings.title": "Settings", "settings.wechat": "Link WeChat", "settings.language": "Language",
+  "settings.title": "Settings", "settings.wechat": "Link WeChat", "settings.unlink": "Unlink WeChat", "settings.language": "Language",
   "onb.title": "Create your Praetor account", "onb.passkey": "Passkey", "onb.account": "Wallet", "onb.kyc": "Identity", "onb.suitability": "Profile", "onb.agent": "Agent", "onb.mandate": "Mandate", "onb.policy": "Policy",
   "onb.email": "Email", "onb.create": "Create my passkey", "onb.deploy": "Create my wallet", "onb.kycStart": "Verify with the Demo KYC provider", "onb.kycWait": "Waiting for the provider's decision", "onb.answers": "Five questions about your risk appetite", "onb.saveProfile": "Save my profile", "onb.createAgent": "Create my agent in the TEE", "onb.review": "Review and sign the mandate", "onb.sign": "Sign with Face ID", "onb.policySet": "Set my policy", "onb.done": "Your agent is ready.",
   "common.loading": "Loading", "common.error": "Something went wrong: {e}", "common.tx": "tx", "common.back": "Back"
