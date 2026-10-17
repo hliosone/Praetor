@@ -15,6 +15,7 @@ Praetor itself is all rights reserved (see `NOTICE`). Each entry below keeps its
 | ant-intl-alipayplus-mcp | MIT | container (M10) |
 | @phala/dstack-sdk | Apache-2.0 | dependency (M7) |
 | FISCO BCOS, WeIdentity, WeBASE, WeCross, BCOS3 stub | Apache-2.0 | containers and builds (M4 to M12) |
+| FISCO console 3.8.0 (Java SDK 3.8.0, bcos-sdk-jni, solcJ with FISCO's SM solc 0.8.26) | Apache-2.0 | downloaded by `make smoke-sm` (sha256-pinned), run in the pinned JDK image, never committed (M15 Guomi smoke) |
 | WeCross router, account manager, BCOS3 stub, proxy (vendored) | Apache-2.0 | `praetor/wecross` image, `contracts/base/src/vendor/wecross`, one patched account manager class |
 | Safe | LGPL-3.0 | deployed contracts only, unmodified |
 | Safe7579 adapter and launchpad, Rhinestone registry | GPL-3.0 | deployed contracts only, own interfaces |

@@ -23,6 +23,7 @@ Sources:
 | `wecross/evm-stub/` (structure only) | WeCross-Stub-Dev-Template (Apache-2.0) and the stub SPI `wecross-java-stub` 1.4.0 | The factory / driver / connection / account split of the template; all code written here | 2026-10-17 |
 | `scripts/wecross/router.ts` (login) | WeCross-Java-SDK `RequestUtility.buildLoginParams` (Apache-2.0) | The login protocol (salted SHA-256, RSA PKCS#1 v1.5 with the router key) reimplemented in TypeScript | 2026-10-17 |
 | `packages/protocol/src/session.ts` | BSA Sentry `apps/server/src/auth.ts` (signSession, readSession) | Stateless session cookie format kept, renamed `praetor_session`, keyed by the smart account | 2026-10-17 |
+| `infra/fisco/sm/smoke/SmProbe.sol` (`ICrypto` only) | FISCO console 3.8.0 `contracts/solidity/Crypto.sol` (Apache-2.0) | The three function signatures of FISCO's crypto precompile at `0x100a` (sm3, keccak256Hash, sm2Verify), declared as an interface; the probe itself is new | 2026-10-17 |
 | `spikes/V1-safe7579/` (Phase 0 spike only) | Alex's `services/relayer/base.mjs`, `checks/safe7579-first-userop.mjs`, `contracts/src/base/BlockTargetHook.sol` | Read as the starting point (addresses, launchpad encoding, hook decoding); the spike code is new Solidity | 2026-10-17 |
 
 Third-party sources kept in the spikes (not team code; recorded in `NOTICE` at M0): `spikes/V4-wecross/evm-proxy/WeCrossProxy.bcos3.orig.sol.txt` and the patched `WeCrossProxyEVM.sol` (WeCross, Apache-2.0), `spikes/V9-webase/webase-front-v3.1.1-no-scaffold.patch` (a diff against WeBASE-Front, Apache-2.0).
