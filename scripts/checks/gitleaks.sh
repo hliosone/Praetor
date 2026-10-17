@@ -4,7 +4,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 IMAGE=zricethezav/gitleaks:v8.28.0@sha256:cdbb7c955abce02001a9f6c9f602fb195b7fadc1e812065883f695d1eeaba854
-run() { docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD":/repo -w /repo "$IMAGE" "$@" --no-banner --redact --log-level warn --config /repo/.gitleaks.toml; }
+# The checkout and its git directory are mounted at their own paths: in a git worktree .git is a file pointing to the
+# main repository's git directory, which a /repo mount alone would not reach (the scan would read no history).
+common="$(cd "$(git rev-parse --git-common-dir)" && pwd)"
+run() { docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD":"$PWD" -v "$common":"$common" -w "$PWD" "$IMAGE" "$@" --no-banner --redact --log-level warn --config "$PWD/.gitleaks.toml"; }
+[ "$(git rev-list --count HEAD)" -gt 0 ] || { echo "gitleaks: no history to scan" >&2; exit 1; }
 run git .
 run git --pre-commit --staged .
 run git --pre-commit .
