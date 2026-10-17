@@ -1,0 +1,2 @@
+# WeChat DevTools keeps each developer's own settings (AppID, debug flags) here.
+project.private.config.json
