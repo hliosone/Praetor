@@ -1,0 +1,45 @@
+# Guomi profile smoke chain (M15, spec 04): 4 FISCO BCOS 3.17.1 sealers generated with `build_chain.sh -s` (SM2
+# accounts, SM3, SM-TLS), auth mode with the bank's SM2 account as admin. Disposable and fully separate from the
+# local stack: own project, own network (10.97.0.0/24), no published port. Started and removed by
+# infra/fisco/sm/run.sh (make smoke-sm), which sets SM_CHAIN (the generated nodes) and SM_UID/SM_GID.
+name: praetor-sm
+
+x-node: &node
+  image: praetor/fisco-bcos:3.17.1
+  pull_policy: never
+  user: '${SM_UID}:${SM_GID}'
+  healthcheck:
+    interval: 3s
+    timeout: 5s
+    retries: 60
+    start_period: 10s
+    test: ['CMD-SHELL', "curl -sf -H 'content-type: application/json' --data '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_blockNumber\",\"params\":[]}' http://127.0.0.1:8545 | grep -q result"]
+
+services:
+  fisco-sm-node0:
+    <<: *node
+    container_name: praetor-sm-node0
+    volumes: ['${SM_CHAIN}/10.97.0.10/node0:/data']
+    networks: { sm: { ipv4_address: 10.97.0.10 } }
+  fisco-sm-node1:
+    <<: *node
+    container_name: praetor-sm-node1
+    volumes: ['${SM_CHAIN}/10.97.0.11/node0:/data']
+    networks: { sm: { ipv4_address: 10.97.0.11 } }
+  fisco-sm-node2:
+    <<: *node
+    container_name: praetor-sm-node2
+    volumes: ['${SM_CHAIN}/10.97.0.12/node0:/data']
+    networks: { sm: { ipv4_address: 10.97.0.12 } }
+  fisco-sm-node3:
+    <<: *node
+    container_name: praetor-sm-node3
+    volumes: ['${SM_CHAIN}/10.97.0.13/node0:/data']
+    networks: { sm: { ipv4_address: 10.97.0.13 } }
+
+networks:
+  sm:
+    name: praetor-sm
+    ipam:
+      config:
+        - subnet: 10.97.0.0/24
