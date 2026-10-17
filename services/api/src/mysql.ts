@@ -27,7 +27,7 @@ export class MySqlApiStore implements ApiStore {
     await this.r.query('INSERT INTO passkeys (credential_id, user_id, public_key, counter, cred_id_hash, x, y) VALUES (?, ?, ?, ?, ?, ?, ?)', [p.credentialId, p.userId, p.publicKey, p.counter, p.credIdHash, p.x, p.y]);
   }
   async passkey(id: string) { const [x] = await rows(this.r, 'SELECT * FROM passkeys WHERE credential_id = ?', [id]); return x ? passkey(x) : undefined; }
-  async passkeysOf(userId: string) { return (await rows(this.r, 'SELECT * FROM passkeys WHERE user_id = ?', [userId])).map(passkey); }
+  async passkeysOf(userId: string) { return (await rows(this.r, 'SELECT * FROM passkeys WHERE user_id = ? ORDER BY created_at, credential_id', [userId])).map(passkey); }
   async setCounter(id: string, counter: number) { await this.r.query('UPDATE passkeys SET counter = ? WHERE credential_id = ?', [counter, id]); }
 }
 

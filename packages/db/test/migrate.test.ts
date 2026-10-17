@@ -47,6 +47,11 @@ describe('migrator', () => {
     expect(m!.sql.replace(/^\s*--.*$/gm, '')).not.toMatch(/\bopenid\b(?!_hash)/);
   });
 
+  it('ships the api passkeys\' registration time, which orders an account\'s passkeys (its first one first)', () => {
+    const m = loadMigrations('api').find((x) => x.name === '0005_passkeys_created_at');
+    expect(m?.sql).toMatch(/ALTER TABLE passkeys ADD COLUMN created_at DATETIME\(3\) NOT NULL DEFAULT CURRENT_TIMESTAMP\(3\)/);
+  });
+
   it('ships the bundler migrations', () => {
     const ms = loadMigrations('bundler');
     expect(ms.map((m) => m.name)[0]).toBe('0001_init');
