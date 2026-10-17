@@ -18,7 +18,7 @@ PROFILES := $(filter-out dev,$(PROFILES))
 endif
 PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 
-.PHONY: help setup install up down ps logs smoke-sm test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-web e2e-smoke rehearsal e2e-live redteam slither deploy-contracts deploy-fisco tunnel reset-fork up-base
+.PHONY: help setup install up down ps logs smoke-sm test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-web e2e-smoke rehearsal tunnel-stop e2e-live redteam slither deploy-contracts deploy-fisco tunnel reset-fork up-base
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -140,5 +140,8 @@ deploy-contracts: ## Deploy the Base contracts (ENV=fork|base-sepolia|sandbox)
 deploy-fisco: ## FISCO governance bootstrap + consortium contracts (ENV=local|live|sandbox)
 	pnpm -s exec tsx scripts/fisco/deploy.ts $(or $(ENV),local)
 
-tunnel: ## cloudflared tunnel in front of Caddy, URL in .run/tunnel-url
-	@echo "tunnel: M13" && exit 1
+tunnel: ## cloudflared tunnel in front of Caddy for phones, URL in .run/tunnel-url and the mini program's develop base
+	bash scripts/dev/tunnel.sh
+
+tunnel-stop: ## Stop the cloudflared tunnel
+	@if [ -f .run/tunnel.pid ]; then kill "$$(cat .run/tunnel.pid)" 2>/dev/null || true; rm -f .run/tunnel.pid; fi; echo "tunnel stopped"
