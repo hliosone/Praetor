@@ -1,0 +1,6 @@
+{
+  "name": "spike-v5-dstack",
+  "private": true,
+  "type": "module",
+  "dependencies": { "@phala/dstack-sdk": "0.5.8", "viem": "2.57.5" }
+}
