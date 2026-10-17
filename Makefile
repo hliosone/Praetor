@@ -71,8 +71,8 @@ e2e-live: ## Flows on live Base Sepolia (CHAIN_MODE=live)
 redteam: ## Red-team suite (real model)
 	@echo "redteam suite: M16" && exit 1
 
-slither: ## Static analysis of the Base contracts
-	@echo "slither: M2" && exit 1
+slither: ## Static analysis of the Base contracts (fails on unexplained High/Medium)
+	bash scripts/checks/slither.sh
 
 deploy-contracts: ## Deploy the Base contracts (ENV=fork|base-sepolia|sandbox)
 	bash scripts/deploy/contracts.sh $(or $(ENV),fork)
