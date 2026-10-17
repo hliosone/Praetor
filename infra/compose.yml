@@ -59,6 +59,8 @@ services:
       PUBLIC_HOST: ${PUBLIC_HOST}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # The web app (apps/web), built by `make up` (pnpm --filter @praetor/web build).
+      - ../apps/web/dist:/srv/web:ro
       - caddy-data:/data
       - caddy-config:/config
     networks:

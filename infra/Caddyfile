@@ -29,7 +29,10 @@
 		reverse_proxy mcp:3080
 	}
 
+	# The web app: static files, every other path is the single-page app (routes are client-side).
 	handle {
-		respond "Praetor" 200
+		root * /srv/web
+		try_files {path} /index.html
+		file_server
 	}
 }

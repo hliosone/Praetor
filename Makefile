@@ -26,6 +26,7 @@ up: ## Start the local stack (waits for healthchecks; deploys the contracts on a
 	$(MAKE) --no-print-directory up-base
 	bash scripts/dev/sync-fork-time.sh
 	bash scripts/dev/ensure-fork-deploy.sh
+	pnpm -s --filter @praetor/web build
 	$(COMPOSE) $(PROFILE_FLAGS) up -d --wait --build
 	@if [ -f .run/deployments-changed ]; then $(COMPOSE) $(PROFILE_FLAGS) restart bundler bank regulator operator bridge-relayer && rm .run/deployments-changed; fi
 	@case " $(PROFILES) " in *" wecross "*) bash scripts/wecross/up.sh ;; esac
