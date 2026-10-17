@@ -45,6 +45,11 @@ describe('Node service Dockerfiles (rebuild only what a code change touches)', (
     ]);
   });
 
+  it('keeps large files no image reads out of the root build context (copied into every image otherwise)', () => {
+    const di = read('.dockerignore').split('\n').map((l) => l.trim());
+    for (const p of ['infra/fisco/downloads', 'contracts/lib']) expect(di).toContain(p);
+  });
+
   for (const file of nodeDockerfiles) {
     describe(file, () => {
       const ins = instructions(read(file));

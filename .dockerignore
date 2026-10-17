@@ -16,3 +16,7 @@ infra/fisco/nodes
 infra/wecross/generated
 .claude
 CLAUDE.md
+# Large and never read by the images built from the repository root: the FISCO release binary (the fisco image
+# builds from infra/fisco) and the Solidity libraries (submodules).
+infra/fisco/downloads
+contracts/lib
