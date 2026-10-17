@@ -1,0 +1,18 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "opencode/deepseek-v4.1-flash-free",
+  "permission": {
+    "*": "ask",
+    "praetor_*": "allow"
+  },
+  "mcp": {
+    "praetor": {
+      "type": "remote",
+      "url": "http://127.0.0.1:19011/mcp",
+      "enabled": true,
+      "headers": {
+        "Authorization": "Bearer FAKE-TOKEN-V6-0123456789"
+      }
+    }
+  }
+}
