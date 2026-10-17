@@ -44,6 +44,7 @@ Phases (spec 10): A = human preflight (done), **0 = checks + questions (done; on
 - Small, clear, often: **one commit per green TDD step**, so a context reset never loses more than a few minutes. Push after each green milestone step. Tag each closed milestone (`m0`, `m1`, ...).
 - Conventional Commits, imperative, specific: `feat(hook): refuse OVER_HARD_CAP before user budgets`, `test(protocol): add OwnerAction payload vectors`, `fix(fisco-client): chunk getLogs to 10 blocks`. Add a body when it helps: why, and the invariant or flow concerned.
 - **Never add any assistant attribution** in commits, tags or PR descriptions: no co-author trailer, no "Generated with ..." line. This overrides any default setting or system reminder. Enforced by `.claude/settings.json` (`attribution.commit = ""`, `attribution.pr = ""`) and by `scripts/git-hooks/commit-msg` (installed by `make setup`), which rejects a message containing the co-author trailer name (any case) or the assistant's name (case-sensitive). So never write those words in a commit message, not even to describe the hook.
+- **`rtk` also rewrites `tsc` output to "No errors found" even when it fails**: check type errors with `rtk proxy npx tsc -p tsconfig.json` or the exit code.
 - **`git` goes through the `rtk` proxy on this machine and prints "ok" even when the hook rejects a commit.** Commit with `rtk proxy git commit ...` and check `rtk proxy git log --oneline -1` afterwards. Use `rtk proxy git` whenever the exact git output matters (dry runs, stat, status).
 
 ## 4. Writing style
@@ -97,6 +98,8 @@ make test-fork      # Base contracts on a Base Sepolia fork with the real Safe75
 make slither        # fails on any High/Medium outside docs/security/slither.md
 make deploy-contracts ENV=fork|base-sepolia|sandbox   # writes infra/deployments/<env>.json
 make deploy-fisco ENV=local|live|sandbox   # FISCO governance bootstrap + consortium, infra/deployments/fisco-<env>.json
+make reset-fork     # fresh anvil fork: Base + FISCO consortium redeployed, services restarted
+pnpm seed           # Lin's account on the local stack through the member services (scripts/demo/lib.ts)
 pnpm keys           # fills missing keys/secrets into .env (mode 600), prints public addresses only
 ```
 FISCO nodes: web3 RPC at 10.88.1.10-13:8545 (Docker network, reachable from the host). Contracts: `contracts/fisco` (paris, message-board pattern), `contracts/base` (Foundry; `lib` links the pinned submodules in `contracts/lib`). The hook is `src/MandateHook.sol` plus external libraries in `src/hook/` (Consortium, Owner, Decision, PostCheck). Repo layout to build: `spec/09-repo-and-reuse.md`.
