@@ -3,8 +3,10 @@ pragma solidity 0.8.28;
 
 import {PraetorTypes as P} from "@praetor/protocol/PraetorTypes.sol";
 import {IMandateHookEvents} from "@praetor/protocol/PraetorEvents.sol";
-import {IERC7579Hook, MODULE_TYPE_HOOK} from "./interfaces/IERC7579.sol";
-import {MandateState, Modules, Ctx, CapsRec, KyaRec, AssetRec, AttesterRec, ApprovalRec} from "./hook/HookTypes.sol";
+import {IERC7579Hook, IERC7579Account, Execution, MODULE_TYPE_HOOK, MODE_SINGLE, MODE_BATCH} from "./interfaces/IERC7579.sol";
+import {MandateState, Modules, Ctx, CapsRec, KyaRec, AssetRec, AttesterRec, ApprovalRec, Verdict, KIND_APPROVE, KIND_SWAP} from "./hook/HookTypes.sol";
+import {DecisionLib} from "./hook/DecisionLib.sol";
+import {PostCheckLib} from "./hook/PostCheckLib.sol";
 import {ConsortiumLib} from "./hook/ConsortiumLib.sol";
 import {OwnerLib} from "./hook/OwnerLib.sol";
 
@@ -28,6 +30,7 @@ contract MandateHook is IERC7579Hook, IMandateHookEvents {
     error ModulesAlreadySet();
     error InvalidMembers();
     error NotInstalled();
+    error TierThreeRequired();
 
     constructor(address bank_, address regulator_, address operator_, string memory domainName_, bool soterCounterStrict_) {
         if (
@@ -57,7 +60,16 @@ contract MandateHook is IERC7579Hook, IMandateHookEvents {
         s.installed[msg.sender] = true;
     }
 
-    function onUninstall(bytes calldata) external {}
+    /// Only during an approved removal of this hook (MODULE_CHANGE, flag set by the outer preCheck). Safe7579
+    /// swallows a revert here, so the real gate is that preCheck (V1 T1, Q14).
+    function onUninstall(bytes calldata) external {
+        if (!_tget(UNINSTALLING, msg.sender)) revert TierThreeRequired();
+        delete s.installed[msg.sender];
+        delete s.policyHash[msg.sender];
+        delete s.policy[msg.sender];
+        delete s.binding[msg.sender];
+        delete s.paused[msg.sender];
+    }
 
     function isModuleType(uint256 moduleTypeId) external pure returns (bool) {
         return moduleTypeId == MODULE_TYPE_HOOK;
@@ -67,11 +79,167 @@ contract MandateHook is IERC7579Hook, IMandateHookEvents {
         return s.installed[account];
     }
 
-    function preCheck(address, uint256, bytes calldata) external pure returns (bytes memory) {
-        revert MandateRefused(uint8(P.Reason.HIDDEN_CALL), bytes32(0));
+    /// Runs before every execution of the account (msg.sender). msgData ends with the 20-byte original caller.
+    function preCheck(address msgSender, uint256 msgValue, bytes calldata msgData) external returns (bytes memory) {
+        address account = msg.sender;
+        if (!s.installed[account]) revert NotInstalled();
+        if (msgValue != 0 || msgData.length < 24) _refuse(uint8(P.Reason.HIDDEN_CALL), bytes32(0));
+        bytes calldata data = msgData[:msgData.length - 20];
+        bytes4 sel = bytes4(data[:4]);
+        if (sel == IERC7579Account.execute.selector) return _preExecute(account, data, false);
+        if (sel == IERC7579Account.executeFromExecutor.selector) {
+            if (msgSender != s.m.standingOrders) _refuse(uint8(P.Reason.HIDDEN_CALL), bytes32(0));
+            return _preExecute(account, data, true);
+        }
+        if (sel == IERC7579Account.installModule.selector || sel == IERC7579Account.uninstallModule.selector) {
+            return _preModuleInner(account, msgSender, data);
+        }
+        _refuse(uint8(P.Reason.HIDDEN_CALL), bytes32(0));
     }
 
-    function postCheck(bytes calldata) external {}
+    function postCheck(bytes calldata hookData) external {
+        address account = msg.sender;
+        if (_tget(UNINSTALLING, account)) {
+            _tset(UNINSTALLING, account, 0);
+            _tset(PENDING, account, 0);
+            return;
+        }
+        uint8 mode = uint8(bytes1(hookData[:1]));
+        if (mode == POST_MODULE_OUTER) {
+            _tset(PENDING, account, 0);
+            return;
+        }
+        if (mode == POST_EXEC) PostCheckLib.check(s, account, hookData[1:]);
+    }
+
+    // ---------------------------------------------------------------- decisions (views, never revert: I12)
+
+    function check(address account, address target, uint256 value, bytes calldata data)
+        external
+        view
+        returns (uint8 reason, uint8 tier, bytes32 callHash)
+    {
+        Execution[] memory calls = new Execution[](1);
+        calls[0] = Execution(target, value, data);
+        Verdict[] memory v = DecisionLib.evaluate(s, account, calls, false);
+        return (v[0].reason, v[0].tier, v[0].callHash);
+    }
+
+    function checkBatch(address account, Execution[] calldata calls)
+        external
+        view
+        returns (uint8[] memory reasons, uint8[] memory tiers, bytes32[] memory callHashes)
+    {
+        Verdict[] memory v = DecisionLib.evaluate(s, account, calls, false);
+        reasons = new uint8[](v.length);
+        tiers = new uint8[](v.length);
+        callHashes = new bytes32[](v.length);
+        for (uint256 i; i < v.length; ++i) (reasons[i], tiers[i], callHashes[i]) = (v[i].reason, v[i].tier, v[i].callHash);
+    }
+
+    // ---------------------------------------------------------------- preCheck paths
+
+    function _preExecute(address account, bytes calldata data, bool executor) internal returns (bytes memory) {
+        (bytes32 mode, bytes calldata exec) = _decodeExecute(data);
+        Execution[] memory calls;
+        if (mode == MODE_SINGLE) {
+            if (exec.length < 52) _refuse(uint8(P.Reason.HIDDEN_CALL), bytes32(0));
+            address target = address(bytes20(exec[:20]));
+            uint256 value = uint256(bytes32(exec[20:52]));
+            if (target == account && !executor) return _preModuleOuter(account, value, exec[52:]);
+            calls = new Execution[](1);
+            calls[0] = Execution(target, value, exec[52:]);
+        } else if (mode == MODE_BATCH) {
+            calls = abi.decode(exec, (Execution[]));
+            // Canonical encoding only: a batch that decodes to these calls but has other bytes is hidden.
+            if (keccak256(abi.encode(calls)) != keccak256(exec)) _refuse(uint8(P.Reason.HIDDEN_CALL), bytes32(0));
+        } else {
+            _refuse(uint8(P.Reason.HIDDEN_CALL), bytes32(0));
+        }
+        Verdict[] memory v = DecisionLib.evaluate(s, account, calls, executor);
+        for (uint256 i; i < v.length; ++i) if (v[i].reason != 0) _refuse(v[i].reason, v[i].callHash);
+        DecisionLib.applyEffects(s, account, v, executor);
+        return PostCheckLib.prepare(s, account, calls, v);
+    }
+
+    /// Module change (Q14): a single execute(self.installModule/uninstallModule) with a live MODULE_CHANGE
+    /// approval. FROZEN still wins (D19): owner and bank cannot remove the hook during a regulator freeze.
+    function _preModuleOuter(address account, uint256 value, bytes calldata inner) internal returns (bytes memory) {
+        uint8 acc = s.status[account].status;
+        uint8 glob = s.globalStatus.status;
+        if ((acc > glob ? acc : glob) == uint8(P.Status.FROZEN)) _refuse(uint8(P.Reason.FROZEN), bytes32(0));
+        bytes32 ch = P.callHash(account, account, value, inner);
+        if (value != 0 || inner.length < 4) _refuse(uint8(P.Reason.HIDDEN_CALL), ch);
+        bytes4 sel = bytes4(inner[:4]);
+        if (sel != IERC7579Account.installModule.selector && sel != IERC7579Account.uninstallModule.selector) {
+            _refuse(uint8(P.Reason.HIDDEN_CALL), ch);
+        }
+        ApprovalRec storage slot = s.moduleApprovals[account][s.epoch[account]][ch];
+        if (slot.expiresAt <= block.timestamp || slot.consumed) _refuse(uint8(P.Reason.TIER3_REQUIRED), ch);
+        slot.consumed = true;
+        _tset(PENDING, account, uint256(ch));
+        if (sel == IERC7579Account.uninstallModule.selector && inner.length >= 68) {
+            (uint256 typeId, address module) = abi.decode(inner[4:68], (uint256, address));
+            if (typeId == MODULE_TYPE_HOOK && module == address(this)) _tset(UNINSTALLING, account, 1);
+        }
+        emit Decision(account, ch, 0, uint8(P.Tier.T3_OWNER), account, 0);
+        return abi.encodePacked(POST_MODULE_OUTER);
+    }
+
+    /// The account's own installModule/uninstallModule call, accepted only as the inner call of an approved
+    /// outer module change (transient, same transaction, same account).
+    function _preModuleInner(address account, address msgSender, bytes calldata data) internal returns (bytes memory) {
+        bytes32 ch = P.callHash(account, account, 0, data);
+        if (msgSender != account || _tload(PENDING, account) != uint256(ch) || ch == bytes32(0)) {
+            _refuse(uint8(P.Reason.TIER3_REQUIRED), ch);
+        }
+        _tset(PENDING, account, 0);
+        return abi.encodePacked(POST_MODULE_INNER);
+    }
+
+    function _decodeExecute(bytes calldata data) internal pure returns (bytes32 mode, bytes calldata exec) {
+        if (data.length < 68) _refuse(uint8(P.Reason.HIDDEN_CALL), bytes32(0));
+        mode = bytes32(data[4:36]);
+        uint256 offset = uint256(bytes32(data[36:68]));
+        if (offset != 64 || data.length < 100) _refuse(uint8(P.Reason.HIDDEN_CALL), bytes32(0));
+        uint256 len = uint256(bytes32(data[68:100]));
+        if (len > data.length - 100) _refuse(uint8(P.Reason.HIDDEN_CALL), bytes32(0));
+        exec = data[100:100 + len];
+    }
+
+    function _refuse(uint8 reason, bytes32 callHash) internal pure {
+        revert MandateRefused(reason, callHash);
+    }
+
+    // ---------------------------------------------------------------- transient flags, keyed by account
+
+    bytes32 internal constant PENDING = keccak256("praetor.hook.pendingModuleCall");
+    bytes32 internal constant UNINSTALLING = keccak256("praetor.hook.uninstalling");
+    uint8 internal constant POST_EXEC = 1;
+    uint8 internal constant POST_MODULE_OUTER = 2;
+    uint8 internal constant POST_MODULE_INNER = 3;
+
+    function _slot(bytes32 tag, address account) internal pure returns (bytes32) {
+        return keccak256(abi.encode(tag, account));
+    }
+
+    function _tset(bytes32 tag, address account, uint256 value) internal {
+        bytes32 slot = _slot(tag, account);
+        assembly ("memory-safe") {
+            tstore(slot, value)
+        }
+    }
+
+    function _tload(bytes32 tag, address account) internal view returns (uint256 value) {
+        bytes32 slot = _slot(tag, account);
+        assembly ("memory-safe") {
+            value := tload(slot)
+        }
+    }
+
+    function _tget(bytes32 tag, address account) internal view returns (bool) {
+        return _tload(tag, account) != 0;
+    }
 
     // ---------------------------------------------------------------- consortium setters (permissionless)
 
