@@ -48,9 +48,11 @@ describe('audit writer and anchors', () => {
       anchored = head;
       return seq > anchorsBefore;
     }, 120_000);
-    // The anchored head is a head of the FISCO log at or after the seq the operator saw when it opened the anchor.
+    // The anchored head is one of the FISCO log's heads: ours, or the operator's automatic anchor that landed first
+    // with a head from a little earlier.
     const [now] = await fiscoLatest();
-    const heads = await Promise.all(Array.from({ length: Number(now) - auditSeq + 1 }, (_, i) => fisco.readContract({ address: fiscoDeployment.auditLog, abi: AuditLogAbi, functionName: 'headAt', args: [BigInt(auditSeq + i)] })));
+    const from = Math.max(1, auditSeq - 50);
+    const heads = await Promise.all(Array.from({ length: Number(now) - from + 1 }, (_, i) => fisco.readContract({ address: fiscoDeployment.auditLog, abi: AuditLogAbi, functionName: 'headAt', args: [BigInt(from + i)] })));
     expect(heads).toContain(anchored);
   }, 300_000);
 });
