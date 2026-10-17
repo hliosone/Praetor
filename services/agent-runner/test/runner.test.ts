@@ -87,6 +87,19 @@ describe('instances', () => {
     expect(new InstanceManager(opts).modelOf(ACCOUNT)).toBe('opencode/real');
   });
 
+  it('waits for a slow start by time, not by attempts: under load opencode may take longer than 30 s', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'runner-'));
+    const port = 44000 + Math.floor(Math.random() * 1000);
+    let stopped = 0;
+    // The fake server listens only after 400 ms: with 100 ms allowed the start fails and the process is stopped.
+    const spawner: Spawner = (_a, p) => { const t = setTimeout(() => fakeOpencode(p), 400); return { stop: () => { clearTimeout(t); stopped++; } }; };
+    const opts = { dataDir: dir, password: 'pw', maxActive: 2, idleS: 1800, spawner, mcpUrl: 'x', defaultModel: 'fake/scripted', fakeLlmUrl: 'http://f', warmDir: dir, issueToken: async () => 't' };
+    await expect(new InstanceManager({ ...opts, basePort: port, startTimeoutMs: 100 }).ensure(ACCOUNT)).rejects.toThrow(/did not start within 100 ms/);
+    expect(stopped).toBe(1);
+    const ok = new InstanceManager({ ...opts, basePort: port + 1, startTimeoutMs: 5_000 });
+    expect((await ok.ensure(ACCOUNT)).port).toBe(port + 1);
+  });
+
   it('never evicts a busy instance: a new account waits for a slot', async () => {
     const { m, states } = setup({ max: 1 });
     const a = await m.ensure(ACCOUNT);

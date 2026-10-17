@@ -17,6 +17,8 @@ export type ManagerOptions = {
   password: string;
   maxActive: number;
   idleS: number;
+  /** How long a starting opencode may take to answer (default 90 s). */
+  startTimeoutMs?: number;
   spawner?: Spawner;
   mcpUrl: string;
   defaultModel: string;
@@ -138,11 +140,13 @@ export class InstanceManager {
     const proc = (this.o.spawner ?? opencodeSpawner)(account, port, env, project);
     const base = `http://127.0.0.1:${port}`;
     const auth = `Basic ${Buffer.from(`opencode:${this.o.password}`).toString('base64')}`;
-    for (let i = 0; ; i++) {
-      if (await fetch(`${base}/doc`, { headers: { authorization: auth }, signal: AbortSignal.timeout(2000) }).then((r) => r.ok, () => false)) break;
-      if (i > 120) {
+    // A deadline, not a number of attempts: when the scheduler wakes many agents at once, starts get slow.
+    const limit = this.o.startTimeoutMs ?? 90_000;
+    const deadline = Date.now() + limit;
+    while (!(await fetch(`${base}/doc`, { headers: { authorization: auth }, signal: AbortSignal.timeout(2000) }).then((r) => r.ok, () => false))) {
+      if (Date.now() > deadline) {
         proc.stop();
-        throw new Error('opencode did not start');
+        throw new Error(`opencode did not start within ${limit} ms`);
       }
       await new Promise((r) => setTimeout(r, 250));
     }
