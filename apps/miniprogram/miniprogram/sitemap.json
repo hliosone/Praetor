@@ -1,0 +1,4 @@
+{
+  "desc": "A private wallet: no page is indexed by WeChat search.",
+  "rules": [{ "action": "disallow", "page": "*" }]
+}
