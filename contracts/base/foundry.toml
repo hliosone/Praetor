@@ -5,7 +5,7 @@ test = "test"
 script = "script"
 out = "out"
 cache_path = "cache"
-libs = ["../lib"]
+libs = ["lib"]
 solc_version = "0.8.28"
 evm_version = "cancun"
 optimizer = true
@@ -15,11 +15,11 @@ fs_permissions = [
   { access = "read-write", path = "../../infra/deployments" },
 ]
 remappings = [
-  "forge-std/=../lib/forge-std/src/",
-  "webauthn-sol/=../lib/webauthn-sol/src/",
-  "FreshCryptoLib/=../lib/webauthn-sol/lib/FreshCryptoLib/solidity/src/",
-  "openzeppelin-contracts/=../lib/webauthn-sol/lib/openzeppelin-contracts/",
-  "solady/=../lib/webauthn-sol/lib/solady/src/",
+  "forge-std/=lib/forge-std/src/",
+  "webauthn-sol/=lib/webauthn-sol/src/",
+  "FreshCryptoLib/=lib/webauthn-sol/lib/FreshCryptoLib/solidity/src/",
+  "openzeppelin-contracts/=lib/webauthn-sol/lib/openzeppelin-contracts/",
+  "solady/=lib/webauthn-sol/lib/solady/src/",
   "@praetor/protocol/=../../packages/protocol/sol/",
 ]
 gas_reports = ["MandateHook", "RefusalLog", "PasskeyValidator", "AgentKeyValidator", "StandingOrders"]

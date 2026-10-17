@@ -13,7 +13,7 @@ rm -rf "$scratch"
 mkdir -p "$scratch"
 git ls-files -z --others --exclude-standard | while IFS= read -r -d '' f; do
   mkdir -p "$scratch/$(dirname "$f")"
-  cp "$f" "$scratch/$f"
+  cp -P "$f" "$scratch/$f"
 done
 if [ -n "$(ls -A "$scratch")" ]; then
   (cd "$scratch" && docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD":/scan -v "$OLDPWD/.gitleaks.toml":/cfg.toml:ro -w /scan "$IMAGE" dir . --no-banner --redact --log-level warn --config /cfg.toml)
