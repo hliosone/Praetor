@@ -4,10 +4,11 @@
 import pino from 'pino';
 import express from 'express';
 import { z } from 'zod';
-import { erc20Abi, parseAbiItem, type Address } from 'viem';
-import { MandateHookAbi, PriceOracleAbi, baseClients, loadDeployments } from '@praetor/chain';
+import { encodeFunctionData, erc20Abi, parseAbiItem, type Address } from 'viem';
+import { MandateHookAbi, PriceOracleAbi, StandingOrdersAbi, baseClients, baseNow, loadDeployments } from '@praetor/chain';
 import { PriceSource, type Policy } from '@praetor/protocol';
 import { Cooldown, bandWake, weightsOf } from './bands.js';
+import { dueOrders } from './standing.js';
 
 const env = z.object({
   BASE_RPC_URL: z.string().url(),
@@ -18,6 +19,7 @@ const env = z.object({
   INTERNAL_TOKEN_AGENT: z.string().min(32),
   PRICE_CHECK_INTERVAL_S: z.coerce.number().int().min(5).default(900),
   WAKE_COOLDOWN_S: z.coerce.number().int().default(900),
+  STANDING_ORDERS_INTERVAL_S: z.coerce.number().int().min(5).default(60),
   PORT: z.coerce.number().int().default(3110),
 }).parse(process.env);
 
@@ -82,6 +84,34 @@ async function watchDemo() {
   }
   setTimeout(watchDemo, 3000);
 }
+
+// Standing orders: every StandingOrderSet seen since the deployment, executed through the bundler when due (F7 step 3).
+const SET = parseAbiItem('event StandingOrderSet(address indexed account, uint32 indexed id, bytes32 orderHash)');
+const known = new Map<string, { account: Address; id: number }>();
+let soFrom = BigInt(d.deployBlock);
+async function standingOrders() {
+  try {
+    const head = await pub.getBlockNumber();
+    if (head >= soFrom) {
+      for (const l of await pub.getLogs({ address: d.standingOrders, event: SET, fromBlock: soFrom, toBlock: head })) known.set(`${l.args.account}:${l.args.id}`, { account: l.args.account!, id: Number(l.args.id) });
+      soFrom = head + 1n;
+    }
+    const now = await baseNow(pub);
+    const views = await Promise.all([...known.values()].map(async (k) => {
+      const o = (await pub.readContract({ address: d.standingOrders, abi: StandingOrdersAbi, functionName: 'orders', args: [k.account, k.id] })) as readonly unknown[];
+      return { account: k.account as string, id: k.id, nextDue: BigInt(o[4] as bigint), active: o[7] as boolean };
+    }));
+    for (const o of dueOrders(views, now)) {
+      const data = encodeFunctionData({ abi: StandingOrdersAbi, functionName: 'execute', args: [o.account as Address, o.id] });
+      const r = await fetch(`${env.BUNDLER_URL}/tx`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${env.INTERNAL_TOKEN_BUNDLER}` }, body: JSON.stringify({ to: d.standingOrders, data }) });
+      log.info({ account: o.account, id: o.id, status: r.status, result: await r.json().catch(() => null) }, 'standing order executed');
+    }
+  } catch (e) {
+    log.error({ error: (e as Error).message.split('\n')[0] }, 'standing orders failed');
+  }
+  setTimeout(standingOrders, env.STANDING_ORDERS_INTERVAL_S * 1000);
+}
+void standingOrders();
 
 setInterval(() => void checkAll(), env.PRICE_CHECK_INTERVAL_S * 1000);
 void checkAll();
