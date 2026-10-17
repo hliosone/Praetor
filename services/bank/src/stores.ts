@@ -21,6 +21,11 @@ export class MySqlKycStore implements KycStore {
   async decideSession(id: string) {
     return affected(await this.r.query("UPDATE kyc_sessions SET state = 'decided' WHERE id = ? AND state = 'pending'", [id])) === 1;
   }
+  async recordByAccount(account: string): Promise<KycRecord | undefined> {
+    const [x] = await rows(this.r, 'SELECT user_ref FROM kyc_records WHERE LOWER(account) = LOWER(?) ORDER BY updated_at DESC LIMIT 1', [account]);
+    return x ? this.getRecord(String(x.user_ref)) : undefined;
+  }
+
   async getRecord(userRef: string): Promise<KycRecord | undefined> {
     const [x] = await rows(this.r, 'SELECT * FROM kyc_records WHERE user_ref = ?', [userRef]);
     if (!x) return undefined;

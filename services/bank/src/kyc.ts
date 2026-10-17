@@ -96,6 +96,7 @@ export interface KycStore {
   getSession(id: string): Promise<KycSession | undefined>;
   decideSession(id: string): Promise<boolean>;
   getRecord(userRef: string): Promise<KycRecord | undefined>;
+  recordByAccount(account: string): Promise<KycRecord | undefined>;
   putRecord(r: KycRecord): Promise<void>;
 }
 
@@ -111,6 +112,7 @@ export class MemoryKycStore implements KycStore {
     return true;
   }
   async getRecord(userRef: string) { return this.records.get(userRef); }
+  async recordByAccount(account: string) { return [...this.records.values()].find((r) => r.account.toLowerCase() === account.toLowerCase()); }
   async putRecord(r: KycRecord) { this.records.set(r.userRef, { ...r }); }
 }
 
@@ -235,6 +237,10 @@ export class KycService {
   /** What other services may see: never the sealed record. */
   async record(userRef: string) {
     return this.d.store.getRecord(userRef);
+  }
+
+  async recordByAccount(account: string) {
+    return this.d.store.recordByAccount(account);
   }
 
   async status(userRef: string) {

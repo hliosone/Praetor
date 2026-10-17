@@ -26,7 +26,7 @@ beforeAll(async () => {
   await setDemoPrices(s);
   acc = await createAccount(s, `f5-${Date.now()}`);
   await kycViaVendor(s, `f5-${tag}`, acc.address, person);
-  await onboard(s, acc);
+  await onboard(s, acc, undefined, { userRef: `f5-${tag}` });
   await fund(s, acc);
   await setPayeeLabels(s, acc.address, [{ address: cafe, label: 'Café Lumen' }]);
   await openAndSign(s, 'regulator', '/sanctions', { target: bad, listed: true }, ['regulator']);

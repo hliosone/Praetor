@@ -84,7 +84,8 @@ export class MandateService {
     if (!(await this.d.store.markSigned(draftId))) throw new Refused('draft not pending');
     const { bankWeId } = await this.d.identity();
     const { credential } = await this.d.weid.countersign(JSON.parse(draft.inner) as Credential, bankWeId);
-    const mandateCredentialHash = await this.d.weid.createEvidence(credential, bankWeId);
-    return { credential, mandateCredentialHash };
+    const mandateCredentialHash = await this.d.weid.createEvidence(credential, bankWeId) as Hex;
+    const claim = (JSON.parse(draft.inner) as Credential).claim as { agentKey: string; agentMeasurement: Hex };
+    return { credential, mandateCredentialHash, account: draft.account, agentKey: claim.agentKey, agentMeasurement: claim.agentMeasurement };
   }
 }

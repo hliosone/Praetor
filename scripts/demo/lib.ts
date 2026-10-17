@@ -253,23 +253,38 @@ export async function ownerAction(s: Stack, acc: Account, args: Parameters<typeo
 }
 
 /** KYA (bank), policy (bank check + owner + bank), agent key (owner + bank). */
-export async function onboard(s: Stack, acc: Account, policy: Policy = linPolicy(s, 0n)): Promise<void> {
+/** An invented person for the demo KYC of a seeded account (never a real one). */
+export const demoPerson = (label: string) => ({ fullName: `Demo Person ${label}`, birthdate: '1990-04-02', nationality: 'HK', documentNumber: `D${keccak256(toHex(label)).slice(2, 10)}` });
+
+/**
+ * F1 steps 5 to 14 the way the api runs them: KYC (bank, demo provider) bound to the account, the agent-signer quote
+ * verified by the bank, the agent's WeID, the AgentMandate signed with the owner's passkey and countersigned, the KYA
+ * the bank builds from all that, then the policy (bank check + owner + bank) and the agent key (owner + bank).
+ */
+export async function onboard(s: Stack, acc: Account, policy: Policy = linPolicy(s, 0n), o: { userRef?: string; label?: string } = {}): Promise<void> {
   const now = await baseNow(pub(s));
   const agent = acc.agent;
+  const userRef = o.userRef ?? `seed-${acc.address.slice(2).toLowerCase()}`;
+  const kyc = await ok(member(s, 'bank', `/kyc/status/${userRef}`), 'KYC status');
+  if (kyc.state !== 'issued') await kycViaVendor(s, userRef, acc.address, demoPerson(o.label ?? acc.address));
+  const p = { ...policy, validUntil: policy.validUntil || now + 31_536_000n };
   const [current] = await read<readonly [Address]>(s, 'kyaOf', [acc.address]);
   if (current.toLowerCase() !== agent.toLowerCase()) {
-    // The bank's nonce, bound by the agent-signer quote to the agent key (M7).
     const { nonce } = await ok(member(s, 'bank', '/kya/nonce', { account: acc.address }), 'KYA nonce');
     const { quote } = await ok(signer(s, 'api', `/v1/agents/${acc.address}/attest`, { nonce, keyVersion: 1 }), 'agent quote');
-    await ok(member(s, 'bank', '/kya', {
-      account: acc.address, agentKey: agent, agentDidHash: keccak256(toHex(`did:weid:101:${agent}`)), kycCredentialHash: keccak256(toHex(`kyc:${acc.address}`)),
-      mandateCredentialHash: keccak256(toHex(`mandate:${acc.address}`)), kycLevel: 2, riskProfile: 2, jurisdiction: 'HK',
-      validUntil: (now + 31_536_000n).toString(), quote, nonce,
-    }), 'KYA');
+    await ok(member(s, 'bank', '/kya/verify', { account: acc.address, agentKey: agent, quote, nonce }), 'KYA quote check');
+    const did = await ok(member(s, 'bank', '/kya/agent-did', { account: acc.address }), 'agent DID');
+    const draft = await ok(member(s, 'bank', '/kya/mandate/prepare', {
+      userRef, account: acc.address, agentKey: agent, scopes: ['rebalance', 'pay', 'standing_orders'], mandateHash: keccak256(encodePolicy(p)),
+    }), 'mandate draft');
+    const a = acc.owner.sign(draft.challenge as Hex);
+    await ok(member(s, 'bank', '/kya/mandate/sign', {
+      draftId: draft.draftId, assertion: { credentialId: acc.owner.credIdHash, authenticatorData: a.authenticatorData, clientDataJSON: a.clientDataJSON, r: toHex(a.r, { size: 32 }), s: toHex(a.s, { size: 32 }) },
+    }), 'mandate countersignature');
+    await ok(member(s, 'bank', '/kya', { account: acc.address, agentDidHash: did.agentDidHash, validUntil: (now + 31_536_000n).toString() }), 'KYA');
     await waitFor('KYA on Base', async () => ((await read<readonly [Address]>(s, 'kyaOf', [acc.address]))[0].toLowerCase() === agent.toLowerCase()));
   }
-  const p = { ...policy, validUntil: policy.validUntil || now + 31_536_000n };
-  const check = await ok(member(s, 'bank', '/policy/check', { account: acc.address, policy: encodePolicy(p), riskProfile: 2 }), 'policy check');
+  const check = await ok(member(s, 'bank', '/policy/check', { account: acc.address, policy: encodePolicy(p) }), 'policy check');
   if (!check.ok) throw new Error(`policy refused by the bank: rule ${check.failedRule}`);
   await ownerAction(s, acc, { kind: K.SET_POLICY, account: acc.address, policy: p }, check.fiscoRef);
   await ownerAction(s, acc, { kind: K.SET_AGENT_KEY, account: acc.address, agentKey: agent, validUntil: Number(now + 2_592_000n) });

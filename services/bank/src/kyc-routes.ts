@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { Hex } from 'viem';
 import { checkVendorSignature, type KycService } from './kyc.js';
 import type { MandateService } from './mandate.js';
+import type { KyaBuilder } from './kya.js';
 import { createTransaction, pollTransaction, readIdentity } from './eudiw.js';
 
 const h = (fn: (req: Request, res: Response) => Promise<unknown>) => (req: Request, res: Response, next: NextFunction) => {
@@ -35,7 +36,7 @@ export function kycPublicRoutes(r: Router, d: { kyc: KycService; vendorHmac: str
 
 export type EudiConfig = { backend: string; fetch?: typeof fetch };
 
-export function kycRoutes(r: Router, d: { kyc: KycService; mandate: MandateService; eudi?: EudiConfig }) {
+export function kycRoutes(r: Router, d: { kyc: KycService; mandate: MandateService; kya: KyaBuilder; eudi?: EudiConfig }) {
   const f = d.eudi?.fetch ?? fetch;
 
   r.post('/kyc/sessions', h(async (req, res) => {
@@ -72,9 +73,10 @@ export function kycRoutes(r: Router, d: { kyc: KycService; mandate: MandateServi
     res.json(await d.kyc.status(b.userRef));
   }));
 
+  // The measurement is the one the bank verified in the agent-signer quote (/kya/verify), never the caller's.
   r.post('/kya/mandate/prepare', h(async (req, res) => {
-    const b = z.object({ userRef, account: address, agentKey: address, scopes: z.array(z.string()).min(1).max(8), mandateHash: bytes32, agentMeasurement: bytes32 }).parse(req.body);
-    res.json(await d.mandate.prepare(b));
+    const b = z.object({ userRef, account: address, agentKey: address, scopes: z.array(z.string()).min(1).max(8), mandateHash: bytes32 }).parse(req.body);
+    res.json(await d.mandate.prepare({ ...b, agentMeasurement: d.kya.measurementFor(b.account, b.agentKey) }));
   }));
 
   r.post('/kya/mandate/sign', h(async (req, res) => {
@@ -83,6 +85,8 @@ export function kycRoutes(r: Router, d: { kyc: KycService; mandate: MandateServi
       assertion: z.object({ credentialId: bytes32, authenticatorData: hex, clientDataJSON: z.string().max(2048), r: hex, s: hex }),
     }).parse(req.body);
     const a = b.assertion as { credentialId: Hex; authenticatorData: Hex; clientDataJSON: string; r: Hex; s: Hex };
-    res.json(await d.mandate.sign(b.draftId, a));
+    const signed = await d.mandate.sign(b.draftId, a);
+    d.kya.mandateSigned(signed.account, { agentKey: signed.agentKey, agentMeasurement: signed.agentMeasurement, credentialHash: signed.mandateCredentialHash });
+    res.json({ credential: signed.credential, mandateCredentialHash: signed.mandateCredentialHash });
   }));
 }

@@ -3,7 +3,7 @@
 // M6: KYC (Demo KYC provider, EUDI wallet), suitability, PersonKYC and AgentMandate on WeIdentity. TEE quote
 // verification arrives with M7.
 import { z } from 'zod';
-import { decodeEventLog, parseAbi, type Address, type Hex, type PublicClient, type WalletClient } from 'viem';
+import { decodeEventLog, getAddress, parseAbi, type Address, type Hex, type PublicClient, type WalletClient } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { baseClients, IdentityRegistryAbi } from '@praetor/chain';
 import { resolveKey } from '@praetor/config';
@@ -21,6 +21,9 @@ import { MySqlKv, MySqlKycStore, MySqlMandateStore } from './stores.js';
 import { MOCK_SANCTIONS } from './sanctions-mock.js';
 import { NonceBook, phalaVerifier, verifyTeeQuote, type PhalaVerifier } from './attestation.js';
 import { AttesterChecks } from './attesters.js';
+import { KyaBuilder } from './kya.js';
+import { createAgentDid } from './agent-did.js';
+import { signCaller } from '@praetor/protocol/caller-auth';
 import { PasskeyValidatorAbi } from '@praetor/chain';
 
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/).transform((s) => s as Address);
@@ -36,11 +39,10 @@ class BadRequest extends Error {
   status = 400;
 }
 
-/** Configuration and its I13 rules: prod never accepts simulator quotes nor a KYA without a quote. */
+/** Configuration and its I13 rule: prod never accepts simulator quotes (a KYA always needs a verified quote). */
 export function bankFlags(env: Record<string, string | undefined>) {
   const f = z.object({
     BASE_RPC_URL: z.string().url(),
-    KYA_ALLOW_UNATTESTED: z.enum(['0', '1']).default('0'),
     PRAETOR_ENV: z.string().default('local'),
     KYC_ENC_KEY: z.string().regex(/^(0x)?[0-9a-fA-F]{64}$/),
     KYC_VENDOR_HMAC: z.string().min(32),
@@ -53,8 +55,9 @@ export function bankFlags(env: Record<string, string | undefined>) {
     ATTESTATION_MODE: z.enum(['simulator', 'phala']).default('phala'),
     ALLOWED_COMPOSE_HASHES_AGENT: z.string().default(''),
     ALLOWED_COMPOSE_HASHES_ATTESTER: z.string().default(''),
+    AGENT_SIGNER_URL: z.string().url().default('http://agent-signer:3050'),
+    SIGNER_HMAC_BANK: z.string().min(32).optional(),
   }).parse(env);
-  if (f.PRAETOR_ENV === 'prod' && f.KYA_ALLOW_UNATTESTED === '1') throw new Error('prod refuses KYA_ALLOW_UNATTESTED=1 (I13)');
   if (f.PRAETOR_ENV === 'prod' && f.ATTESTATION_MODE === 'simulator') throw new Error('prod refuses simulator attestations (I13)');
   const list = (v: string) => v.split(',').map((x) => x.trim()).filter(Boolean);
   const allowedAgent = list(f.ALLOWED_COMPOSE_HASHES_AGENT);
@@ -71,7 +74,7 @@ export function startBank(env: Record<string, string | undefined> = process.env)
   const nonces = new NonceBook();
   const verifier = flags.ATTESTATION_MODE === 'phala' ? phalaVerifier() : undefined;
   const attesters = new AttesterChecks({ nonces, mode: flags.ATTESTATION_MODE, allowed: flags.allowedAttester, verifier });
-  let services: { kyc: KycService; mandate: MandateService } | undefined;
+  let services: { kyc: KycService; mandate: MandateService; kya: KyaBuilder; agentDid: (account: string) => Promise<{ agentWeId: string; agentDidHash: Hex }> } | undefined;
   const identityServices = (ctx: MemberContext) => {
     if (services) return services;
     const identity = memoIdentity(() => ensureBankIdentity(weid, new MySqlKv(ctx.runner)));
@@ -86,7 +89,37 @@ export function startBank(env: Record<string, string | undefined> = process.env)
         return x === 0n && y === 0n ? null : { x, y };
       },
     });
-    services = { kyc, mandate };
+    const kya = new KyaBuilder({ recordOf: (a) => kyc.recordByAccount(a) });
+    const signer = async (method: 'GET' | 'POST', path: string, body?: unknown) => {
+      if (!flags.SIGNER_HMAC_BANK) throw new Error('SIGNER_HMAC_BANK missing');
+      const raw = body === undefined ? '' : JSON.stringify(body);
+      const r = await fetch(`${flags.AGENT_SIGNER_URL}${path}`, { method, body: raw || undefined, headers: { 'content-type': 'application/json', ...signCaller('bank', flags.SIGNER_HMAC_BANK, method, path, Buffer.from(raw)) }, signal: AbortSignal.timeout(20_000) });
+      const j = (await r.json().catch(() => ({}))) as Record<string, any>;
+      if (!r.ok) throw new Error(`agent-signer ${path}: ${r.status} ${j.error ?? ''}`);
+      return j;
+    };
+    const fisco = ctx.consortium.pub;
+    const WEID_ABI = parseAbi(['function isIdentityExist(address identity) view returns (bool)', 'function resolve(address identity) view returns (string created, string updated, bool deactivated, uint16 versionId, string[] authentication, string[] service)']);
+    let weIdContract: Address | undefined;
+    const contract = async () => (weIdContract ??= (await weid.contracts()).weId as Address);
+    const agentDid = (account: string) => createAgentDid({
+      signer: {
+        createDid: async (a) => (await signer('POST', `/v1/agents/${a}/sign-weid`, { kind: 'createDid', keyVersion: 1, fields: {} })) as { address: Address; publicKeyECDSA: string },
+        addService: async (a, fields) => (await signer('POST', `/v1/agents/${a}/sign-weid`, { kind: 'addService', keyVersion: 1, fields })) as { rawTx: Hex },
+      },
+      weid: { createWeIdWithPubKey: (p) => weid.createWeIdWithPubKey(p), contracts: weid.contracts },
+      fisco: {
+        exists: async (agent) => (await fisco.readContract({ address: await contract(), abi: WEID_ABI, functionName: 'isIdentityExist', args: [agent] })) as boolean,
+        resolve: async (agent) => {
+          const r = (await fisco.readContract({ address: await contract(), abi: WEID_ABI, functionName: 'resolve', args: [agent] })) as readonly [string, string, boolean, number, readonly string[], readonly string[]];
+          return { authentication: [...r[4]], service: [...r[5]] };
+        },
+        nonce: (agent) => fisco.getTransactionCount({ address: agent }),
+        sendRaw: async (rawTx) => fisco.waitForTransactionReceipt({ hash: await fisco.sendRawTransaction({ serializedTransaction: rawTx }) }),
+      },
+      mcpUrl: `${flags.PUBLIC_URL.replace(/\/$/, '')}/mcp`,
+    }, account);
+    services = { kyc, mandate, kya, agentDid };
     return services;
   };
   return startMember({
@@ -95,8 +128,9 @@ export function startBank(env: Record<string, string | undefined> = process.env)
     extendPublic: (r, ctx) => kycPublicRoutes(r, { kyc: identityServices(ctx).kyc, vendorHmac: flags.KYC_VENDOR_HMAC }),
     extend: (r, ctx) => {
       routes(r, ctx, {
-        publicClient: publicClient as PublicClient, desk: walletClient as WalletClient, bankSignerKey, allowUnattested: flags.KYA_ALLOW_UNATTESTED === '1',
+        publicClient: publicClient as PublicClient, desk: walletClient as WalletClient, bankSignerKey,
         attest: { mode: flags.ATTESTATION_MODE, allowedAgent: flags.allowedAgent, nonces, verifier },
+        kya: identityServices(ctx).kya, agentDid: identityServices(ctx).agentDid,
       });
       r.post('/attesters/nonce', h(async (req, res) => {
         res.json({ nonce: attesters.nonce(address.parse(req.body?.attester)) });
@@ -105,14 +139,16 @@ export function startBank(env: Record<string, string | undefined> = process.env)
         const b = z.object({ attester: address, nonce: bytes32, quote: z.string().regex(/^(0x)?[0-9a-fA-F]+$/).max(40_000) }).parse(req.body);
         res.json(await attesters.verify(b.attester, b.nonce, b.quote));
       }));
-      kycRoutes(r, { ...identityServices(ctx), eudi: flags.EUDI_VERIFIER_BACKEND ? { backend: flags.EUDI_VERIFIER_BACKEND } : undefined });
+      kycRoutes(r, { kyc: identityServices(ctx).kyc, mandate: identityServices(ctx).mandate, kya: identityServices(ctx).kya, eudi: flags.EUDI_VERIFIER_BACKEND ? { backend: flags.EUDI_VERIFIER_BACKEND } : undefined });
     },
   });
 }
 
 type Deps = {
-  publicClient: PublicClient; desk: WalletClient; bankSignerKey: Hex; allowUnattested: boolean;
+  publicClient: PublicClient; desk: WalletClient; bankSignerKey: Hex;
   attest: { mode: 'simulator' | 'phala'; allowedAgent: string[]; nonces: NonceBook; verifier?: PhalaVerifier };
+  kya: KyaBuilder;
+  agentDid(account: string): Promise<{ agentWeId: string; agentDidHash: Hex }>;
 };
 
 function routes(r: import('express').Router, ctx: MemberContext, d: Deps) {
@@ -130,37 +166,46 @@ function routes(r: import('express').Router, ctx: MemberContext, d: Deps) {
     res.json({ nonce: d.attest.nonces.issue(b.account) });
   }));
 
-  r.post('/kya', h(async (req, res) => {
-    const b = z.object({
-      account: address, agentKey: address, agentDidHash: bytes32, kycCredentialHash: bytes32, mandateCredentialHash: bytes32,
-      kycLevel: z.number().int().min(0).max(255), riskProfile: z.number().int().min(0).max(3), jurisdiction: z.string().regex(/^[A-Z]{2}$/),
-      agentMeasurement: bytes32.optional(), validUntil: big, quote: z.string().regex(/^(0x)?[0-9a-fA-F]+$/).max(40_000).optional(), nonce: bytes32.optional(),
-    }).parse(req.body);
-    let agentMeasurement = b.agentMeasurement;
-    if (b.quote || !d.allowUnattested) {
-      if (!b.quote || !b.nonce) throw new BadRequest('an attestation quote of the agent signer and its nonce are required');
-      if (!d.attest.nonces.consume(b.account, b.nonce)) throw new BadRequest('unknown, used or expired KYA nonce');
-      try {
-        agentMeasurement = (await verifyTeeQuote({ quote: b.quote, address: b.agentKey, nonce: b.nonce, mode: d.attest.mode, allowed: d.attest.allowedAgent, verifier: d.attest.verifier })).measurement;
-      } catch (e) {
-        throw new BadRequest(`agent-signer quote refused: ${(e as Error).message}`);
-      }
+  // F1 step 9: the agent-signer quote binds the agent key to a bank nonce; the bank keeps the key and measurement.
+  r.post('/kya/verify', h(async (req, res) => {
+    const b = z.object({ account: address, agentKey: address, quote: z.string().regex(/^(0x)?[0-9a-fA-F]+$/).max(40_000), nonce: bytes32 }).parse(req.body);
+    if (!d.attest.nonces.consume(b.account, b.nonce)) throw new BadRequest('unknown, used or expired KYA nonce');
+    let measurement: Hex;
+    try {
+      measurement = (await verifyTeeQuote({ quote: b.quote, address: b.agentKey, nonce: b.nonce, mode: d.attest.mode, allowed: d.attest.allowedAgent, verifier: d.attest.verifier })).measurement;
+    } catch (e) {
+      throw new BadRequest(`agent-signer quote refused: ${(e as Error).message}`);
     }
-    if (!agentMeasurement) throw new BadRequest('agentMeasurement missing');
+    d.kya.quoteVerified(b.account, b.agentKey, measurement);
+    res.json({ agentKey: b.agentKey, measurement });
+  }));
+
+  // F1 step 10: the agent's WeID with its AgentWallet and MCP services, signed inside agent-signer.
+  r.post('/kya/agent-did', h(async (req, res) => {
+    const b = z.object({ account: address }).parse(req.body);
+    res.json(await d.agentDid(b.account));
+  }));
+
+  // F1 step 12: the KYA attestation from what the bank verified itself (KYC record, quote, countersigned mandate).
+  r.post('/kya', h(async (req, res) => {
+    const b = z.object({ account: address, agentDidHash: bytes32, validUntil: big }).parse(req.body);
+    const k = await d.kya.build(b.account, { agentDidHash: b.agentDidHash, validUntil: b.validUntil });
     const deadline = await c.deadline();
-    const { quote: _q, nonce: _n, ...fields } = b;
-    const kya = { ...fields, agentMeasurement, jurisdiction: `0x${Buffer.from(b.jurisdiction).toString('hex')}` as Hex, nonce: 0n, deadline, fiscoRef: `0x${'00'.repeat(32)}` as Hex };
+    const kya = { ...k, agentKey: getAddress(k.agentKey), jurisdiction: `0x${Buffer.from(k.jurisdiction).toString('hex')}` as Hex, nonce: 0n, deadline, fiscoRef: `0x${'00'.repeat(32)}` as Hex };
     const opened = await c.open('mandates', 'openKYA', [kya]);
     const signed = await c.sign('mandates', opened.proposalId);
-    const identityTx = await registerIdentity(d, ctx, b.account, b.kycCredentialHash, b.jurisdiction);
-    res.json(json({ board: 'mandates', proposalId: opened.proposalId, ready: signed.ready, identityTx }));
+    const identityTx = await registerIdentity(d, ctx, b.account, k.kycCredentialHash, k.jurisdiction);
+    res.json(json({ board: 'mandates', proposalId: opened.proposalId, ready: signed.ready, identityTx, kya: { kycLevel: k.kycLevel, riskProfile: k.riskProfile, jurisdiction: k.jurisdiction } }));
   }));
 
   r.post('/policy/check', h(async (req, res) => {
-    const b = z.object({ account: address, policy: hex, riskProfile: z.number().int().min(0).max(3) }).parse(req.body);
+    const b = z.object({ account: address, policy: hex }).parse(req.body);
     const { decodeAbiParameters } = await import('viem');
     const [policy] = decodeAbiParameters(POLICY_ABI, b.policy) as unknown as [Policy];
-    const receipt = await c.call('mandates', 'submitPolicy', [b.account, policy, b.riskProfile]);
+    // The caps of the risk profile the bank recorded in this account's KYA, never one the caller names.
+    const kya = (await c.pub.readContract({ address: mandates, abi: MandateRegistryAbi, functionName: 'kyaOf', args: [b.account] })) as { riskProfile: number; agentKey: Address };
+    if (kya.agentKey === '0x0000000000000000000000000000000000000000') throw new BadRequest('no KYA for this account');
+    const receipt = await c.call('mandates', 'submitPolicy', [b.account, policy, kya.riskProfile]);
     const ev = mandateCheckedIn(receipt.logs, mandates);
     if (!ev) throw new Error('no MandateChecked event');
     res.json(json({ ...ev, fiscoRef: receipt.transactionHash }));
