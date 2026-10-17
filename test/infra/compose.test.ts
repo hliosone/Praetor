@@ -95,6 +95,16 @@ describe('infra/compose.yml', () => {
     expect(read('infra/.env.example')).toMatch(new RegExp(`^FORK_BLOCK=${fork.forkBlock}$`, 'm'));
   });
 
+  it('runs the payout partner with the PSP mocks (mocks profile); the Alipay+ mock serves 443 inside the network only (V7)', () => {
+    const c = compose.services;
+    for (const n of ['alipayplus-mock', 'wechatpay-mock', 'payout-partner']) expect(c[n]?.profiles).toEqual(['mocks']);
+    expect(c['alipayplus-mock']!.ports).toBeUndefined();
+    expect(c['payout-partner']!.environment).toMatchObject({ ALIPAYPLUS_GATEWAY_URL: 'https://alipayplus-mock', WECHATPAY_URL: 'http://wechatpay-mock:3300' });
+    // The partner holds its own Base key and the merchant's Alipay+ key, never the gateway's private key.
+    expect(Object.keys(c['payout-partner']!.environment!)).not.toContain('ALIPAYPLUS_TEST_GATEWAY_PRIVATE_KEY');
+    expect(Object.keys(c['alipayplus-mock']!.environment!)).not.toContain('ALIPAYPLUS_TEST_MERCHANT_PRIVATE_KEY');
+  });
+
   it('documents in infra/.env.example every variable compose interpolates', () => {
     const vars = new Set([...read('infra/compose.yml').matchAll(/\$\{([A-Z0-9_]+)/g)].map((m) => m[1]!));
     const example = read('infra/.env.example');
