@@ -111,7 +111,7 @@ e2e-live: ## Flows on live Base Sepolia (CHAIN_MODE=live)
 redteam: ## Red-team suite (real model)
 	@echo "redteam suite: M16" && exit 1
 
-slither: ## Static analysis of the Base contracts (fails on unexplained High/Medium)
+slither: ## Static analysis of the Base and FISCO contracts (fails on unexplained High/Medium)
 	bash scripts/checks/slither.sh
 
 smoke-sm: ## Guomi profile smoke: fresh SM chain, SM build, Java SDK checks, torn down (Docker, minutes; not in make test)

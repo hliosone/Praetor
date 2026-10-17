@@ -7,10 +7,10 @@ Slither 0.11.6 on `contracts/base/src` (libraries, tests and scripts filtered). 
 | Scope | High | Medium | Low | `make slither` |
 |---|---|---|---|---|
 | Praetor's Base contracts (`contracts/base/src` without `src/vendor`) | 0 | 27, the same three explained classes as M2 | 52 | would pass |
-| Vendored WeCross proxy (`src/vendor/wecross/WeCrossProxyEVM.sol`, added in M12) | 3 | 8 | 11 | **fails: exit code 255** |
-| FISCO contracts (`contracts/fisco/src`, not part of `make slither`) | 0 | 5 (the same classes) | 13 | not wired |
+| Vendored WeCross proxy (`src/vendor/wecross/WeCrossProxyEVM.sol`, added in M12) | 3 | 8 | 11 | filtered like `lib/` (D49), triaged below |
+| FISCO contracts (`contracts/fisco/src`) | 0 | 5 (the same classes) | 13 | passes (in `make slither` since D49) |
 
-**`make slither` is red since M12**: the vendored proxy brings 3 High and 3 Medium findings of detector classes the script does not exclude. Each one is triaged below; none is exploitable in Praetor's use of the proxy, and Praetor's own code has no new finding. The gate itself was not changed in M17: whether `src/vendor/` is filtered like `lib/`, or the vendored findings are excluded one by one, is the lead's call (D66).
+**`make slither` passes (D49)**: it analyses `contracts/base` and `contracts/fisco` and fails on any High or Medium outside the three explained classes. The vendored WeCross proxy is third-party code filtered like `lib/`; its 3 High and 8 Medium findings are triaged one by one below (none is exploitable in Praetor's use: the proxy holds no authority and the hook verifies every message), and that triage is re-read whenever the vendored file changes.
 
 ## Base contracts (Praetor's code)
 
