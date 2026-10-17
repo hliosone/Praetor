@@ -8,7 +8,7 @@ COMPOSE = docker compose -f infra/compose.yml $(ENV_FILES)
 PROFILES ?= core chain dev
 PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 
-.PHONY: help setup install up down ps logs test test-guards test-unit test-scripts test-contracts test-contracts-full test-fork lint gitleaks test-int e2e e2e-live redteam slither deploy-contracts tunnel
+.PHONY: help setup install up down ps logs test test-guards test-unit test-scripts test-contracts test-contracts-full test-fork lint gitleaks test-int e2e e2e-live redteam slither deploy-contracts deploy-fisco tunnel
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -87,6 +87,9 @@ slither: ## Static analysis of the Base contracts (fails on unexplained High/Med
 
 deploy-contracts: ## Deploy the Base contracts (ENV=fork|base-sepolia|sandbox)
 	bash scripts/deploy/contracts.sh $(or $(ENV),fork)
+
+deploy-fisco: ## FISCO governance bootstrap + consortium contracts (ENV=local|live|sandbox)
+	pnpm -s exec tsx scripts/fisco/deploy.ts $(or $(ENV),local)
 
 tunnel: ## cloudflared tunnel in front of Caddy, URL in .run/tunnel-url
 	@echo "tunnel: M13" && exit 1

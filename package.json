@@ -11,6 +11,7 @@
     "test:scripts": "vitest run --root scripts"
   },
   "devDependencies": {
+    "@praetor/fisco-client": "workspace:*",
     "@types/node": "22.20.5",
     "tsx": "4.23.15",
     "typescript": "5.9.3",

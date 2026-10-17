@@ -15,8 +15,13 @@ export const committeeAbi = parseAbi([
   'function createModifyDeployAuthProposal(address account, bool openFlag, uint256 blockNumberInterval) returns (uint256)',
   'function voteProposal(uint256 proposalId, bool agree)',
   'function isGovernor(address account) view returns (bool)',
-  'function proposalCount() view returns (uint256)',
+  'function _proposalMgr() view returns (address)',
 ]);
+export const proposalManagerAbi = parseAbi([
+  'function _proposalCount() view returns (uint256)',
+  'function getProposalStatus(uint256 proposalId) view returns (uint8)',
+]);
+const PENDING = 1; // ProposalManager status: not enough votes yet
 export const authAbi = parseAbi(['function deployType() view returns (uint256)', 'function hasDeployAuth(address account) view returns (bool)']);
 
 const INTERVAL = 100_000n;
@@ -34,6 +39,9 @@ export async function bootstrapGovernance(rpcUrl: string, keys: GovernanceKeys, 
   const opAddr = privateKeyToAccount(keys.operator).address;
   const isGov = (a: Address) => pub.readContract({ address: COMMITTEE, abi: committeeAbi, functionName: 'isGovernor', args: [a] });
   const regIsGov = await isGov(regAddr);
+  // An interrupted run can leave a proposal open, and the committee refuses new ones meanwhile: vote it through
+  // before checking which steps remain.
+  if (regIsGov && (await settlePending(pub, regW))) done.push('settled a pending proposal');
   if (!regIsGov) {
     await sendFisco(pub, adminW, { address: COMMITTEE, abi: committeeAbi, functionName: 'createUpdateGovernorProposal', args: [regAddr, 1, INTERVAL] });
     done.push('governor regulator');
@@ -60,10 +68,23 @@ export async function bootstrapGovernance(rpcUrl: string, keys: GovernanceKeys, 
   return done;
 }
 
-/** The admin proposes; once rates are 51/51 the regulator's vote is the second one. */
+/** The admin proposes; once rates are 51/51 the regulator's vote is the second one. Proposal ids come from the
+ *  committee's ProposalManager; a proposal left pending by an interrupted run is voted through first (the committee
+ *  refuses a new proposal while one is open). */
 async function proposeAndVote(pub: PublicClient, admin: WalletClient, regulator: WalletClient, needsVote: boolean, fn: string, args: readonly unknown[]) {
   await sendFisco(pub, admin, { address: COMMITTEE, abi: committeeAbi, functionName: fn, args });
-  if (!needsVote) return;
-  const id = await pub.readContract({ address: COMMITTEE, abi: committeeAbi, functionName: 'proposalCount' });
+  if (needsVote) await sendFisco(pub, regulator, { address: COMMITTEE, abi: committeeAbi, functionName: 'voteProposal', args: [await latestProposal(pub), true] });
+}
+
+async function latestProposal(pub: PublicClient): Promise<bigint> {
+  const pm = await pub.readContract({ address: COMMITTEE, abi: committeeAbi, functionName: '_proposalMgr' });
+  return pub.readContract({ address: pm, abi: proposalManagerAbi, functionName: '_proposalCount' });
+}
+
+async function settlePending(pub: PublicClient, regulator: WalletClient): Promise<boolean> {
+  const pm = await pub.readContract({ address: COMMITTEE, abi: committeeAbi, functionName: '_proposalMgr' });
+  const id = await latestProposal(pub);
+  if (id === 0n || (await pub.readContract({ address: pm, abi: proposalManagerAbi, functionName: 'getProposalStatus', args: [id] })) !== PENDING) return false;
   await sendFisco(pub, regulator, { address: COMMITTEE, abi: committeeAbi, functionName: 'voteProposal', args: [id, true] });
+  return true;
 }

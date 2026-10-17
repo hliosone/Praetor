@@ -1,0 +1,14 @@
+{
+  "env": "local",
+  "chainId": 20200,
+  "baseDeployment": "fork",
+  "memberRegistry": "0x334F5A83bf23Bb0cEc6edAb2cb2048f68fE1e9A6",
+  "baseOutbox": "0x30CeaEE2F2Dcf5FaC3cD06D5db86c52e1C01a57d",
+  "agentStatus": "0x02180bA51753C639d1d0AF9B881D02fF30d51baE",
+  "assetRegistry": "0x3d5907223fa87378A8BD1682FbD606176C67884a",
+  "sanctionsList": "0x438213AD4faAF88c5cf422Fa1E84ba2b8e050E1f",
+  "jurisdictionRules": "0x6E5E8940C525771672412C58dBD5E2f8f4bB0aee",
+  "attesterRegistry": "0x0386ff004ab982B7e1A33B96AC02BBd850745750",
+  "mandateRegistry": "0xd605B5e6cE1A48820F190f1c56B8244C848D92Db",
+  "auditLog": "0x838B249c3c2CE732DC48a1AAcF9a494fBAEFfa42"
+}

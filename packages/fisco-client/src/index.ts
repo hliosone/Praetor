@@ -3,3 +3,4 @@ export * from './client.js';
 export * from './governance.js';
 export * from './abis.js';
 export * from './abis.generated.js';
+export * from './deploy.js';
