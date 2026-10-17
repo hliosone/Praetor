@@ -1,6 +1,6 @@
 # Dependency audit
 
-Run on 2026-10-17 (M17) against the lockfiles of this commit. Licences of every component: [THIRD_PARTY_LICENSES.md](../../THIRD_PARTY_LICENSES.md).
+Run on 2026-10-17 (M17) against the lockfiles of this commit; re-run on 2026-10-18 after D44 to D75 (web push, mini program build): the same 13 advisories, none new. Licences of every component: [THIRD_PARTY_LICENSES.md](../../THIRD_PARTY_LICENSES.md).
 
 ## How dependencies are pinned
 
@@ -33,7 +33,7 @@ Run on 2026-10-17 (M17) against the lockfiles of this commit. Licences of every 
 
 - `make test` runs `scripts/checks/gitleaks.sh` (gitleaks 8.28.0, pinned image, config `.gitleaks.toml`): the whole git history, staged and unstaged changes, and new untracked files.
 - Result on 2026-10-17: **no leaks** in the 154 commits of this branch at the end of M17 (history scan run read-only with the repository's `.git` mounted, see the caveat below).
-- **Caveat found in M17:** inside a `git worktree` checkout, `.git` is a file pointing outside the mounted directory; the three git-mode scans then fail with "not a git repository" while the script still prints "gitleaks: no leaks" and exits 0. In the main checkout (how `make test` runs on the build machine and in CI) the scans work. The script should fail when gitleaks reports a git error.
+- **Caveat found in M17, fixed since:** inside a `git worktree` checkout, `.git` is a file pointing outside the mounted directory, so the three git-mode scans failed with "not a git repository" while the script still printed "gitleaks: no leaks". The script now mounts the checkout and the common git directory at their own paths, so the history scan works from a worktree too.
 - Phase 0 also checked that none of the 72 generated `.env` values appears in `git log -p --all` (`docs/PHASE0.md`).
 
 ## Not run in M17
