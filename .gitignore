@@ -31,3 +31,8 @@ build/
 infra/fisco/nodes/
 spikes/**/nodes/
 spikes/**/downloads/
+
+# Spike downloads and generated chains (large binaries, node keys, certificates)
+spikes/V2-fisco/nodes-sm/
+spikes/**/downloads/
+spikes/V2-fisco/sm_cert.cnf

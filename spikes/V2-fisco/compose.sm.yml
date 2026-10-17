@@ -1,0 +1,27 @@
+# V2 spike: 4 FISCO nodes, one container each, on a private network with fixed IPs (nodes.json holds IPs).
+# Only node0's web3 RPC is published, on loopback, so host-side spike scripts can reach it.
+name: p0v2sm
+x-node: &node
+  image: praetor/fisco-bcos:3.17.1
+  restart: unless-stopped
+services:
+  fisco-node0:
+    <<: *node
+    volumes: ["./nodes-sm/10.88.21.10/node0:/data"]
+    networks: { fiscosm: { ipv4_address: 10.88.21.10 } }
+    ports: ["127.0.0.1:8555:8545", "127.0.0.1:20210:20200"]
+  fisco-node1:
+    <<: *node
+    volumes: ["./nodes-sm/10.88.21.11/node0:/data"]
+    networks: { fiscosm: { ipv4_address: 10.88.21.11 } }
+  fisco-node2:
+    <<: *node
+    volumes: ["./nodes-sm/10.88.21.12/node0:/data"]
+    networks: { fiscosm: { ipv4_address: 10.88.21.12 } }
+  fisco-node3:
+    <<: *node
+    volumes: ["./nodes-sm/10.88.21.13/node0:/data"]
+    networks: { fiscosm: { ipv4_address: 10.88.21.13 } }
+networks:
+  fiscosm:
+    ipam: { config: [{ subnet: 10.88.21.0/24 }] }
