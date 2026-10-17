@@ -33,8 +33,8 @@ describe('anvil fork of Base Sepolia', () => {
 describe('mysql', () => {
   it('has one database per service, each reachable with its own user', () => {
     const out = compose('exec', '-T', 'mysql', 'sh', '-c',
-      'for s in api mcp bank regulator operator payout weid webase wecross; do v=MYSQL_PASSWORD_$(echo $s | tr a-z A-Z); eval p=\\$$v; MYSQL_PWD="$p" mysql -u$s -h127.0.0.1 -N -e "SELECT DATABASE()" $s; done');
-    expect(out.trim().split('\n')).toEqual(['api', 'mcp', 'bank', 'regulator', 'operator', 'payout', 'weid', 'webase', 'wecross']);
+      'for s in api mcp bank regulator operator payout weid webase wecross bundler; do v=MYSQL_PASSWORD_$(echo $s | tr a-z A-Z); eval p=\\$$v; MYSQL_PWD="$p" mysql -u$s -h127.0.0.1 -N -e "SELECT DATABASE()" $s; done');
+    expect(out.trim().split('\n')).toEqual(['api', 'mcp', 'bank', 'regulator', 'operator', 'payout', 'weid', 'webase', 'wecross', 'bundler']);
   });
 
   it('refuses a service user on another service database', () => {

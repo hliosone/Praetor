@@ -20,6 +20,8 @@ setup: ## Install the commit-msg hook and dependencies
 
 up: ## Start the local stack (waits for healthchecks)
 	$(COMPOSE) $(PROFILE_FLAGS) up -d --wait --build
+	@# The init script only runs on an empty volume; it is idempotent, so rerun it to add new service databases.
+	$(COMPOSE) exec -T mysql bash /docker-entrypoint-initdb.d/01-databases.sh
 
 down: ## Stop the local stack (volumes kept)
 	$(COMPOSE) --profile '*' down --remove-orphans

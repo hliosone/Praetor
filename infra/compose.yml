@@ -52,6 +52,7 @@ services:
       MYSQL_PASSWORD_WEID: ${MYSQL_PASSWORD_WEID}
       MYSQL_PASSWORD_WEBASE: ${MYSQL_PASSWORD_WEBASE}
       MYSQL_PASSWORD_WECROSS: ${MYSQL_PASSWORD_WECROSS}
+      MYSQL_PASSWORD_BUNDLER: ${MYSQL_PASSWORD_BUNDLER}
     volumes:
       - mysql-data:/var/lib/mysql
       - ./mysql/init:/docker-entrypoint-initdb.d:ro

@@ -61,7 +61,7 @@ describe('infra/compose.yml', () => {
 
   it('creates one database and one user per service in MySQL', () => {
     const init = read('infra/mysql/init/01-databases.sh');
-    for (const s of ['api', 'mcp', 'bank', 'regulator', 'operator', 'payout', 'weid', 'webase', 'wecross']) {
+    for (const s of ['api', 'mcp', 'bank', 'regulator', 'operator', 'payout', 'weid', 'webase', 'wecross', 'bundler']) {
       expect(init).toContain(`create_db ${s} `);
     }
   });

@@ -38,14 +38,16 @@ export const WALLET_ROLES = [
 const hex32 = () => randomBytes(32).toString('hex');
 const password = () => randomBytes(24).toString('base64url');
 
-const MYSQL_SERVICES = ['API', 'MCP', 'BANK', 'REGULATOR', 'OPERATOR', 'PAYOUT', 'WEID', 'WEBASE', 'WECROSS'] as const;
+const MYSQL_SERVICES = ['API', 'MCP', 'BANK', 'REGULATOR', 'OPERATOR', 'PAYOUT', 'WEID', 'WEBASE', 'WECROSS', 'BUNDLER'] as const;
 
 type Generator = () => Record<string, string>;
 
 // Shared secrets: one per machine (prod generates its own on the server).
 const SHARED: { names: string[]; make: Generator }[] = [
   ...['SESSION_SECRET', 'KYC_ENC_KEY', 'KYC_VENDOR_HMAC', 'MCP_OAUTH_SIGNING_KEY',
-    'SIGNER_HMAC_MCP', 'SIGNER_HMAC_API', 'SIGNER_HMAC_BANK', 'ATTESTER_HMAC_API'].map((n) => ({ names: [n], make: () => ({ [n]: hex32() }) })),
+    'SIGNER_HMAC_MCP', 'SIGNER_HMAC_API', 'SIGNER_HMAC_BANK', 'ATTESTER_HMAC_API',
+    // Bearer token for internal callers of the bundler (api, mcp, scheduler, member services) on the Docker network.
+    'INTERNAL_TOKEN_BUNDLER'].map((n) => ({ names: [n], make: () => ({ [n]: hex32() }) })),
   { names: ['OPENCODE_SERVER_PASSWORD'], make: () => ({ OPENCODE_SERVER_PASSWORD: password() }) },
   { names: ['MYSQL_ROOT_PASSWORD'], make: () => ({ MYSQL_ROOT_PASSWORD: password() }) },
   ...MYSQL_SERVICES.map((s) => ({ names: [`MYSQL_PASSWORD_${s}`], make: () => ({ [`MYSQL_PASSWORD_${s}`]: password() }) })),

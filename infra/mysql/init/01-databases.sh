@@ -4,7 +4,7 @@ set -euo pipefail
 
 create_db() {
   local db="$1" pass="$2"
-  mysql -uroot -p"$MYSQL_ROOT_PASSWORD" <<SQL
+  MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot <<SQL
 CREATE DATABASE IF NOT EXISTS \`$db\` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 CREATE USER IF NOT EXISTS '$db'@'%' IDENTIFIED BY '$pass';
 GRANT ALL PRIVILEGES ON \`$db\`.* TO '$db'@'%';
@@ -20,4 +20,5 @@ create_db payout "$MYSQL_PASSWORD_PAYOUT"
 create_db weid "$MYSQL_PASSWORD_WEID"
 create_db webase "$MYSQL_PASSWORD_WEBASE"
 create_db wecross "$MYSQL_PASSWORD_WECROSS"
-mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "FLUSH PRIVILEGES;"
+create_db bundler "$MYSQL_PASSWORD_BUNDLER"
+MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -e "FLUSH PRIVILEGES;"

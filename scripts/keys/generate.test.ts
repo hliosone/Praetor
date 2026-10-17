@@ -22,6 +22,12 @@ describe('key plan', () => {
     expect(new Set(names).size).toBe(names.length);
   });
 
+  it('has a bundler database password and internal service tokens (D22)', () => {
+    const names = plannedNames();
+    expect(names).toContain('MYSQL_PASSWORD_BUNDLER');
+    expect(names).toContain('INTERNAL_TOKEN_BUNDLER');
+  });
+
   it('has fixed FISCO keys for the WeIdentity admin and the WeCross stub in every set (Q32, Q40)', () => {
     const names = plannedNames();
     for (const set of KEY_SETS) {
