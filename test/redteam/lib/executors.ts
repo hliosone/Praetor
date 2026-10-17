@@ -18,7 +18,7 @@ import {
 import { ENTRY_POINT, fromJson, toJson, userOpHash, withPaymasterSignature } from '@praetor/userop';
 import { agentChat, bundler, http2, labelAddress, localKey, openAndSign, root, scriptAgent, signer, waitFor } from '../../../scripts/demo/lib.js';
 import type { Case, Driver, Input, Layer } from './case.js';
-import { aaLayer, parseToolOutput, toolText, type Observation, type TierName } from './classify.js';
+import { aaLayer, parseToolOutput, toolText, type Observation } from './classify.js';
 import { encodeCall, encodeCallData, resolveValue, type Vars } from './resolve.js';
 import { URLS, runTag, type Fixture, type Fixtures } from './fixtures.js';
 import type { Chain } from './chain.js';
@@ -71,11 +71,12 @@ async function sendOp(e: Env, callData: Hex, validator: 'agent' | 'passkey', non
   const traced = b.txHash ? await chain.refusalInTx(b.txHash) : undefined;
   const reason = traced ?? (await chain.preCheckReason(sender, callData)) ?? (logged !== 'OK' ? logged : undefined);
   const rec = (await chain.refusals(sender, e.since(), await chain.block())).find((r) => r.userOpHash === b.userOpHash);
-  const tier = rec && rec.reason === reason ? rec.tier : reason === 'HIDDEN_CALL' || reason === 'FROZEN' ? undefined : rec?.tier;
+  // The tier comes from the RefusalLog record (the hook's check()) only when it names the same reason.
+  const tier = rec && rec.reason === reason ? rec.tier : undefined;
   const notes = [`userOp mined and failed: the hook reverted ${reason ?? '(reason not decoded)'}${traced ? ' (call trace)' : ''}`];
   if (rec) notes.push(`RefusalLog recorded ${rec.reason} ${rec.tier}`);
   else notes.push('no RefusalLog record (check() found no refused call)');
-  return out('hook', { reason, tier: tier as TierName | undefined, txHashes, detail: notes.join('; ') });
+  return out('hook', { reason, tier, txHashes, detail: notes.join('; ') });
 }
 
 // ---------------------------------------------------------------- plain transactions from an attacker
