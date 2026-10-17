@@ -107,6 +107,15 @@ export function createMcpApp(d: McpAppDeps) {
     res.status(204).end();
   }));
 
+  // The api resubmits a call its owner approved (F6 step 8): same calls, the agent's TEE signature, the hook finds the
+  // live approval and consumes it.
+  app.post('/internal/resubmit', express.json(), api, h(async (req, res) => {
+    const call = z.object({ to: address, value: z.union([z.string().regex(/^\d+$/), z.number().int().nonnegative()]).transform((v) => BigInt(v)), data: z.string().regex(/^0x[0-9a-fA-F]*$/) });
+    const b = z.object({ account: address, calls: z.array(call).min(1).max(8) }).parse(req.body);
+    const s = await d.ports().submit(b.account as Address, b.calls as never);
+    res.json({ success: s.success, txHash: s.txHash, userOpHash: s.userOpHash, reasons: s.reasons });
+  }));
+
   d.extra?.(app);
 
   const bearer = h(async (req, res) => {

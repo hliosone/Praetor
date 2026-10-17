@@ -36,6 +36,20 @@ describe('subnet check', () => {
   });
 });
 
+describe('resubmission of an approved call (F6 step 8)', () => {
+  it('the api resubmits the exact calls with the agent key, behind its own token', async () => {
+    const sent: unknown[] = [];
+    const tokens = new MemTokens();
+    const p = { ...ports, submit: async (account: string, calls: unknown[]) => { sent.push({ account, calls }); return { userOpHash: '0x1', txHash: '0x2', success: true, reasons: [], refusalLogTx: null }; } } as unknown as Ports;
+    const a = createMcpApp({ tokens, ports: () => p, internalToken: 'int-token', apiToken: 'api-token', agentSubnet: '10.90.0.0/24', baseUrl: 'https://praetor.localhost' });
+    const body = { account: ACCOUNT, calls: [{ to: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', value: '0', data: '0xa9059cbb' }] };
+    await request(a).post('/internal/resubmit').set('authorization', 'Bearer int-token').send(body).expect(401);
+    const r = await request(a).post('/internal/resubmit').set('authorization', 'Bearer api-token').send(body).expect(200);
+    expect(r.body).toMatchObject({ success: true, txHash: '0x2' });
+    expect(sent).toEqual([{ account: ACCOUNT, calls: [{ to: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', value: 0n, data: '0xa9059cbb' }] }]);
+  });
+});
+
 describe('mcp app', () => {
   it('issues an agent bearer only with the internal token', async () => {
     const { a } = app();

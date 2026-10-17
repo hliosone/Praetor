@@ -6,6 +6,7 @@ import { keccak256, toHex, type Address, type Hex } from 'viem';
 import { generateAuthenticationOptions, generateRegistrationOptions, verifyAuthenticationResponse, verifyRegistrationResponse } from '@simplewebauthn/server';
 import type { ApiStore } from './store.js';
 import { clearSession, requireSession, setSession } from './auth.js';
+import { UpstreamError } from './clients.js';
 
 export type ApiDeps = {
   store: ApiStore;
@@ -15,6 +16,8 @@ export type ApiDeps = {
   /** The counterfactual Safe7579 account of a passkey (packages/userop prepareAccount). */
   accountFor(p: { credIdHash: Hex; x: bigint; y: bigint }, saltNonce: bigint): Promise<{ address: Address }>;
   extend?: (r: express.Router, h: typeof handler, session: ReturnType<typeof requireSession>) => void;
+  /** Routers outside /api (the mini program's /mp, the internal routes for mcp). */
+  mount?: (app: express.Express, h: typeof handler) => void;
 };
 
 export class HttpError extends Error {
@@ -124,12 +127,17 @@ export function createApiApp(d: ApiDeps) {
 
   d.extend?.(r, h, session);
   app.use('/api', r);
+  d.mount?.(app, h);
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof z.ZodError) return res.status(400).json({ error: 'BadRequest', detail: err.issues.map((i) => i.path.join('.')).join(', ') });
     if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });
+    // A member service or the bundler refused: its answer is what the user needs (e.g. the failed policy rule).
+    if (err instanceof UpstreamError) return res.status(err.status < 500 ? err.status : 502).json({ error: err.service, detail: err.body });
     const status = (err as { status?: number }).status;
     if (status && status < 500) return res.status(status).json({ error: (err as Error).message });
+    // The api's own refusals (state checks of a request) are plain errors with our own messages.
+    if (err instanceof Error && err.constructor === Error) return res.status(409).json({ error: err.message });
     res.status(500).json({ error: 'Internal' });
   });
   return app;
