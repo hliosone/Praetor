@@ -1,6 +1,6 @@
 // F4 (spec 06): a demo gold shock pushes tXAU above its band; the scheduler wakes the agent, which rebalances on its
 // own (T1) through mcp, agent-signer and the bundler, and the weights come back into their bands (I15).
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { erc20Abi } from 'viem';
 import { PriceOracleAbi } from '@praetor/chain';
 import {
@@ -31,6 +31,10 @@ beforeAll(async () => {
   await fund(s, acc);
   await waitHeartbeat(s);
 }, 600_000);
+
+// The shock moves every account holding tXAU out of its band: restore the demo prices so later flows do not start
+// in the middle of a wake storm (one opencode start per breached test account).
+afterAll(async () => { await setDemoPrices(s); }, 120_000);
 
 describe('F4 monitoring and rebalancing', () => {
   it('1-5: XAU +20% (DEMO) -> scheduler wakes the agent -> rebalance(sell tXAU, buy USDC, 650) T1 -> back in band', async () => {
