@@ -13,3 +13,4 @@ secrets
 coverage
 infra/fisco/nodes
 **/*.log
+infra/wecross/generated
