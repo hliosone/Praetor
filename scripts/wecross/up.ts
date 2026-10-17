@@ -13,9 +13,14 @@ import { login, router } from './router.js';
 
 const root = new URL('../../', import.meta.url).pathname;
 const env = Object.fromEntries(readFileSync(`${root}.env`, 'utf8').split('\n').filter((l) => /^[A-Z0-9_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]));
-const key = (name: string) => (env[name] ?? env[`LOCAL_${name}`]) as Hex;
+// The mode's key set for the Base account; the FISCO side keeps the FISCO chain's own set (D75: FISCO_KEYSET).
+const live = process.env.CHAIN_MODE === 'live';
+const set = live ? 'LIVE' : 'LOCAL';
+const fiscoSet = process.env.FISCO_KEYSET ?? set;
+const FISCO_SIDE = new Set(['WECROSS_FISCO_KEY', 'DEPLOYER_KEY']);
+const key = (name: string) => (env[name] ?? env[`${FISCO_SIDE.has(name) ? fiscoSet : set}_${name}`]) as Hex;
 const FISCO_RPC = process.env.FISCO_RPC_URL ?? 'http://10.88.1.10:8545';
-const fisco = JSON.parse(readFileSync(`${root}infra/deployments/fisco-local.json`, 'utf8')) as { baseOutbox: Address };
+const fisco = JSON.parse(readFileSync(`${root}infra/deployments/fisco-${live ? 'live' : 'local'}.json`, 'utf8')) as { baseOutbox: Address };
 
 const BFS = '0x000000000000000000000000000000000000100e' as Address;
 const bfsAbi = parseAbi(['function readlink(string absolutePath) view returns (address)']);

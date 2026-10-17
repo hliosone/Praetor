@@ -38,7 +38,8 @@ let agent: Address = '0x0000000000000000000000000000000000000000';
 await flow('C0', 'Consortium bootstrap (caps, assets, partner, CN payouts blocked, demo sanctions, heartbeat)', [], async () => {
   await bootstrapConsortium(s);
   await setDemoPrices(s);
-  await ensureDeskLiquidity(s, usd6(500));
+  // The treasury holds 44 USDC on live (D74): 2 for the desk, 30 for the account.
+  await ensureDeskLiquidity(s, usd6(200));
 });
 
 await flow('F1', 'Onboarding: passkey, account, KYC, agent in the TEE, AgentMandate, KYA, agent key', [], async (notes) => {
@@ -55,7 +56,8 @@ await flow('F3', 'Mandate set with the passkey after the bank\'s FISCO check, th
   const prop = await web.ok('POST', '/api/policy/propose', { policy: policyJson(p) });
   if (!(await web.ownerAction(prop)).success) throw new Error('policy not set');
   await web.ok('POST', '/api/payees/label', { address: cafe, label: 'Café Lumen' });
-  await fund(s, { address: acc(), owner: web.passkey, agent }, usd6(5300), usd6(3200), usd6(1500));
+  // At the policy's targets (55% USDC, 30% gold, 15% silver), so the account starts inside its bands.
+  await fund(s, { address: acc(), owner: web.passkey, agent }, usd6(3000), usd6(1640), usd6(820));
   await waitHeartbeat(s);
 });
 
