@@ -7,7 +7,8 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
-import type { Address } from 'viem';
+import type { Address, Hex } from 'viem';
+import { callHash } from '@praetor/protocol';
 import { PraetorTools, type Ports, type ToolResult } from './tools.js';
 
 export interface TokenStore {
@@ -30,6 +31,8 @@ export type McpAppDeps = {
   remoteAddress?: (req: Request) => string | undefined;
   /** Extra public routes (OAuth). */
   extra?: (app: express.Express) => void;
+  /** Whether the hook holds a live, unconsumed owner approval for this callHash (resubmission, F6 step 8). */
+  liveApproval: (account: Address, callHash: Hex) => Promise<boolean>;
 };
 
 export const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -111,7 +114,13 @@ export function createMcpApp(d: McpAppDeps) {
   // live approval and consumes it.
   app.post('/internal/resubmit', express.json(), api, h(async (req, res) => {
     const call = z.object({ to: address, value: z.union([z.string().regex(/^\d+$/), z.number().int().nonnegative()]).transform((v) => BigInt(v)), data: z.string().regex(/^0x[0-9a-fA-F]*$/) });
-    const b = z.object({ account: address, calls: z.array(call).min(1).max(8) }).parse(req.body);
+    // An approval is for one call (its callHash, F6): only a call the owner approved on Base, still live, is resubmitted,
+    // so a holder of the api token cannot have the agent key sign anything else.
+    const b = z.object({ account: address, calls: z.array(call).length(1) }).parse(req.body);
+    const c = b.calls[0]!;
+    if (!(await d.liveApproval(b.account as Address, callHash({ account: b.account as Address, target: c.to as Address, value: c.value, data: c.data as Hex })))) {
+      return res.status(409).json({ error: 'no live approval for this call' });
+    }
     const s = await d.ports().submit(b.account as Address, b.calls as never);
     res.json({ success: s.success, txHash: s.txHash, userOpHash: s.userOpHash, reasons: s.reasons });
   }));

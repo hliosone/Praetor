@@ -2,7 +2,7 @@
 import pino from 'pino';
 import { z } from 'zod';
 import { encodeFunctionData, type Address, type Hex } from 'viem';
-import { StandingOrdersAbi, baseClients, loadDeployments } from '@praetor/chain';
+import { MandateHookAbi, StandingOrdersAbi, baseClients, baseNow, loadDeployments } from '@praetor/chain';
 import { connect, loadMigrations, migrate } from '@praetor/db';
 import { createMcpApp } from './app.js';
 import { apiApprovals, apiProposals, chainReader, dbLabels, submitter } from './ports.js';
@@ -57,5 +57,9 @@ const ports: Ports = {
 const app = createMcpApp({
   tokens, ports: () => ports, internalToken: env.INTERNAL_TOKEN_MCP, apiToken: env.INTERNAL_TOKEN_API, agentSubnet: env.AGENT_SUBNET, baseUrl: env.PUBLIC_URL,
   extra: (a) => a.use(oauthRouter({ store: new MySqlOAuthStore(conn.runner), baseUrl: env.PUBLIC_URL, webOrigin: env.PUBLIC_URL, secret: env.SESSION_SECRET })),
+  liveApproval: async (account, callHash) => {
+    const [expiresAt, consumed] = (await publicClient.readContract({ address: d.mandateHook, abi: MandateHookAbi, functionName: 'approvalOf', args: [account, callHash] })) as readonly [bigint, boolean];
+    return !consumed && expiresAt > (await baseNow(publicClient as never));
+  },
 });
 app.listen(env.PORT, () => log.info({ port: env.PORT }, 'mcp listening'));

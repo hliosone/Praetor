@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { createMcpApp, inSubnet, type TokenStore } from '../src/app.js';
+import { callHash } from '@praetor/protocol';
 import type { Ports } from '../src/tools.js';
 
 const ACCOUNT = '0x00000000000000000000000000000000000c0ffe';
@@ -19,7 +20,7 @@ const ports = {
 
 function app(remote = '10.90.0.5') {
   const tokens = new MemTokens();
-  const a = createMcpApp({ tokens, ports: () => ports, internalToken: 'int-token', apiToken: 'api-token', agentSubnet: '10.90.0.0/24', baseUrl: 'https://praetor.localhost', remoteAddress: () => remote });
+  const a = createMcpApp({ tokens, ports: () => ports, internalToken: 'int-token', apiToken: 'api-token', agentSubnet: '10.90.0.0/24', baseUrl: 'https://praetor.localhost', remoteAddress: () => remote, liveApproval: async () => true });
   return { a, tokens };
 }
 const rpc = (method: string, params: unknown = {}) => ({ jsonrpc: '2.0', id: 1, method, params });
@@ -41,12 +42,29 @@ describe('resubmission of an approved call (F6 step 8)', () => {
     const sent: unknown[] = [];
     const tokens = new MemTokens();
     const p = { ...ports, submit: async (account: string, calls: unknown[]) => { sent.push({ account, calls }); return { userOpHash: '0x1', txHash: '0x2', success: true, reasons: [], refusalLogTx: null }; } } as unknown as Ports;
-    const a = createMcpApp({ tokens, ports: () => p, internalToken: 'int-token', apiToken: 'api-token', agentSubnet: '10.90.0.0/24', baseUrl: 'https://praetor.localhost' });
+    const a = createMcpApp({ tokens, ports: () => p, internalToken: 'int-token', apiToken: 'api-token', agentSubnet: '10.90.0.0/24', baseUrl: 'https://praetor.localhost', liveApproval: async () => true });
     const body = { account: ACCOUNT, calls: [{ to: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', value: '0', data: '0xa9059cbb' }] };
     await request(a).post('/internal/resubmit').set('authorization', 'Bearer int-token').send(body).expect(401);
     const r = await request(a).post('/internal/resubmit').set('authorization', 'Bearer api-token').send(body).expect(200);
     expect(r.body).toMatchObject({ success: true, txHash: '0x2' });
     expect(sent).toEqual([{ account: ACCOUNT, calls: [{ to: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', value: 0n, data: '0xa9059cbb' }] }]);
+  });
+});
+
+describe('resubmission needs the owner\'s live approval on Base', () => {
+  it('refuses a call without a live, unconsumed approval for its callHash, and a batch', async () => {
+    const sent: unknown[] = [];
+    const asked: unknown[] = [];
+    const p = { ...ports, submit: async (account: string, calls: unknown[]) => { sent.push({ account, calls }); return { userOpHash: '0x1', txHash: '0x2', success: true, reasons: [], refusalLogTx: null }; } } as unknown as Ports;
+    const a = createMcpApp({
+      tokens: new MemTokens(), ports: () => p, internalToken: 'int-token', apiToken: 'api-token', agentSubnet: '10.90.0.0/24', baseUrl: 'https://praetor.localhost',
+      liveApproval: async (account, hash) => { asked.push({ account, hash }); return false; },
+    });
+    const one = { to: '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as const, value: '0', data: '0xa9059cbb' as const };
+    await request(a).post('/internal/resubmit').set('authorization', 'Bearer api-token').send({ account: ACCOUNT, calls: [one] }).expect(409);
+    expect(asked).toEqual([{ account: ACCOUNT, hash: callHash({ account: ACCOUNT, target: one.to, value: 0n, data: one.data }) }]);
+    await request(a).post('/internal/resubmit').set('authorization', 'Bearer api-token').send({ account: ACCOUNT, calls: [one, one] }).expect(400);
+    expect(sent).toEqual([]);
   });
 });
 
