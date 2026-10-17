@@ -8,7 +8,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { baseClients, IdentityRegistryAbi } from '@praetor/chain';
 import { resolveKey } from '@praetor/config';
 import { MandateRegistryAbi } from '@praetor/fisco-client';
-import { digest, praetorDomain, POLICY_ABI, type OwnerAction, type Policy } from '@praetor/protocol';
+import { digest, praetorDomain, POLICY_ABI, type AuditEntry, type OwnerAction, type Policy } from '@praetor/protocol';
 import { startMember, type MemberContext } from '@praetor/member-kit';
 import type { Request, Response, NextFunction } from 'express';
 import { weidClient } from '@praetor/weid-client';
@@ -23,6 +23,7 @@ import { NonceBook, phalaVerifier, verifyTeeQuote, type PhalaVerifier } from './
 import { AttesterChecks } from './attesters.js';
 import { KyaBuilder } from './kya.js';
 import { createAgentDid } from './agent-did.js';
+import { checkAnchor } from './anchor-guard.js';
 import { signCaller } from '@praetor/protocol/caller-auth';
 import { PasskeyValidatorAbi } from '@praetor/chain';
 
@@ -57,6 +58,8 @@ export function bankFlags(env: Record<string, string | undefined>) {
     ALLOWED_COMPOSE_HASHES_ATTESTER: z.string().default(''),
     AGENT_SIGNER_URL: z.string().url().default('http://agent-signer:3050'),
     SIGNER_HMAC_BANK: z.string().min(32).optional(),
+    OPERATOR_URL: z.string().url().default('http://operator:3020'),
+    INTERNAL_TOKEN_MEMBERS: z.string().min(32).optional(),
   }).parse(env);
   if (f.PRAETOR_ENV === 'prod' && f.ATTESTATION_MODE === 'simulator') throw new Error('prod refuses simulator attestations (I13)');
   const list = (v: string) => v.split(',').map((x) => x.trim()).filter(Boolean);
@@ -122,9 +125,22 @@ export function startBank(env: Record<string, string | undefined> = process.env)
     services = { kyc, mandate, kya, agentDid };
     return services;
   };
+  // The operator's audit entries, all of them, for the anchor check (second member).
+  const auditEntries = async () => {
+    const out: AuditEntry[] = [];
+    for (let from = 1; ; ) {
+      const r = await fetch(`${flags.OPERATOR_URL}/audit/entries?from=${from}&limit=1000`, { headers: { authorization: `Bearer ${flags.INTERNAL_TOKEN_MEMBERS}` }, signal: AbortSignal.timeout(20_000) });
+      if (!r.ok) throw new Error(`operator audit entries: ${r.status}`);
+      const page = ((await r.json()) as { entries: AuditEntry[] }).entries;
+      out.push(...page);
+      if (page.length < 1000) return out;
+      from = page.at(-1)!.seq + 1;
+    }
+  };
+  const anchorOf = (m: unknown) => m as { seq: bigint; head: Hex; fiscoBlock: bigint; deadline: bigint };
   return startMember({
     role: 'bank', env, migrations: ['bank'],
-    signGuards: () => ({ attesters: (m) => attesters.guard(m) }),
+    signGuards: () => ({ attesters: (m) => attesters.guard(m), audit: async (m) => { await checkAnchor(anchorOf(m), auditEntries); } }),
     extendPublic: (r, ctx) => kycPublicRoutes(r, { kyc: identityServices(ctx).kyc, vendorHmac: flags.KYC_VENDOR_HMAC }),
     extend: (r, ctx) => {
       routes(r, ctx, {
@@ -138,6 +154,14 @@ export function startBank(env: Record<string, string | undefined> = process.env)
       r.post('/attesters/verify', h(async (req, res) => {
         const b = z.object({ attester: address, nonce: bytes32, quote: z.string().regex(/^(0x)?[0-9a-fA-F]+$/).max(40_000) }).parse(req.body);
         res.json(await attesters.verify(b.attester, b.nonce, b.quote));
+      }));
+      // The operator's request for the second signature of an anchor (automated, like the heartbeat, D24).
+      r.post('/audit/anchors/:id/cosign', h(async (req, res) => {
+        const id = BigInt(z.string().regex(/^\d+$/).parse(req.params.id));
+        const p = await ctx.consortium.read('audit', id);
+        const auditSeq = await checkAnchor(anchorOf(p.message), auditEntries);
+        const { ready } = await ctx.consortium.sign('audit', id);
+        res.json({ ready, auditSeq });
       }));
       kycRoutes(r, { kyc: identityServices(ctx).kyc, mandate: identityServices(ctx).mandate, kya: identityServices(ctx).kya, eudi: flags.EUDI_VERIFIER_BACKEND ? { backend: flags.EUDI_VERIFIER_BACKEND } : undefined });
     },
