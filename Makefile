@@ -9,7 +9,7 @@ COMPOSE = docker compose -f infra/compose.yml $(ENV_FILES)
 PROFILES ?= core chain mocks tee-sim agent dev wecross
 PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 
-.PHONY: help setup install up down ps logs test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-live redteam slither deploy-contracts deploy-fisco tunnel reset-fork up-base
+.PHONY: help setup install up down ps logs test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-web e2e-live redteam slither deploy-contracts deploy-fisco tunnel reset-fork up-base
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -32,7 +32,8 @@ up: ## Start the local stack (waits for healthchecks; deploys the contracts on a
 	@case " $(PROFILES) " in *" wecross "*) bash scripts/wecross/up.sh ;; esac
 
 reset-fork: ## Fresh anvil fork, contracts and consortium redeployed, services restarted
-	$(COMPOSE) --profile dev restart anvil
+	$(COMPOSE) --profile dev rm -sf anvil
+	docker volume rm praetor_anvil-state 2>/dev/null || true
 	$(MAKE) --no-print-directory up
 
 fisco-image: ## Build the FISCO node image once (the nodes never rebuild it: see infra/compose.yml)
@@ -91,8 +92,13 @@ test-scripts:
 test-int: ## Integration tests, one per architecture link (needs make up)
 	pnpm -s --filter @praetor/test test:int
 
-e2e: ## Flows F1 to F10 against BASE_URL (default: local stack)
+e2e: ## Flows F1 to F10 against BASE_URL (default: local stack), through the api and through the web app
 	pnpm -s --filter @praetor/test test:e2e
+	$(MAKE) --no-print-directory e2e-web
+
+e2e-web: ## The web app's journey F1 to F9 in Playwright (virtual authenticator), screenshots and axe (needs make up)
+	pnpm -s --filter @praetor/web build
+	pnpm -s --filter @praetor/web e2e
 
 e2e-live: ## Flows on live Base Sepolia (CHAIN_MODE=live)
 	CHAIN_MODE=live pnpm -s --filter @praetor/test test:e2e

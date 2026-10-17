@@ -16,6 +16,7 @@ type Service = {
   labels?: Record<string, string>;
   pull_policy?: string;
   restart?: string;
+  volumes?: string[];
   depends_on?: Record<string, { condition?: string }>;
   networks?: string[] | Record<string, unknown>;
   environment?: Record<string, string>;
@@ -93,6 +94,15 @@ describe('infra/compose.yml', () => {
       expect(cmd).toContain(flag);
     const fork = JSON.parse(read('infra/deployments/fork.json')) as { forkBlock: number };
     expect(read('infra/.env.example')).toMatch(new RegExp(`^FORK_BLOCK=${fork.forkBlock}$`, 'm'));
+  });
+
+  it('survives a blip of the public RPC it forks: retries with backoff, keeps its state on a volume, restarts', () => {
+    const a = compose.services.anvil!;
+    const cmd = [a.command].flat().join(' ');
+    for (const flag of ['--retries', '--fork-retry-backoff', '--state /home/foundry/fork.json', '--state-interval']) expect(cmd).toContain(flag);
+    expect(a.restart).toBe('unless-stopped');
+    expect(a.volumes).toContain('anvil-state:/home/foundry');
+    expect(read('Makefile')).toMatch(/^reset-fork:[\s\S]*?volume rm[^\n]*anvil-state/m);
   });
 
   it('runs the payout partner with the PSP mocks (mocks profile); the Alipay+ mock serves 443 inside the network only (V7)', () => {

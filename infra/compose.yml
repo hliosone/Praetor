@@ -40,6 +40,7 @@ networks:
         - subnet: 10.90.0.0/24
 
 volumes:
+  anvil-state:
   mysql-data:
   caddy-data:
   caddy-config:
@@ -871,10 +872,15 @@ services:
   anvil:
     image: ghcr.io/foundry-rs/foundry:v1.7.1@sha256:8347b728d5d393dac1c018691b36f506d23b9dcd78341d40ea0fcb11c3a19cdd
     profiles: [dev]
-    # --network optimism enables the RIP-7212 P-256 precompile at 0x100 (Q6, V1).
+    # --network optimism enables the RIP-7212 P-256 precompile at 0x100 (Q6, V1). A reset connection to the public
+    # RPC once crashed anvil mid-block and lost the fork: it retries with backoff, and its state is dumped to a volume
+    # so a restart resumes the same chain (make reset-fork removes it for a fresh fork).
     command: >-
       "anvil --host 0.0.0.0 --port 8545 --fork-url ${BASE_LIVE_RPC_URL} --fork-block-number ${FORK_BLOCK}
-      --chain-id 84532 --network optimism --block-time 2 --silent"
+      --chain-id 84532 --network optimism --block-time 2 --silent
+      --retries 30 --fork-retry-backoff 2000 --timeout 60000 --state /home/foundry/fork.json --state-interval 20"
+    restart: unless-stopped
+    volumes: ['anvil-state:/home/foundry']
     ports: ['127.0.0.1:18545:8545']
     networks:
       praetor:
