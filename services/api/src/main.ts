@@ -3,9 +3,9 @@ import express from 'express';
 import pino from 'pino';
 import { z } from 'zod';
 import { readFileSync } from 'node:fs';
-import { erc20Abi, parseAbiItem, type Address, type Hex } from 'viem';
+import { encodeFunctionData, erc20Abi, parseAbiItem, type Address, type Hex } from 'viem';
 import { AuditLogAbi, fiscoClients } from '@praetor/fisco-client';
-import { AnchorAbi, MandateHookAbi, StandingOrdersAbi, accountReader, baseClients, baseNow, loadDeployments } from '@praetor/chain';
+import { AnchorAbi, MandateHookAbi, PasskeyValidatorAbi, StandingOrdersAbi, accountReader, baseClients, baseNow, loadDeployments } from '@praetor/chain';
 import { connect, loadMigrations, migrate } from '@praetor/db';
 import { prepareAccount } from '@praetor/userop';
 import { createApiApp } from './app.js';
@@ -200,9 +200,33 @@ const agents = async () => {
 
 const agentKeyOf = async (account: Address) => (await pub.readContract({ address: d.mandateHook, abi: MandateHookAbi, functionName: 'kyaOf', args: [account] }))[0] as Address;
 
+// F10 recovery as Base records it: the last of RecoveryScheduled / Cancelled / Executed for the account.
+const RECOVERY_EVENTS = [
+  parseAbiItem('event RecoveryScheduled(address indexed account, bytes32 payloadHash, uint64 executableAt)'),
+  parseAbiItem('event RecoveryCancelled(address indexed account, bytes32 payloadHash)'),
+  parseAbiItem('event RecoveryExecuted(address indexed account, bytes32 payloadHash)'),
+] as const;
+const recoveryStatus = async (account: Address) => {
+  const logs = (await Promise.all(RECOVERY_EVENTS.map((event) => pub.getLogs({ address: d.mandateHook, event, args: { account }, fromBlock: BigInt(d.deployBlock), toBlock: 'latest' })))).flat();
+  const last = logs.sort((x, y) => Number(x.blockNumber! - y.blockNumber!) || x.logIndex! - y.logIndex!).at(-1);
+  if (!last) return { state: 'none' };
+  const state = last.eventName === 'RecoveryScheduled' ? 'scheduled' : last.eventName === 'RecoveryCancelled' ? 'cancelled' : 'executed';
+  const a = last.args as { payloadHash: Hex; executableAt?: bigint };
+  return { state, payloadHash: a.payloadHash, ...(a.executableAt !== undefined ? { executableAt: a.executableAt.toString() } : {}) };
+};
+
 const app = createApiApp({
   store, sessionSecret: env.SESSION_SECRET, rpId: env.PUBLIC_HOST, origin: env.PUBLIC_URL,
   accountFor: async (p, salt) => ({ address: (await prepareAccount(pub as never, accountModules(p), salt)).address }),
+  isOwnerKey: async (account, credIdHash) => {
+    const [x, y] = (await pub.readContract({ address: d.passkeyValidator, abi: PasskeyValidatorAbi, functionName: 'ownerKey', args: [account, credIdHash] })) as readonly [bigint, bigint];
+    return x !== 0n || y !== 0n;
+  },
+  recovery: {
+    start: async (userRef, _account, key) => ({ redirectUrl: (await c.bank.recoveryStart(userRef, key)).redirectUrl }),
+    status: recoveryStatus,
+    execute: (account) => c.bundler.tx(d.mandateHook, encodeFunctionData({ abi: MandateHookAbi, functionName: 'executeRecovery', args: [account] })),
+  },
   extend: (r, h, session) => apiRoutes(r, h, session, {
     onboarding, ownerActions, approvals, link, standingOrders, audit, statement, views, config, bank: c.bank, runner: c.runner,
     chainNowMs: async () => Number(await now()) * 1000,

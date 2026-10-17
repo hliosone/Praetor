@@ -77,6 +77,7 @@ export class Onboarding {
     const { credIdHash } = await this.d.user(account);
     const signed = await this.d.c.bank.mandateSign(b.draftId, toMemberAssertion(b.assertion, b.challenge, credIdHash));
     const kya = await this.d.c.bank.kya({ account, agentDidHash: b.agentDidHash, validUntil: (await this.d.now()) + KYA_VALIDITY_S });
-    return { mandateCredentialHash: signed.mandateCredentialHash, kya };
+    // The countersigned AgentMandate is the owner's own document (no KYC data): returned so the owner can keep it.
+    return { mandateCredentialHash: signed.mandateCredentialHash, credential: signed.credential, kya };
   }
 }

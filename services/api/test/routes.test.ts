@@ -52,3 +52,16 @@ describe('agent key rotation and revocation (F10)', () => {
     }
   });
 });
+
+describe('owner actions for devices and recovery (F10 step 6)', () => {
+  it('prepares SET_OWNER_KEY for a new passkey and CANCEL_RECOVERY for a pending recovery', async () => {
+    const seen: unknown[] = [];
+    const { a } = app({ ownerActions: { prepare: async (_acc: Address, args: unknown) => { seen.push(args); return { digest: '0x' }; } } });
+    await request(a).post('/api/owner-actions/prepare').send({ kind: 9, credIdHash: `0x${'ab'.repeat(32)}`, x: '0x01', y: '0x02' }).expect(200);
+    await request(a).post('/api/owner-actions/prepare').send({ kind: 10, recoveryPayloadHash: `0x${'cd'.repeat(32)}` }).expect(200);
+    expect(seen).toEqual([
+      { kind: 9, account: ACCOUNT, credIdHash: `0x${'ab'.repeat(32)}`, x: 1n, y: 2n },
+      { kind: 10, account: ACCOUNT, recoveryPayloadHash: `0x${'cd'.repeat(32)}` },
+    ]);
+  });
+});

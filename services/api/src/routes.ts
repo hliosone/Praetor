@@ -20,6 +20,8 @@ const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/).transform((s) => s as Ad
 const bytes32 = z.string().regex(/^0x[0-9a-fA-F]{64}$/).transform((s) => s as Hex);
 const hex = z.string().regex(/^0x[0-9a-fA-F]*$/).transform((s) => s as Hex);
 const big = z.union([z.string().regex(/^\d+$/), z.number().int().nonnegative()]).transform((v) => BigInt(v));
+/** A P-256 coordinate as /passkeys/verify returns it (hex), or decimal. */
+const coordinate = z.string().regex(/^(0x[0-9a-fA-F]{1,64}|\d{1,78})$/).transform((v) => BigInt(v));
 const assertion = z.object({ id: z.string(), response: z.object({ clientDataJSON: z.string(), authenticatorData: z.string(), signature: z.string() }).passthrough() }).passthrough();
 const ownerAction = z.object({ account: address, action: z.number().int().min(0).max(12), payloadHash: bytes32, nonce: big, expiresAt: big, fiscoRef: bytes32 });
 const policy = z.object({
@@ -88,6 +90,8 @@ export function apiRoutes(r: Router, h: typeof handler, session: express.Request
       z.object({ kind: z.literal(K.REMOVE_PAYEE), payee: address }),
       z.object({ kind: z.literal(K.CANCEL_STANDING_ORDER), id: z.number().int().min(1) }),
       z.object({ kind: z.literal(K.UNLINK_WECHAT) }),
+      z.object({ kind: z.literal(K.SET_OWNER_KEY), credIdHash: bytes32, x: coordinate, y: coordinate }),
+      z.object({ kind: z.literal(K.CANCEL_RECOVERY), recoveryPayloadHash: bytes32 }),
     ]).parse(req.body);
     const account = acct(res);
     let bindingHash: Hex | undefined;
@@ -101,6 +105,8 @@ export function apiRoutes(r: Router, h: typeof handler, session: express.Request
       : b.kind === K.REMOVE_PAYEE ? { kind: b.kind, account, payee: b.payee }
       : b.kind === K.CANCEL_STANDING_ORDER ? { kind: b.kind, account, id: b.id }
       : b.kind === K.UNLINK_WECHAT ? { kind: b.kind, account, bindingHash }
+      : b.kind === K.SET_OWNER_KEY ? { kind: b.kind, account, credIdHash: b.credIdHash, x: b.x, y: b.y }
+      : b.kind === K.CANCEL_RECOVERY ? { kind: b.kind, account, recoveryPayloadHash: b.recoveryPayloadHash }
       : { kind: b.kind, account };
     send(res, await m.ownerActions.prepare(account, args as never));
   }));
