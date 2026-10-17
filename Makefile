@@ -9,7 +9,7 @@ COMPOSE = docker compose -f infra/compose.yml $(ENV_FILES)
 PROFILES ?= core chain mocks tee-sim agent dev wecross
 PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 
-.PHONY: help setup install up down ps logs test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-live redteam slither deploy-contracts deploy-fisco tunnel reset-fork up-base
+.PHONY: help setup install up down ps logs smoke-sm test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-live redteam slither deploy-contracts deploy-fisco tunnel reset-fork up-base
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -104,6 +104,9 @@ redteam: ## Red-team suite (real model)
 
 slither: ## Static analysis of the Base contracts (fails on unexplained High/Medium)
 	bash scripts/checks/slither.sh
+
+smoke-sm: ## Guomi profile smoke: fresh SM chain, SM build, Java SDK checks, torn down (Docker, minutes; not in make test)
+	bash infra/fisco/sm/run.sh
 
 deploy-contracts: ## Deploy the Base contracts (ENV=fork|base-sepolia|sandbox)
 	bash scripts/deploy/contracts.sh $(or $(ENV),fork)
