@@ -16,6 +16,7 @@ function setup(deployed = false) {
   const c: any = {};
   const d: OnboardingDeps = {
     user: async () => ({ userId: 'u1', account: ACCOUNT, credIdHash: pk.credIdHash }),
+    credIdHashOf: async () => pk.credIdHash,
     isDeployed: async () => deployed,
     firstOp: async () => ({ factory: '0x00000000000000000000000000000000000000fa' as Address, factoryData: '0x12' as Hex, callData: '0x34' as Hex }),
     now: async () => 1_800_000_000n,

@@ -8,6 +8,8 @@ import type { Clients } from './clients.js';
 
 export type OnboardingDeps = {
   user(account: Address): Promise<{ userId: string; account: Address; credIdHash: Hex }>;
+  /** The credIdHash of the owner's passkey that made an assertion (a rotation may be signed by a second device). */
+  credIdHashOf(account: Address, credentialId: string): Promise<Hex>;
   isDeployed(account: Address): Promise<boolean>;
   firstOp(account: Address): Promise<{ factory: Address; factoryData: Hex; callData: Hex }>;
   now(): Promise<bigint>;
@@ -74,7 +76,7 @@ export class Onboarding {
   }
 
   async mandateSign(account: Address, b: { draftId: string; challenge: Hex; agentDidHash: Hex; assertion: AssertionJSON }) {
-    const { credIdHash } = await this.d.user(account);
+    const credIdHash = await this.d.credIdHashOf(account, b.assertion.id);
     const signed = await this.d.c.bank.mandateSign(b.draftId, toMemberAssertion(b.assertion, b.challenge, credIdHash));
     const kya = await this.d.c.bank.kya({ account, agentDidHash: b.agentDidHash, validUntil: (await this.d.now()) + KYA_VALIDITY_S });
     // The countersigned AgentMandate is the owner's own document (no KYC data): returned so the owner can keep it.

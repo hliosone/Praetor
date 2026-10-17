@@ -12,7 +12,8 @@ const EXPIRY_S = 600n;
 export type OwnerActionDeps = {
   domain: { name: string; hook: Address };
   now(): Promise<bigint>;
-  credIdHashOf(account: Address): Promise<Hex>;
+  /** The credIdHash of the owner's passkey that made this assertion (by credential id; an account can hold several). */
+  credIdHashOf(account: Address, credentialId: string): Promise<Hex>;
   bank: { cosign(ownerAction: OwnerAction, payload: Hex): Promise<{ bankSig: Hex }> };
   bundler: { tx(to: Address, data: Hex): Promise<{ txHash: Hex | null; success: boolean }> };
 };
@@ -34,7 +35,7 @@ export class OwnerActions {
     if (a.account.toLowerCase() !== account.toLowerCase()) throw new Error('owner action for another account');
     if (ownerActionPayloadHash(a.account, a.action, b.payload).toLowerCase() !== a.payloadHash.toLowerCase()) throw new Error('payload does not match its hash');
     const d = digest(praetorDomain(this.d.domain.name, this.d.domain.hook), 'OwnerAction', a);
-    const auth = passkeyAuth(await this.d.credIdHashOf(account), toWebAuthnAuth(b.assertion, d));
+    const auth = passkeyAuth(await this.d.credIdHashOf(account, b.assertion.id), toWebAuthnAuth(b.assertion, d));
     const bankSigs = BANK_REQUIRED.has(a.action) ? [(await this.d.bank.cosign(a, b.payload)).bankSig] : [];
     const data = encodeFunctionData({ abi: MandateHookAbi, functionName: 'applyOwnerAction', args: [a, b.payload, auth, bankSigs] as never });
     return this.d.bundler.tx(this.d.domain.hook, data);

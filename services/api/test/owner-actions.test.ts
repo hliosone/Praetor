@@ -31,6 +31,19 @@ describe('owner actions through the api (untrusted pipe: the owner signs the dig
     expect(p.digest).toBe(digest(praetorDomain('Praetor-test', HOOK), 'OwnerAction', p.ownerAction));
   });
 
+  it('names the credential the assertion came from (an account can hold several passkeys)', async () => {
+    const seen: string[] = [];
+    const oa = new OwnerActions({
+      domain: { name: 'Praetor-test', hook: HOOK }, now: async () => 1_800_000_000n,
+      credIdHashOf: async (_account, credentialId) => { seen.push(credentialId); return pk.credIdHash; },
+      bank: { cosign: async () => ({ bankSig: '0xbb' as Hex, digest: '0x' as Hex }) },
+      bundler: { tx: async () => ({ txHash: null, success: true }) },
+    });
+    const p = await oa.prepare(ACCOUNT, { kind: K.PAUSE_AGENT, account: ACCOUNT });
+    await oa.submit(ACCOUNT, { ownerAction: p.ownerAction, payload: p.payload, assertion: pk.authentication(b64(p.digest)) });
+    expect(seen).toEqual([pk.credentialId]);
+  });
+
   it('submits with the owner passkey and the bank co-signature to applyOwnerAction', async () => {
     const { oa, sent, cosigned } = setup();
     const p = await oa.prepare(ACCOUNT, { kind: K.SET_AGENT_KEY, account: ACCOUNT, agentKey: AGENT, validUntil: 1_802_592_000 });

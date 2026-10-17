@@ -34,7 +34,8 @@ export type ApprovalDeps = {
   store: ApprovalStore;
   domain: { name: string; hook: Address };
   now(): Promise<bigint>;
-  credIdHashOf(account: Address): Promise<Hex>;
+  /** The credIdHash of the owner's passkey that made this assertion (by credential id). */
+  credIdHashOf(account: Address, credentialId: string): Promise<Hex>;
   bundler: { tx(to: Address, data: Hex): Promise<{ txHash: Hex | null; success: boolean }> };
   /** mcp resubmits the call with the agent key (the only holder of a sign-userop right). */
   resubmit(account: Address, calls: Call[]): Promise<{ success: boolean; txHash: Hex | null }>;
@@ -116,7 +117,7 @@ export class Approvals {
 
   async approveWithPasskey(account: Address, id: string, assertion: AssertionJSON) {
     const r = await this.pendingRow(account, id);
-    return this.register(r, passkeyAuth(await this.d.credIdHashOf(account), toWebAuthnAuth(assertion, r.digest)), 'passkey');
+    return this.register(r, passkeyAuth(await this.d.credIdHashOf(account, assertion.id), toWebAuthnAuth(assertion, r.digest)), 'passkey');
   }
 
   async approveWithSoter(account: Address, id: string, b: { code: string; resultJSON: string; resultJSONSignature: string; authMode: string }) {

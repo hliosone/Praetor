@@ -9,7 +9,7 @@ import { AuditLogAbi, fiscoClients } from '@praetor/fisco-client';
 import { AnchorAbi, MandateHookAbi, PasskeyValidatorAbi, StandingOrdersAbi, accountReader, baseClients, baseNow, loadDeployments } from '@praetor/chain';
 import { connect, loadMigrations, migrate } from '@praetor/db';
 import { prepareAccount } from '@praetor/userop';
-import { createApiApp } from './app.js';
+import { createApiApp, HttpError } from './app.js';
 import { clients, UpstreamError } from './clients.js';
 import { Rotation } from './rotation.js';
 import { SandboxFaucet } from './sandbox.js';
@@ -79,7 +79,14 @@ const userOf = async (account: Address) => {
   if (!p) throw new Error('no passkey');
   return { u, p };
 };
-const credIdHashOf = async (account: Address) => (await userOf(account)).p.credIdHash as Hex;
+// The owner's passkey that made an assertion, by its credential id: an account can hold several (devices, recovery),
+// and only one of the account's own users may sign for it.
+const credIdHashOf = async (account: Address, credentialId: string) => {
+  const { u } = await userOf(account);
+  const p = await store.passkey(credentialId);
+  if (!p || p.userId !== u.id) throw new HttpError(403, 'this passkey is not one of the account owner\'s');
+  return p.credIdHash as Hex;
+};
 const accountModules = (p: { credIdHash: Hex; x: bigint; y: bigint }) => ({ ...d, credIdHash: p.credIdHash, x: p.x, y: p.y });
 
 const ownerActions = new OwnerActions({ domain: { name: d.domainName, hook: d.mandateHook }, now, credIdHashOf, bank: c.bank, bundler: c.bundler });
@@ -88,6 +95,7 @@ const onboarding = new Onboarding({
     const { u, p } = await userOf(account);
     return { userId: u.id, account, credIdHash: p.credIdHash as Hex };
   },
+  credIdHashOf,
   isDeployed: async (account) => ((await pub.getCode({ address: account })) ?? '0x') !== '0x',
   firstOp: async (account) => {
     const { u, p } = await userOf(account);
