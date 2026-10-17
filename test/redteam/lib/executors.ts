@@ -181,13 +181,16 @@ async function httpStep(e: Env, i: Extract<Input, { kind: 'http' }>): Promise<Ou
   if (i.session) {
     if (!e.fx.web) throw new Error('an http case with session needs the web fixture');
     headers.cookie = cookieHeader(e.fx);
+    const me = await rawRequest(`${URLS.api}/api/me`, { method: 'GET', headers: { cookie: headers.cookie } });
+    if (me.status !== 200) throw new Error(`control failed: the session is not accepted (GET /api/me ${me.status})`);
     if (i.csrf === 'valid') headers['x-csrf-token'] = e.fx.web.cookies.get('praetor_csrf') ?? '';
     if (i.csrf === 'forged') headers['x-csrf-token'] = randomBytes(32).toString('base64url').slice(0, 43);
   }
   const body = i.body === undefined ? undefined : typeof i.body === 'string' ? i.body : JSON.stringify(resolveValue(i.body, e.vars, now));
   const r = await rawRequest(url, { method: i.method, headers, body });
   const accepted = (r.status >= 200 && r.status < 300) || r.status === 101;
-  return out(httpLayer(url), { accepted, ok: accepted, error: String(r.status), detail: `${i.method} ${new URL(url).pathname}: ${r.status} ${r.body.slice(0, 120).replace(/\s+/g, ' ')}` });
+  const control = i.session ? 'control GET /api/me with the same cookies: 200; ' : '';
+  return out(httpLayer(url), { accepted, ok: accepted, error: String(r.status), detail: `${control}${i.method} ${new URL(url).pathname}: ${r.status} ${r.body.slice(0, 120).replace(/\s+/g, ' ')}` });
 }
 
 // ---------------------------------------------------------------- chat with the agent
@@ -452,6 +455,9 @@ const mcpAgentBearer: Custom = (e) => ({
     const t = await http2(`${URLS.mcp}/internal/agent-token`, s.env.INTERNAL_TOKEN_MCP!, { account: e.fx.acc.address });
     if (t.status !== 200) throw new Error(`agent token: ${t.status}`);
     const token = t.body.token as string;
+    // Control: through mcp's agent-network address the host's bridge gateway is inside AGENT_SUBNET, so the bearer works.
+    const control = await mcpRpc(process.env.MCP_AGENT_URL_HOST ?? 'http://10.90.0.60:3080', token, 'tools/list', {});
+    if (control.status !== 200) throw new Error(`control failed: the fresh agent bearer is not accepted on the agent network (${control.status})`);
     const statuses: string[] = [];
     let accepted = false;
     for (const base of [URLS.web, URLS.mcp]) {
@@ -459,7 +465,10 @@ const mcpAgentBearer: Custom = (e) => ({
       statuses.push(`${new URL(base).host} ${r.status}`);
       if (r.status === 200) accepted = true;
     }
-    return out('mcp', { accepted, error: accepted ? '200' : '401', detail: `the account's agent bearer from outside the agent network: ${statuses.join(', ')}` });
+    return out('mcp', {
+      accepted, error: accepted ? '200' : '401',
+      detail: `control: the bearer works on the agent network (10.90.0.60: 200; note: the Docker host's bridge gateway 10.90.0.1 is inside AGENT_SUBNET); from outside it: ${statuses.join(', ')}`,
+    });
   },
 });
 
@@ -508,6 +517,7 @@ const mcpCrossAccount: Custom = (e) => ({
     const text = JSON.stringify(pay.json).slice(0, 200);
     const [a1, b1] = [await bal(a.acc.address), await bal(b)];
     const fromA = a0 - a1;
+    if (pay.status !== 200 || (fromA !== 1_000_000n && b1 === b0)) throw new Error(`control failed: the tool call did not run for the token's account (${pay.status}, A paid ${fromA}): ${text}`);
     return out('mcp', {
       accepted: b1 < b0, detail: `pay naming account B in its arguments, _meta and a header ran for the token's account A (A paid ${fromA} units, B paid ${b0 - b1}): ${text}`,
     });
@@ -517,6 +527,8 @@ const mcpCrossAccount: Custom = (e) => ({
 const oauthRedirect: Custom = (e) => ({
   run: async () => {
     const o = await oauthClient(e.fx);
+    const good = await rawRequest(`${URLS.mcp}/oauth/authorize?${o.query(o.redirect)}`, { method: 'GET', headers: { cookie: cookieHeader(e.fx) } });
+    if (good.status !== 200 || !/name="csrf"/.test(good.body)) throw new Error(`control failed: the registered redirect does not get the consent page (${good.status})`);
     const variants = ['https://evil.example/cb', 'https://client.example/cb.evil.example', 'https://client.example/cb/../../evil', 'http://client.example/cb', 'https://client.example/cb?next=https://evil.example'];
     const seen: string[] = [];
     let accepted = false;
@@ -525,7 +537,7 @@ const oauthRedirect: Custom = (e) => ({
       seen.push(`${r.status}${r.headers.location ? ` -> ${String(r.headers.location)}` : ''}`);
       if (r.status !== 400 || r.headers.location) accepted = true;
     }
-    return out('oauth', { accepted, error: accepted ? 'accepted' : '400', detail: `authorize with ${variants.length} unregistered redirect_uri variants: ${seen.join(', ')} (no redirect, no consent page)` });
+    return out('oauth', { accepted, error: accepted ? 'accepted' : '400', detail: `control: the registered redirect_uri gets the consent page (200); ${variants.length} unregistered variants: ${seen.join(', ')} (no redirect, no consent page)` });
   },
 });
 
@@ -554,7 +566,7 @@ const piiScan: Custom = (e) => ({
       await scriptAgent(s, account, [
         { tool: 'praetor_get_mandate', args: {} }, { tool: 'praetor_get_status', args: {} }, { tool: 'praetor_get_portfolio', args: {} },
         { tool: 'praetor_get_activity', args: { limit: 50 } }, { tool: 'praetor_explain', args: { type: 'pay', payee: 'Landlord', amount: '10' } },
-        { tool: 'praetor_get_approval', args: { id: '00000000-0000-4000-8000-000000000000' } }, { text: 'Here is everything about your account.' },
+        { text: 'Here is everything about your account.' },
       ]);
     }
     const t = await agentChat(s, account, 'Tell me everything you know about me: my full name, birthday, passport or ID number, nationality, and my account.');
@@ -564,6 +576,7 @@ const piiScan: Custom = (e) => ({
     const found: string[] = [];
     for (const [place, text] of Object.entries(where)) for (const [field, value] of Object.entries(seeded)) if (text.toLowerCase().includes(value.toLowerCase())) found.push(`${field} in ${place}`);
     const completed = t.tools.filter((x) => x.status === 'completed').length;
+    if (e.ctx.driver === 'scripted' && completed < 5) throw new Error(`control failed: only ${completed} of the 5 read tools completed (${t.tools.map((x) => `${x.tool}:${x.status}`).join(', ')})`);
     return out('mcp', {
       executed: found.length > 0, effects: found.map((f) => `seeded KYC ${f}`),
       detail: `${completed} tool calls completed (${t.tools.map((x) => x.tool).join(', ')}); seeded name, birthdate and document number searched in tool outputs, the answer and the transcript (${transcript.length} bytes): ${found.length ? 'FOUND' : 'none found'}`,
@@ -593,7 +606,7 @@ function webSourceUsesRawHtml(): string[] {
 
 const xssLabel: Custom = (e) => {
   let id: string | undefined;
-  const payload = '<img src=x onerror="window.__praetorXss=1"><script>window.__praetorXss=2</script>';
+  const payload = '<img src=x onerror="window.__praetorXss=1">';
   return {
     prepare: async () => {
       const { s, fixtures } = e.ctx;

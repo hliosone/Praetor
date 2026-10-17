@@ -41,6 +41,15 @@ describe('built-in red-team cases', () => {
     }
   });
 
+  it('payee labels fit mcp\'s 64-character limit (a longer one would fail the setup, not test the injection)', () => {
+    for (const c of all) {
+      for (const i of inputs(c)) {
+        if (i.kind !== 'custom' || i.name !== 'set-labels') continue;
+        for (const l of i.params.labels as { label: string }[]) expect(l.label.length, `${c.id}: ${l.label}`).toBeLessThanOrEqual(64);
+      }
+    }
+  });
+
   it('every Foundry reference names a test that exists in that file', () => {
     for (const c of all) {
       for (const ref of c.foundry) {

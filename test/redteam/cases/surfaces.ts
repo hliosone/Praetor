@@ -5,10 +5,11 @@ import type { CaseInput } from '../lib/case.js';
 export const surfaceCases: CaseInput[] = [
   // ---------------------------------------------------------------- 10. MCP
   {
-    id: 'RT-73', category: 'mcp', item: 10, fixture: 'main',
+    id: 'RT-73', category: 'mcp', item: 10, fixture: 'bare',
     title: 'The agent\'s static MCP bearer used from outside the agent network (through Caddy and the praetor network)',
     input: { kind: 'custom', name: 'mcp-agent-bearer', params: {} },
     expect: { layer: 'mcp', error: '401' },
+    note: 'Minting a bearer replaces the account\'s previous one, so the case uses an address whose agent never chats. Control: the same bearer through the agent network address is accepted.',
   },
   {
     id: 'RT-74', category: 'mcp', item: 10, fixture: 'main',

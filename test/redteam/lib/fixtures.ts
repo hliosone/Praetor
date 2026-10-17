@@ -49,7 +49,6 @@ const RECIPES: Record<Exclude<FixtureName, 'fresh'>, Recipe> = {
   bare: { kind: 'bare' },
 };
 
-const SANCTIONS = 'event SanctionsApplied(address indexed target, bool listed, bytes32 fiscoRef)';
 const u64 = () => BigInt(keccak256(toHex(`${Date.now()}-${Math.random()}`))) % 2n ** 64n;
 
 export class Fixtures {
@@ -219,14 +218,11 @@ export class Fixtures {
     const s = this.s;
     const asset = async (a: Address) => (await this.chain.hook<readonly [number, number, number, bigint]>('assetOf', [a]))[1];
     if (name === 'sanctioned') {
-      const listed = await this.chain.hookLogs(SANCTIONS, {});
-      for (const l of [...listed].reverse()) {
-        const target = (l as unknown as { args: { target: Address } }).args.target;
-        if (await this.chain.hook<boolean>('isSanctioned', [target])) return target;
-      }
       const target = labelAddress('rt-sanctioned');
-      await openAndSign(s, 'regulator', '/sanctions', { target, listed: true }, ['regulator']);
-      await waitFor('sanction on Base', () => this.chain.hook<boolean>('isSanctioned', [target]), 180_000);
+      if (!(await this.chain.hook<boolean>('isSanctioned', [target]))) {
+        await openAndSign(s, 'regulator', '/sanctions', { target, listed: true }, ['regulator']);
+        await waitFor('sanction on Base', () => this.chain.hook<boolean>('isSanctioned', [target]), 180_000);
+      }
       return target;
     }
     const [label, kind, maxW, final] = name === 'delistedToken' ? ['rt-dummy-token', 0, 1000, 3] : ['rt-dummy-partner', 2, 0, 2];
