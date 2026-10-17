@@ -46,7 +46,7 @@ export function clients(c: ClientConfig) {
       register: (address: Address) => bundlerPost('/accounts', { address }),
       prepare: (b: Record<string, unknown>) => bundlerPost('/userop/prepare', b) as Promise<{ userOp: Record<string, unknown>; userOpHash: Hex }>,
       send: (userOp: Record<string, unknown>) => bundlerPost('/userop/send', { userOp }) as Promise<{ userOpHash: Hex; txHash: Hex | null; success: boolean; reasons: number[]; refusalLogTx: Hex | null }>,
-      tx: (to: Address, data: Hex) => bundlerPost('/tx', { to, data }) as Promise<{ txHash: Hex; success: boolean }>,
+      tx: (to: Address, data: Hex) => bundlerPost('/tx', { to, data }) as Promise<{ txHash: Hex | null; success: boolean; revert?: string }>,
     },
     bank: {
       kycStart: (userRef: string, account: Address, method: 'vendor' | 'eudi') => bankPost('/kyc/sessions', { userRef, account, method }),

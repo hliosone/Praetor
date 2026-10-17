@@ -9,7 +9,7 @@ import { MandateHookAbi, RefusalLogAbi, baseNow, type Deployment } from '@praeto
 import { softPasskey, encodePasskeySignature, Reason, OwnerActionKind, merchantKey, merchantRef, type Policy } from '@praetor/protocol';
 import { accountAbi, agentSignature, encodeExecute, fromJson, prepareAccount, type UserOp } from '@praetor/userop';
 import { startBundler } from '@praetor/bundler';
-import { ANVIL_URL, MYSQL_HOST, repoRoot } from './lib/stack.js';
+import { ANVIL_URL, MYSQL_HOST, repoRoot, rpc } from './lib/stack.js';
 import { deployFork, env, hookCall, localKey, members, mintUsdc, nextNonce, ownerActionCall, pad32, pub, setBalance, sign, usdcBalance } from './lib/praetor.js';
 
 let d: Deployment;
@@ -137,6 +137,17 @@ describe('bundler -> Base (fork)', () => {
     const r = await op(self, 'agent');
     expect(r.status).toBe(422);
     expect(r.body.detail).toContain('AA24');
+  });
+
+  it('a /tx the chain would refuse is answered success=false with its reason, and nothing is sent', async () => {
+    const before = await rpc<string>(ANVIL_URL, 'eth_getTransactionCount', [privateKeyToAccount(localKey('BUNDLER_KEY')).address, 'latest']);
+    // registerApproval with an empty auth: the hook reverts (as for a replayed SOTER counter, F6).
+    const data = encodeFunctionData({ abi: MandateHookAbi, functionName: 'registerApproval', args: [{ account, callHash: `0x${'11'.repeat(32)}`, nonce: 1n, expiresAt: 1n }, { kind: 0, data: '0x' }] as never });
+    const r = await api('/tx', { to: d.mandateHook, data });
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ success: false, txHash: null });
+    expect(typeof r.body.revert).toBe('string');
+    expect(await rpc<string>(ANVIL_URL, 'eth_getTransactionCount', [privateKeyToAccount(localKey('BUNDLER_KEY')).address, 'latest'])).toBe(before);
   });
 
   it('records the gas of each step (snapshot in .run/gas-fork.json)', () => {

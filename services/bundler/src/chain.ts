@@ -122,9 +122,16 @@ export class ViemChain implements Chain {
     });
   }
 
-  sendTx(to: Address, data: Hex) {
+  /** A call the chain would refuse is answered with its reason and never sent (no gas burnt on a known revert). */
+  sendTx(to: Address, data: Hex): Promise<{ txHash: Hex | null; success: boolean; revert?: string }> {
     return this.serial(async () => {
-      const txHash = await this.wallet.sendTransaction({ to, data, account: this.wallet.account!, chain: this.wallet.chain });
+      let gas: bigint;
+      try {
+        gas = await this.pub.estimateGas({ account: this.wallet.account!, to, data });
+      } catch (e) {
+        return { txHash: null, success: false, revert: ((e as { shortMessage?: string }).shortMessage ?? (e as Error).message).split('\n')[0]! };
+      }
+      const txHash = await this.wallet.sendTransaction({ to, data, gas: (gas * 13n) / 10n, account: this.wallet.account!, chain: this.wallet.chain });
       const r = await this.pub.waitForTransactionReceipt({ hash: txHash });
       await waitSynced(this.pub, r.blockNumber, { attempts: this.syncAttempts });
       return { txHash, success: r.status === 'success' };

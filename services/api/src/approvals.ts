@@ -35,7 +35,7 @@ export type ApprovalDeps = {
   domain: { name: string; hook: Address };
   now(): Promise<bigint>;
   credIdHashOf(account: Address): Promise<Hex>;
-  bundler: { tx(to: Address, data: Hex): Promise<{ txHash: Hex; success: boolean }> };
+  bundler: { tx(to: Address, data: Hex): Promise<{ txHash: Hex | null; success: boolean }> };
   /** mcp resubmits the call with the agent key (the only holder of a sign-userop right). */
   resubmit(account: Address, calls: Call[]): Promise<{ success: boolean; txHash: Hex | null }>;
   attester: { approve(b: Record<string, unknown>): Promise<{ soterApproval: Record<string, string>; attesterSig: Hex }> };

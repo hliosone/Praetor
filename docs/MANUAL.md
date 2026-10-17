@@ -41,3 +41,12 @@ Steps are added during Phase B, each time something needs a human (phone Face ID
 | **You see** | (a) The real DeepSeek model calls `praetor_pay`, the payment lands, the answer quotes the transaction; in 中文 the answer is in Chinese. (b) claude.ai lists the Praetor tools and `get_portfolio` answers with Lin's numbers. |
 | **Claude checks** | The agent-runner transcript shows only `praetor_*` tools ran (any built-in tool call was rejected); mcp logged an OAuth bearer for (b) and the agent bearer for (a); the tx is on the explorer. Automated stand-in: F4/F5 with the scripted model, `services/mcp/test/oauth.test.ts` (28 OAuth cases, the claude.ai registration body). |
 | **Fallback** | The free model refuses or is down: set `OPENCODE_API_KEY` (paid DeepSeek) or show the scripted run; claude.ai cannot reach the tunnel: use the MCP inspector against the same URL. |
+
+## 4. Onboarding and approvals on a real phone (M9, with the web app of M13 and the mini program of M14)
+
+| | |
+|---|---|
+| **You do** | On an iPhone (Safari) open the web app, sign up, create the passkey with Face ID, go through the Demo KYC provider (photo of any document, selfie, head turns), answer the 5 questions, review and sign the AgentMandate with Face ID, set the mandate. Then in WeChat (mini program, test account) scan the "Link WeChat" QR and approve with Face ID; ask the agent for a payment to a new payee and approve it once with the passkey and once in the mini program. |
+| **You see** | Each Face ID prompt names what you sign; the approval page shows the full payee address and amount; the payment lands after each approval; a replayed approval is refused. |
+| **Claude checks** | `kyaOf`, `policyHashOf`, `bindingOf` on Base; ApprovalRegistered and the payment tx; the api never saw a private key. Automated stand-in: e2e F1, F2, F3, F6 with the software passkey and the SOTER fixture (`SOTER_FAKE_TENCENT=1`). |
+| **Fallback** | Face ID not offered (non-Safari browser in WeChat): open the link in Safari as the page asks; SOTER not available on the phone: approve with the passkey on the web. |

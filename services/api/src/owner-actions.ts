@@ -14,7 +14,7 @@ export type OwnerActionDeps = {
   now(): Promise<bigint>;
   credIdHashOf(account: Address): Promise<Hex>;
   bank: { cosign(ownerAction: OwnerAction, payload: Hex): Promise<{ bankSig: Hex }> };
-  bundler: { tx(to: Address, data: Hex): Promise<{ txHash: Hex; success: boolean }> };
+  bundler: { tx(to: Address, data: Hex): Promise<{ txHash: Hex | null; success: boolean }> };
 };
 
 export class OwnerActions {

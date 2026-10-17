@@ -25,7 +25,7 @@ export interface Chain {
   simulateHandleOps(op: UserOp): Promise<string | null>;
   submitHandleOps(op: UserOp, userOpHash: Hex): Promise<SubmitResult>;
   logRefusal(userOpHash: Hex, account: Address, calls: Call[]): Promise<Hex>;
-  sendTx(to: Address, data: Hex): Promise<{ txHash: Hex; success: boolean }>;
+  sendTx(to: Address, data: Hex): Promise<{ txHash: Hex | null; success: boolean; revert?: string }>;
 }
 
 export type BundlerConfig = {
@@ -111,7 +111,7 @@ export class Bundler {
   }
 
   /** Plain transactions from the bundler EOA, to our own contracts only (registerApproval, apply*, anchors...). */
-  async tx(to: Address, data: Hex): Promise<{ txHash: Hex; success: boolean }> {
+  async tx(to: Address, data: Hex): Promise<{ txHash: Hex | null; success: boolean; revert?: string }> {
     if (!this.cfg.txTargets.some((t) => t.toLowerCase() === to.toLowerCase())) throw new NotAllowed(`target ${to} not allowed`);
     return this.chain.sendTx(to, data);
   }
