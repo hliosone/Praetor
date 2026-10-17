@@ -13,6 +13,7 @@
   "dependencies": {
     "@praetor/chain": "workspace:*",
     "@praetor/config": "workspace:*",
+    "@praetor/db": "workspace:*",
     "@praetor/fisco-client": "workspace:*",
     "@praetor/member-kit": "workspace:*",
     "@praetor/protocol": "workspace:*",

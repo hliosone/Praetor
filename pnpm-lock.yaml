@@ -360,6 +360,9 @@ importers:
       '@praetor/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@praetor/fisco-client':
+        specifier: workspace:*
+        version: link:../../packages/fisco-client
       '@praetor/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
@@ -378,6 +381,9 @@ importers:
       viem:
         specifier: 2.57.5
         version: 2.57.5(typescript@5.9.3)(zod@3.25.76)
+      xmllint-wasm:
+        specifier: 5.3.0
+        version: 5.3.0(@types/node@22.20.5)
       zod:
         specifier: 3.25.76
         version: 3.25.76
@@ -734,6 +740,9 @@ importers:
       '@praetor/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@praetor/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@praetor/fisco-client':
         specifier: workspace:*
         version: link:../../packages/fisco-client
@@ -2535,6 +2544,12 @@ packages:
       utf-8-validate:
         optional: true
 
+  xmllint-wasm@5.3.0:
+    resolution: {integrity: sha512-sEgRXdf2t13eYCFCURmCE6h2hwleEOIS9VL/jOh9JJJnez2YXIooi2Ghm05/JZEPXyPawN8sMASPVZlmh8Sd6A==}
+    engines: {node: '>=16'}
+    peerDependencies:
+      '@types/node': '>=16'
+
   yaml@2.9.1:
     resolution: {integrity: sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw==}
     engines: {node: '>= 14.6'}
@@ -3979,6 +3994,10 @@ snapshots:
   wrappy@1.0.2: {}
 
   ws@8.21.0: {}
+
+  xmllint-wasm@5.3.0(@types/node@22.20.5):
+    dependencies:
+      '@types/node': 22.20.5
 
   yaml@2.9.1: {}
 
