@@ -13,8 +13,8 @@ const result = (o: Partial<CaseResult>): CaseResult => ({
   observed: { executed: false, layer: 'hook', reason: 'SANCTIONED', tier: 'T0_NEVER', detail: 'refused on-chain', txHashes: [tx], effects: [] },
   verdict: 'BLOCKED', foundry: [], ms: 1200, ...o,
 });
-const run = (results: CaseResult[], driver: RunFile['driver'] = 'scripted'): RunFile => ({
-  driver, startedAt: '2026-10-17T20:00:00.000Z', finishedAt: '2026-10-17T20:30:00.000Z', commit: 'abc1234', stack: { chain: 'fork', chainId: 84532, hook: '0x00000000000000000000000000000000000000aa', domainName: 'Praetor-local' }, results,
+const run = (results: CaseResult[], driver: RunFile['driver'] = 'scripted', planned = results.length): RunFile => ({
+  driver, planned, startedAt: '2026-10-17T20:00:00.000Z', finishedAt: '2026-10-17T20:30:00.000Z', commit: 'abc1234', stack: { chain: 'fork', chainId: 84532, hook: '0x00000000000000000000000000000000000000aa', domainName: 'Praetor-local' }, results,
 });
 
 describe('headline and summary', () => {
@@ -54,6 +54,13 @@ describe('renderReport', () => {
     expect(md).toMatch(/## Live run/);
     expect(md).toContain('contracts/base/test/unit/X.t.sol::test_y');
     expect(md).not.toContain(String.fromCharCode(0x2014));
+  });
+
+  it('a run that did not reach every planned case is marked incomplete, never given a clean headline', () => {
+    const md = renderReport([run([result({})], 'scripted', 83)]);
+    expect(md).toContain('INCOMPLETE: 1 of 83 planned cases ran');
+    expect(md).not.toContain('**1 attacks, 0 executed**');
+    expect(renderReport([run([], 'scripted', 83)])).toContain('INCOMPLETE: 0 of 83 planned cases ran');
   });
 
   it('says so when no run exists yet', () => {

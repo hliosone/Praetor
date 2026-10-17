@@ -38,7 +38,7 @@ export function redteamSuite(o: { name: RunFile['driver']; driver: Driver; cases
       mkdirSync(`${root}.run`, { recursive: true });
       // A REDTEAM_ONLY subset never replaces the full run behind the report.
       const partial = !!process.env.REDTEAM_ONLY;
-      writeRun(`${root}.run/redteam-${o.name}${partial ? '-partial' : ''}.json`, runFile(ctx, o.name, startedAt, results));
+      writeRun(`${root}.run/redteam-${o.name}${partial ? '-partial' : ''}.json`, runFile(ctx, o.name, startedAt, all.length, results));
       if (!partial) writeFileSync(`${root}docs/security/redteam.md`, renderReport(readRuns(`${root}.run`)));
     }
   }, 1_200_000);

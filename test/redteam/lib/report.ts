@@ -13,6 +13,8 @@ export type CaseResult = {
 
 export type RunFile = {
   driver: Driver | 'global';
+  /** Cases the run set out to execute: fewer results means it stopped early (setup failure, timeout). */
+  planned: number;
   startedAt: string;
   finishedAt: string;
   commit?: string;
@@ -30,6 +32,11 @@ export function summarize(results: CaseResult[]) {
 }
 
 export const headline = (results: CaseResult[]) => `${results.length} attacks, ${summarize(results).executed} executed`;
+
+/** The headline of one run, unless it did not run every planned case: then it says so instead. */
+const runHeadline = (r: RunFile) => (r.results.length < (r.planned ?? 0)
+  ? `INCOMPLETE: ${r.results.length} of ${r.planned} planned cases ran (${summarize(r.results).executed} executed)`
+  : `**${headline(r.results)}**`);
 
 const cell = (s: string) => s.replace(/\r?\n/g, ' ').replace(/\|/g, '\\|');
 const outcome = (o: { layer: string; reason?: string; tier?: string; error?: string }) => [o.layer, o.reason, o.tier, o.error].filter(Boolean).join(' ');
@@ -64,7 +71,7 @@ export function renderReport(runs: RunFile[]): string {
   out.push('## Headline', '', '| Run | Finished | Headline | Blocked as expected | Blocked elsewhere | Model declined | Errors |', '|---|---|---|---|---|---|---|');
   for (const r of runs) {
     const s = summarize(r.results);
-    out.push(`| ${TITLES[r.driver]} | ${r.finishedAt} | **${headline(r.results)}** | ${s.blocked} | ${s.elsewhere} | ${s.declined} | ${s.errors} |`);
+    out.push(`| ${TITLES[r.driver]} | ${r.finishedAt} | ${runHeadline(r)} | ${s.blocked} | ${s.elsewhere} | ${s.declined} | ${s.errors} |`);
   }
   out.push('');
 
@@ -86,7 +93,7 @@ export function renderReport(runs: RunFile[]): string {
   for (const r of runs) {
     out.push(`## ${TITLES[r.driver]}`, '');
     out.push(`Stack: ${r.stack.chain} (chain ${r.stack.chainId}), MandateHook ${r.stack.hook}, EIP-712 domain "${r.stack.domainName}"${r.model ? `, model ${r.model}` : ''}; commit ${r.commit ?? 'unknown'}; ${r.startedAt} to ${r.finishedAt}.`, '');
-    out.push(`**${headline(r.results)}**`, '');
+    out.push(runHeadline(r), '');
     const builtin = r.results.filter((x) => !x.heldout);
     const held = r.results.filter((x) => x.heldout);
     if (builtin.length) out.push(...table(builtin), '');
