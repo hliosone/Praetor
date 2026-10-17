@@ -54,6 +54,6 @@ export function mpApi(routes) {
     const h = routes[`${opts.method} ${path}${u.search}`] || routes[`${opts.method} ${path}`];
     if (!h) return { statusCode: 404, data: { error: `no route ${opts.method} ${path}${u.search}` } };
     const r = h(opts);
-    return r && 'statusCode' in r ? r : { statusCode: 200, data: r };
+    return r !== null && typeof r === 'object' && 'statusCode' in r ? r : { statusCode: 200, data: r };
   };
 }

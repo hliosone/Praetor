@@ -1,0 +1,25 @@
+<view class="stage">
+  <view class="card">
+    <view class="label">{{t.settings.language}}</view>
+    <view class="row gap">
+      <button class="{{lang === 'en' ? 'primary' : ''}}" data-lang="en" bindtap="setLang">English</button>
+      <button class="{{lang === 'zh-CN' ? 'primary' : ''}}" data-lang="zh-CN" bindtap="setLang">简体中文</button>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="label">{{t.settings.account}}</view>
+    <view wx:if="{{account}}" class="mono gap">{{account}}</view>
+    <view wx:else class="muted gap">{{t.settings.notLinked}}</view>
+  </view>
+
+  <view class="card">
+    <view class="label">{{t.settings.notifications}}</view>
+    <view class="muted gap">{{t.settings.notificationsText}}</view>
+  </view>
+
+  <view class="actions">
+    <button wx:if="{{account}}" class="danger" bindtap="unlink">{{t.settings.unlink}}</button>
+    <button wx:if="{{showSupport}}" bindtap="goSupport">{{t.settings.support}}</button>
+  </view>
+</view>

@@ -1,0 +1,18 @@
+<view class="stage">
+  <view class="thread" aria-live="polite">
+    <view wx:for="{{messages}}" wx:key="index" class="bubble {{item.who}}">
+      <text>{{item.text}}</text>
+      <view wx:if="{{item.tools}}" class="tool">{{item.tools}}</view>
+    </view>
+    <view wx:if="{{busy}}" class="muted small">{{t.chat.thinking}}</view>
+  </view>
+
+  <view class="row chips">
+    <view wx:for="{{chips}}" wx:key="key" class="pill muted" data-text="{{item.text}}" bindtap="sendChip">{{item.text}}</view>
+  </view>
+
+  <view class="row composer">
+    <input class="grow" value="{{input}}" placeholder="{{t.chat.placeholder}}" bindinput="onInput" bindconfirm="send" confirm-type="send" />
+    <button class="primary" bindtap="send" disabled="{{busy}}">{{t.chat.send}}</button>
+  </view>
+</view>

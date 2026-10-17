@@ -1,0 +1,23 @@
+<view class="stage">
+  <view wx:if="{{loading}}" class="muted">{{t.common.loading}}</view>
+  <view wx:if="{{error}}" class="card error">{{error}}</view>
+
+  <view class="card">
+    <view class="h2">{{t.payments.title}}</view>
+    <view wx:if="{{!loading && !orders.length}}" class="muted">{{t.payments.none}}</view>
+    <view wx:for="{{orders}}" wx:key="id" class="item">
+      <view class="row between">
+        <text>{{item.to}}</text>
+        <text class="amount">{{item.amount}} USDC</text>
+      </view>
+      <view class="small muted">{{item.rail}} · {{item.every}} · <text class="{{item.active ? '' : 'error'}}">{{item.next}}</text></view>
+    </view>
+  </view>
+
+  <view wx:if="{{proposals.length}}" class="card">
+    <view class="h2">{{t.payments.proposals}}</view>
+    <view wx:for="{{proposals}}" wx:key="id" class="item">{{item.text}}</view>
+  </view>
+
+  <view class="actions"><button class="primary" bindtap="propose">{{t.payments.propose}}</button></view>
+</view>

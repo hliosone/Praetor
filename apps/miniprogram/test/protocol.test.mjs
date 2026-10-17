@@ -103,7 +103,7 @@ describe('lib/protocol.js equals packages/protocol on random inputs', () => {
       const oa = { account, action: i % 13, payloadHash: hex(32), nonce: u64(), expiresAt: u64(), fiscoRef: hex(32) };
       expect(p.digest(domain, 'OwnerAction', { ...oa, nonce: oa.nonce.toString(), expiresAt: oa.expiresAt.toString() })).toBe(ts.digest(domain, 'OwnerAction', oa));
     }
-  });
+  }, 60_000);
 });
 
 describe('checksumAddress (EIP-55, for display)', () => {

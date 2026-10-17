@@ -1,0 +1,7 @@
+<view class="stage">
+  <view class="card">
+    <view class="h2">{{t.support.title}}</view>
+    <view class="muted small">{{t.support.intro}}</view>
+    <view class="mono out"><text selectable="true">{{out}}</text></view>
+  </view>
+</view>

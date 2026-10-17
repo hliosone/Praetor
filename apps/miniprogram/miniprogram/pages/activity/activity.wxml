@@ -1,0 +1,16 @@
+<view class="stage">
+  <view wx:if="{{loading}}" class="muted">{{t.common.loading}}</view>
+  <view wx:if="{{error}}" class="card error">{{error}}</view>
+  <view class="card">
+    <view class="h2">{{t.activity.title}}</view>
+    <view wx:if="{{!loading && !rows.length}}" class="muted">{{t.activity.none}}</view>
+    <view wx:for="{{rows}}" wx:key="tx" class="item" data-url="{{item.url}}" bindtap="copyTx">
+      <view class="row between">
+        <text>{{item.text}}</text>
+        <text class="pill {{item.cls}}">{{item.tier}}</text>
+      </view>
+      <view class="small muted">{{item.tierText}}<text wx:if="{{item.amount}}"> · {{item.amount}} USD</text> · {{item.target}}</view>
+      <view wx:if="{{item.url}}" class="small muted">{{t.activity.copyTx}}</view>
+    </view>
+  </view>
+</view>

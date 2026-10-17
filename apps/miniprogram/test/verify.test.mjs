@@ -2,8 +2,9 @@
 // built here with packages/protocol (an independent implementation) and then tampered with, one field at a time.
 import { describe, it, expect } from 'vitest';
 import { createRequire } from 'node:module';
-import { encodeFunctionData, erc20Abi, keccak256, encodeAbiParameters, parseAbi } from 'viem';
-import { callHash, digest, praetorDomain, OwnerActionKind } from '@praetor/protocol';
+import { encodeFunctionData, erc20Abi, keccak256, parseAbi } from 'viem';
+import { digest, praetorDomain, OwnerActionKind } from '@praetor/protocol';
+import { ACCOUNT, CAFE, CFG, HOOK, NOW, approvalView, linkView } from './fixtures.mjs';
 
 const require = createRequire(import.meta.url);
 const calls = require('../miniprogram/lib/calls.js');
@@ -11,25 +12,8 @@ const verify = require('../miniprogram/lib/verify.js');
 const soter = require('../miniprogram/lib/soter.js');
 const p = require('../miniprogram/lib/protocol.js');
 
-const ACCOUNT = '0x00000000000000000000000000000000000c0ffe';
-const HOOK = '0x00000000000000000000000000000000000000aa';
-const CFG = {
-  chainId: 84532, domainName: 'Praetor-local', mandateHook: HOOK,
-  usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', txau: '0x00000000000000000000000000000000000000a2', txag: '0x00000000000000000000000000000000000000a3',
-  treasuryDesk: '0x00000000000000000000000000000000000000d1', payoutRail: '0x00000000000000000000000000000000000000e1',
-};
-const CAFE = '0x1111111111111111111111111111111111111111';
-const NOW = 1_800_000_000;
 const DESK = parseAbi(['function swap(address tokenIn, address tokenOut, uint256 amountIn, uint256 minOut)']);
 const RAIL = parseAbi(['function pay(address partner, uint256 amount, uint8 rail, bytes32 merchantRef, bytes32 paymentRef)']);
-
-function approvalView(over = {}) {
-  const call = { to: CFG.usdc, value: '0', data: encodeFunctionData({ abi: erc20Abi, functionName: 'transfer', args: [CAFE, 300_000_000n] }) };
-  const ch = callHash({ account: ACCOUNT, target: call.to, value: 0n, data: call.data });
-  const tier2 = { account: ACCOUNT, callHash: ch, nonce: '1311768467463790320', expiresAt: String(NOW + 900) };
-  const d = digest(praetorDomain('Praetor-local', HOOK), 'Tier2Approval', { ...tier2, nonce: BigInt(tier2.nonce), expiresAt: BigInt(tier2.expiresAt) });
-  return { id: 'a1', state: 'pending', reason: 'UNKNOWN_PAYEE', summary: 'Pay 3 USDC to Landlord', digest: d, soterChallenge: d.slice(2), calls: [call], tier2, ...over };
-}
 
 describe('calls: decoding what an approval covers', () => {
   it('a USDC transfer: full payee address and exact amount', () => {
@@ -112,14 +96,6 @@ describe('checkApproval (F6 step 5a): the digest is recomputed from what is show
     expect(verify.checkApproval(approvalView(), { ...ctx, nowS: NOW + 900 })).toMatchObject({ ok: false, closed: 'expired', challenge: null });
   });
 });
-
-function linkView(over = {}) {
-  const linkNonce = keccak256('0x0bad');
-  const payloadHash = keccak256(encodeAbiParameters([{ type: 'bytes32' }], [linkNonce]));
-  const ownerAction = { account: ACCOUNT, action: OwnerActionKind.LINK_WECHAT, payloadHash, nonce: '42', expiresAt: String(NOW + 600), fiscoRef: `0x${'00'.repeat(32)}` };
-  const d = digest(praetorDomain('Praetor-local', HOOK), 'OwnerAction', { ...ownerAction, nonce: 42n, expiresAt: BigInt(ownerAction.expiresAt) });
-  return { account: ACCOUNT, ownerAction, linkNonce, digest: d, soterChallenge: d.slice(2), state: 'waiting', ...over };
-}
 
 describe('checkLink (F2 step 3)', () => {
   const ctx = { config: CFG, nowS: NOW, lang: 'en' };

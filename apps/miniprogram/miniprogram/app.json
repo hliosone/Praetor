@@ -2,7 +2,12 @@
   "pages": [
     "pages/home/home",
     "pages/approve/approve",
-    "pages/link/link"
+    "pages/link/link",
+    "pages/chat/chat",
+    "pages/activity/activity",
+    "pages/payments/payments",
+    "pages/settings/settings",
+    "pages/support/support"
   ],
   "window": {
     "navigationBarBackgroundColor": "#050506",
