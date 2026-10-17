@@ -84,8 +84,8 @@ describe('F7 standing orders and the payout rail', () => {
     expect(p).toMatchObject({ withdrawn: true, merchantRef: merchantRef('KOWLOON-LETTINGS'), amount: 1_200_000_000n });
     expect(await usdc(web.account!)).toBe(before.account - 1_200_000_000n);
     expect(await usdc(PARTNER(s))).toBe(before.partner + 1_200_000_000n);
-    const done = await fetch('http://10.88.0.43:3310/payouts').then((x) => x.json());
-    expect(done.processed).toEqual(expect.arrayContaining([{ id: p.id.toString(), result: 'SETTLED' }]));
+    // The partner records the payout right after its settle transaction lands.
+    await waitFor('partner record', async () => JSON.stringify((await fetch('http://10.88.0.43:3310/payouts').then((x) => x.json())).processed).includes(JSON.stringify({ id: p.id.toString(), result: 'SETTLED' })));
   }, 300_000);
 
   it('failure: triggered twice in a period, the executor refuses; nothing more is paid', async () => {
@@ -96,14 +96,14 @@ describe('F7 standing orders and the payout rail', () => {
   }, 120_000);
 
   it('a WeChat Pay merchant: settled through the WeChat Pay mock', async () => {
-    const id = await setOrder({ merchant: 'HK-ELECTRIC', amount: '80', period: 'weekly' });
+    const id = await setOrder({ merchant: 'HK-ELECTRIC', amount: '80000000', period: 'weekly' });
     const p = await payoutFor(paymentRef(id, 0n), STATE.SETTLED);
     expect(p).toMatchObject({ withdrawn: true, merchantRef: merchantRef('HK-ELECTRIC'), amount: 80_000_000n });
   }, 300_000);
 
   it('failure: the gateway declines the payment: the partner fails the payout and the account is refunded', async () => {
     const before = await usdc(web.account!);
-    const id = await setOrder({ merchant: 'DECLINE-TEST', amount: '50', period: 'weekly' });
+    const id = await setOrder({ merchant: 'DECLINE-TEST', amount: '50000000', period: 'weekly' });
     const p = await payoutFor(paymentRef(id, 0n), STATE.FAILED);
     expect(p.withdrawn).toBe(false);
     expect(await usdc(web.account!)).toBe(before);
