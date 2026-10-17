@@ -9,7 +9,16 @@ export function anchorDue(s: { auditSeq: number; anchoredSeq: number; lastAnchor
   return s.auditSeq - s.anchoredSeq >= s.every || s.now - s.lastAnchorAt >= s.intervalMs;
 }
 
-export async function anchorOnce(c: Pick<ConsortiumPort, 'deadline' | 'open' | 'sign'>, cosign: (proposalId: bigint) => Promise<{ ready: boolean }>) {
+/** An anchor still open on the board (the board refuses a second one until it closes or expires). */
+export type OpenAnchor = { id: bigint; signedByMe: boolean } | null;
+
+export async function anchorOnce(c: Pick<ConsortiumPort, 'deadline' | 'open' | 'sign'>, cosign: (proposalId: bigint) => Promise<{ ready: boolean }>, openNow: () => Promise<OpenAnchor> = async () => null) {
+  // A co-signature lost (the bank restarting, a timeout) must not block anchoring until the proposal expires: resume it.
+  const open = await openNow();
+  if (open) {
+    if (!open.signedByMe) await c.sign('audit', open.id);
+    return { proposalId: open.id, ready: (await cosign(open.id)).ready };
+  }
   const { proposalId } = await c.open('audit', 'openAnchor', [await c.deadline()]);
   await c.sign('audit', proposalId);
   const { ready } = await cosign(proposalId);

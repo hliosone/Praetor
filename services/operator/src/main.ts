@@ -1,14 +1,17 @@
 // operator-service (member: operator): heartbeat job, audit writer and anchor proposer, and the member API (spec 05).
 import { readFileSync } from 'node:fs';
 import { z } from 'zod';
-import type { Address, Hex, PublicClient } from 'viem';
+import { encodeAbiParameters, keccak256, type Address, type Hex, type PublicClient } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { resolveKey } from '@praetor/config';
+import { ZERO_HASH } from '@praetor/protocol';
 import { baseClients, baseNow } from '@praetor/chain';
 import { AuditLogAbi } from '@praetor/fisco-client';
 import { startMember, type MemberContext } from '@praetor/member-kit';
 import { heartbeatOnce, serialized } from './heartbeat.js';
 import { AuditWriter, type AuditChain } from './audit.js';
 import { MySqlAuditStore } from './audit-store.js';
-import { anchorDue, anchorOnce } from './anchor.js';
+import { anchorDue, anchorOnce, type OpenAnchor } from './anchor.js';
 import { baseEvents, fiscoEvents } from './watch.js';
 
 export function startOperator(env: Record<string, string | undefined> = process.env) {
@@ -84,8 +87,19 @@ export function startOperator(env: Record<string, string | undefined> = process.
     }
   }
 
+  // The anchor still open on the audit board, if any: the operator resumes it rather than having openAnchor refused.
+  const ANCHOR_KEY = keccak256(encodeAbiParameters([{ type: 'uint8' }, { type: 'bytes32' }], [8, ZERO_HASH]));
+  const me = privateKeyToAccount(resolveKey('OPERATOR_BASE_SIGNER_KEY', env)).address.toLowerCase();
+  const openAnchor = async (ctx: MemberContext): Promise<OpenAnchor> => {
+    const id = (await ctx.consortium.pub.readContract({ address: fisco.auditLog, abi: AuditLogAbi, functionName: 'openProposalOf', args: [ANCHOR_KEY] })) as bigint;
+    if (id === 0n) return null;
+    const p = (await ctx.consortium.read('audit', id)) as { status: number; deadline: bigint; signers: Address[] };
+    if (p.status !== 1 || p.deadline <= BigInt(Math.floor(Date.now() / 1000))) return null;
+    return { id, signedByMe: p.signers.some((x) => x.toLowerCase() === me) };
+  };
+
   async function anchorNow(ctx: MemberContext, seq: number) {
-    const r = await anchorOnce(ctx.consortium, cosign);
+    const r = await anchorOnce(ctx.consortium, cosign, () => openAnchor(ctx));
     Object.assign(anchorState, { anchoredSeq: seq, lastAnchorAt: Date.now() });
     ctx.log.info({ proposalId: r.proposalId.toString(), auditSeq: seq, ready: r.ready }, 'anchor proposed');
     return r;

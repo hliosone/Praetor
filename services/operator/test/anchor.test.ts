@@ -23,4 +23,19 @@ describe('anchor proposer (spec 06 F8 step 2)', () => {
     expect(r).toEqual({ proposalId: 7n, ready: true });
     expect(calls).toEqual([['open', 'audit', 'openAnchor', [99n]], ['sign', 'audit', 7n], ['cosign', 7n]]);
   });
+
+  it('resumes an anchor already open (its co-signature was lost) instead of opening another the board would refuse', async () => {
+    const calls: unknown[] = [];
+    const consortium = {
+      deadline: async () => 99n,
+      open: async () => { calls.push('open'); return { proposalId: 8n }; },
+      sign: async (board: string, id: bigint) => { calls.push(['sign', board, id]); return { txHash: keccak256(toHex('s')) as Hex, ready: false }; },
+    };
+    const cosign = async (id: bigint) => { calls.push(['cosign', id]); return { ready: true }; };
+    expect(await anchorOnce(consortium as never, cosign, async () => ({ id: 7n, signedByMe: true }))).toEqual({ proposalId: 7n, ready: true });
+    expect(calls).toEqual([['cosign', 7n]]);
+    calls.length = 0;
+    expect(await anchorOnce(consortium as never, cosign, async () => ({ id: 7n, signedByMe: false }))).toEqual({ proposalId: 7n, ready: true });
+    expect(calls).toEqual([['sign', 'audit', 7n], ['cosign', 7n]]);
+  });
 });
