@@ -188,12 +188,21 @@ importers:
 
   test:
     devDependencies:
+      '@praetor/bundler':
+        specifier: workspace:*
+        version: link:../services/bundler
+      '@praetor/chain':
+        specifier: workspace:*
+        version: link:../packages/chain
       '@praetor/db':
         specifier: workspace:*
         version: link:../packages/db
       '@praetor/protocol':
         specifier: workspace:*
         version: link:../packages/protocol
+      '@praetor/userop':
+        specifier: workspace:*
+        version: link:../packages/userop
       '@types/node':
         specifier: 22.20.5
         version: 22.20.5

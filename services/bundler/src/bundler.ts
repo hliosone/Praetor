@@ -15,7 +15,8 @@ export type SubmitResult = { txHash: Hex; success: boolean; userOpHash: Hex; gas
 export interface Chain {
   getNonce(sender: Address, key: bigint): Promise<bigint>;
   isInitialized(account: Address): Promise<boolean>;
-  isOwnLaunchpadInit(sender: Address, factory: Address, factoryData: Hex): Promise<boolean>;
+  /** The first op deploys our account: our factory and launchpad, NoOwner, our validators, our hook and executor. */
+  isOwnLaunchpadInit(sender: Address, factory: Address, factoryData: Hex, callData: Hex): Promise<boolean>;
   estimateExecute(sender: Address, callData: Hex): Promise<bigint>;
   fees(): Promise<{ maxFeePerGas: bigint; maxPriorityFeePerGas: bigint }>;
   now(): Promise<bigint>;
@@ -53,7 +54,7 @@ export class Bundler {
   }
 
   async prepare(r: PrepareRequest): Promise<{ userOp: UserOp; userOpHash: Hex }> {
-    await this.assertSponsorable(r.sender, r.factory, r.factoryData);
+    await this.assertSponsorable(r.sender, r.callData, r.factory, r.factoryData);
     const first = r.factory !== undefined;
     const validator = this.cfg.validators[r.validator];
     const fees = await this.chain.fees();
@@ -74,7 +75,7 @@ export class Bundler {
   }
 
   async send(op: UserOp): Promise<SendResult> {
-    await this.assertSponsorable(op.sender, op.factory, op.factoryData);
+    await this.assertSponsorable(op.sender, op.callData, op.factory, op.factoryData);
     if (op.paymaster?.toLowerCase() !== this.cfg.paymaster.toLowerCase()) throw new NotSponsorable('not sponsored by our paymaster');
     const hash = userOpHash(op, this.cfg.chainId);
     const calls = op.factory ? [] : this.calls(op.callData);
@@ -112,10 +113,10 @@ export class Bundler {
   }
 
   /** isInitialized alone is not enough (anyone can install the hook on their own contract): also registered. */
-  private async assertSponsorable(sender: Address, factory?: Address, factoryData?: Hex): Promise<void> {
+  private async assertSponsorable(sender: Address, callData: Hex, factory?: Address, factoryData?: Hex): Promise<void> {
     if (!(await this.store.isRegistered(sender))) throw new NotSponsorable('account not registered');
     if (factory && factoryData) {
-      if (!(await this.chain.isOwnLaunchpadInit(sender, factory, factoryData))) throw new NotSponsorable('not our launchpad init');
+      if (!(await this.chain.isOwnLaunchpadInit(sender, factory, factoryData, callData))) throw new NotSponsorable('not our launchpad init');
       return;
     }
     if (!(await this.chain.isInitialized(sender))) throw new NotSponsorable('account not initialized');

@@ -76,8 +76,10 @@ describe('prepare', () => {
     await expect(b.prepare({ sender: A(0xdead), callData: pay, validator: 'agent' })).rejects.toThrow(NotSponsorable);
     await b.register(A(0xbeef));
     await expect(b.prepare({ sender: A(0xbeef), callData: pay, validator: 'agent' })).rejects.toThrow(NotSponsorable);
-    chain.isOwnLaunchpadInit = async () => true;
+    const seen: unknown[] = [];
+    chain.isOwnLaunchpadInit = async (...args: unknown[]) => { seen.push(args); return true; };
     const r = await b.prepare({ sender: A(0xbeef), callData: '0xd9ed0e8f', validator: 'passkey', factory: A(1), factoryData: '0x01' });
+    expect(seen[0]).toEqual([A(0xbeef), A(1), '0x01', '0xd9ed0e8f']);
     expect(r.userOp.factory).toBe(A(1));
     expect(r.userOp.verificationGasLimit).toBe(3_000_000n);
   });
