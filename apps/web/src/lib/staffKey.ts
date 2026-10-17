@@ -26,9 +26,15 @@ export function derToRs(der: Uint8Array): { r: Hex; s: Hex } {
 
 export type StaffAssertion = { credentialId: Hex; authenticatorData: Hex; clientDataJSON: string; r: Hex; s: Hex };
 
-/** The staff passkey over a 32-byte value (a login challenge or a proposal digest). */
-export async function staffAssert(challenge: Hex): Promise<StaffAssertion> {
-  const a = await startAuthentication({ optionsJSON: { challenge: b64url(Uint8Array.from(challenge.slice(2).match(/../g)!.map((h) => parseInt(h, 16)))), rpId: location.hostname, userVerification: 'required', allowCredentials: [] } });
+// The credential this device enrolled for a role: one laptop can hold the bank's, the regulator's and the operator's
+// staff passkeys (the demo console shows the three side by side), so each panel asks for its own.
+const credKey = (role: string) => `praetor.staff.${role}.credential`;
+const enrolledCredential = (role: string) => { try { return localStorage.getItem(credKey(role)); } catch { return null; } };
+
+/** The staff passkey of `role` over a 32-byte value (a login challenge or a proposal digest). */
+export async function staffAssert(challenge: Hex, role: string): Promise<StaffAssertion> {
+  const own = enrolledCredential(role);
+  const a = await startAuthentication({ optionsJSON: { challenge: b64url(Uint8Array.from(challenge.slice(2).match(/../g)!.map((h) => parseInt(h, 16)))), rpId: location.hostname, userVerification: 'required', allowCredentials: own ? [{ id: own, type: 'public-key' }] : [] } });
   const { r, s } = derToRs(fromB64url(a.response.signature));
   return {
     credentialId: keccak256(fromB64url(a.rawId)),
@@ -49,6 +55,7 @@ export async function staffEnrol(role: string): Promise<{ credentialId: Hex; x: 
     },
   });
   if (!reg.response.publicKey) throw new Error('this browser does not expose the public key');
+  try { localStorage.setItem(credKey(role), reg.rawId); } catch { /* private mode: the browser will ask which passkey */ }
   const key = await crypto.subtle.importKey('spki', fromB64url(reg.response.publicKey), { name: 'ECDSA', namedCurve: 'P-256' }, true, ['verify']);
   const jwk = await crypto.subtle.exportKey('jwk', key);
   return { credentialId: keccak256(fromB64url(reg.rawId)), x: toHex(fromB64url(jwk.x!)), y: toHex(fromB64url(jwk.y!)) };

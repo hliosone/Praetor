@@ -2,7 +2,7 @@
 // operator) side by side. Staff sign in with their member service's passkey; every consortium signature is that
 // passkey over the attestation digest, checked by the member service (the api only relays). The tracker shows who
 // signed and how many signatures the action needs.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Topbar } from '../components/Layout.js';
 import { useI18n } from '../i18n/index.js';
 import { useLoad } from '../lib/useLoad.js';
@@ -23,21 +23,49 @@ async function call<T>(method: 'GET' | 'POST', path: string, body?: unknown, ses
   return data as T;
 }
 
-function RolePanel({ role, selected, onDone }: { role: Role; selected?: string; onDone(): void }) {
+type Opened = { board: string; proposalId: string; opener: Role };
+
+/** One open proposal as a member sees it: who signed, how many it needs, and this member's passkey to sign it. */
+function ProposalCard({ role, session, o, onSigned }: { role: Role; session: string; o: Opened; onSigned(): void }) {
+  const [p, setP] = useState<Proposal>();
+  const [msg, setMsg] = useState<string>();
+  const refresh = () => call<Proposal>('GET', `/${role}/proposals/${o.board}/${o.proposalId}`, undefined, session).then(setP, (e: Error) => setMsg(e.message));
+  useEffect(() => { void refresh(); const i = setInterval(() => void refresh(), 5000); return () => clearInterval(i); }, [o.board, o.proposalId, session]);
+  if (!p) return msg ? <p className="small error">{msg}</p> : null;
+  return (
+    <div className="card stack" data-testid={`proposal-${role}-${o.board}-${o.proposalId}`}>
+      <div className="row between">
+        <span>{p.primaryType ?? o.board} #{o.proposalId} <span className="muted small">({o.opener})</span></span>
+        <span className={`pill ${p.status === 2 ? 'ok' : 'wait'}`}>{p.signers.length} of 3 signed · needs {p.required} · {PROPOSAL_STATUS[p.status] ?? p.status}</span>
+      </div>
+      {p.status === 1 && (
+        <button className="primary" onClick={async () => {
+          setMsg(undefined);
+          try {
+            const r = await call<{ ready: boolean }>('POST', `/${role}/proposals/${o.board}/${o.proposalId}/sign`, { assertion: await staffAssert(p.digest, role) }, session);
+            setMsg(r.ready ? 'Ready: the bridge delivers it to Base.' : 'Signed: waiting for another member.');
+            await refresh();
+            onSigned();
+          } catch (e) { setMsg((e as Error).message); }
+        }}>Sign with my passkey</button>
+      )}
+      <p className="small muted mono">digest {p.digest}</p>
+      {msg && <p role="status" className="small">{msg}</p>}
+    </div>
+  );
+}
+
+function RolePanel({ role, selected, proposals, onOpened, onDone }: { role: Role; selected?: string; proposals: Opened[]; onOpened(o: Opened): void; onDone(): void }) {
   const [session, setSession] = useState<string | null>(() => sessionStorage.getItem(`praetor.staff.${role}`));
   const [label, setLabel] = useState<string>();
-  const [open, setOpen] = useState<{ board: string; proposalId: string }>();
-  const [proposal, setProposal] = useState<Proposal>();
   const [msg, setMsg] = useState<string>();
   const [enrol, setEnrol] = useState<string>();
   const [target, setTarget] = useState('');
   const [code, setCode] = useState('US');
   const run = (fn: () => Promise<void>) => async () => { setMsg(undefined); try { await fn(); } catch (e) { setMsg((e as Error).message); } };
-  const refresh = async (o = open) => { if (o && session) setProposal(await call<Proposal>('GET', `/${role}/proposals/${o.board}/${o.proposalId}`, undefined, session)); };
   const openAction = (action: string, params: Record<string, unknown>) => run(async () => {
     const o = await call<{ board: string; proposalId: string }>('POST', `/${role}/open`, { action, params }, session!);
-    setOpen(o);
-    await refresh(o);
+    onOpened({ ...o, opener: role });
   });
 
   return (
@@ -47,7 +75,7 @@ function RolePanel({ role, selected, onDone }: { role: Role; selected?: string; 
         <div className="stack">
           <button className="primary" onClick={run(async () => {
             const { challenge } = await call<{ challenge: `0x${string}` }>('POST', `/${role}/challenge`);
-            const r = await call<{ session: string; label: string }>('POST', `/${role}/login`, { assertion: await staffAssert(challenge) });
+            const r = await call<{ session: string; label: string }>('POST', `/${role}/login`, { assertion: await staffAssert(challenge, role) });
             sessionStorage.setItem(`praetor.staff.${role}`, r.session);
             setSession(r.session);
             setLabel(r.label);
@@ -73,24 +101,7 @@ function RolePanel({ role, selected, onDone }: { role: Role; selected?: string; 
             <button onClick={openAction('jurisdictions', { jurisdiction: code, blocked: true })}>Block payouts</button>
             <button onClick={openAction('jurisdictions', { jurisdiction: code, blocked: false })}>Unblock</button>
           </div>
-          {open && proposal && (
-            <div className="card stack" data-testid={`proposal-${role}`}>
-              <div className="row between">
-                <span>{proposal.primaryType ?? open.board} #{open.proposalId}</span>
-                <span className={`pill ${proposal.status === 2 ? 'ok' : 'wait'}`}>{proposal.signers.length} of 3 signed · needs {proposal.required} · {PROPOSAL_STATUS[proposal.status] ?? proposal.status}</span>
-              </div>
-              <div className="row">
-                <button className="primary" onClick={run(async () => {
-                  const r = await call<{ ready: boolean }>('POST', `/${role}/proposals/${open.board}/${open.proposalId}/sign`, { assertion: await staffAssert(proposal.digest) }, session);
-                  setMsg(r.ready ? 'Ready: the bridge delivers it to Base.' : 'Signed: waiting for another member.');
-                  await refresh();
-                  onDone();
-                })}>Sign with my passkey</button>
-                <button onClick={run(() => refresh())}>Refresh</button>
-              </div>
-              <p className="small muted mono">digest {proposal.digest}</p>
-            </div>
-          )}
+          {proposals.map((o) => <ProposalCard key={`${o.board}-${o.proposalId}`} role={role} session={session} o={o} onSigned={onDone} />)}
           <button onClick={() => { sessionStorage.removeItem(`praetor.staff.${role}`); setSession(null); }}>Sign out</button>
         </div>
       )}
@@ -103,13 +114,15 @@ export function Console() {
   const { t } = useI18n();
   const agents = useLoad(() => call<{ agents: Agent[] }>('GET', '/agents'), [], 6000);
   const [selected, setSelected] = useState<string>();
+  // Proposals opened from this console, shown in every member's panel: freeze needs one signature, loosen two.
+  const [proposals, setProposals] = useState<Opened[]>([]);
   return (
     <>
       <Topbar app={false} />
       <main className="stack" style={{ maxWidth: 1400 }}>
         <h1 style={{ fontSize: 'var(--s-30)' }}>{t('nav.console')}</h1>
         <section className="grid three">
-          {(['bank', 'regulator', 'operator'] as const).map((r) => <RolePanel key={r} role={r} selected={selected} onDone={() => void agents.reload()} />)}
+          {(['bank', 'regulator', 'operator'] as const).map((r) => <RolePanel key={r} role={r} selected={selected} proposals={proposals} onOpened={(o) => setProposals((l) => [o, ...l.filter((x) => x.board !== o.board || x.proposalId !== o.proposalId)])} onDone={() => void agents.reload()} />)}
         </section>
         <section className="panel" style={{ maxHeight: 520, overflow: 'auto' }} aria-label="Agents">
           <table>
