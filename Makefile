@@ -77,6 +77,8 @@ test-wecross: ## The WeCross EVM stub's JUnit tests, in the pinned Gradle / JDK 
 test-contracts:
 	cd contracts/base && FOUNDRY_PROFILE=quick forge test --no-match-path 'test/fork/*' -q
 	cd contracts/fisco && FOUNDRY_PROFILE=quick forge test -q
+	bash contracts/fisco/sm/assemble.sh
+	cd contracts/fisco && FOUNDRY_PROFILE=sm forge test -q
 
 test-contracts-full: ## Base and FISCO contracts with 10k fuzz runs and full invariants
 	cd contracts/base && forge test --no-match-path 'test/fork/*'

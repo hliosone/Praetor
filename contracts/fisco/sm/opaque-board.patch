@@ -1,0 +1,92 @@
+Guomi profile build of the FISCO contracts (spec 04, M15). assemble.sh applies this to a copy of src/ with
+patch --fuzz=0, so a change to these lines in the main sources makes the SM build fail loudly instead of drifting.
+Board.sign stores member signatures as opaque bytes, attributed to the submitting member's FISCO account (an SM
+chain hashes with SM3 and cannot compute the Base EIP-712 digest); digestOf and domainSeparator revert instead of
+returning SM3 values. Base verifies every signature in both profiles.
+
+--- a/Board.sol
++++ b/Board.sol
+@@ -1,7 +1,6 @@
+ // SPDX-License-Identifier: UNLICENSED
+ pragma solidity 0.8.28;
+ 
+-import {ECDSA} from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
+ import {PraetorTypes as P} from "@praetor/protocol/PraetorTypes.sol";
+ import {MemberRegistry} from "./MemberRegistry.sol";
+ import {BaseOutbox} from "./BaseOutbox.sol";
+@@ -11,6 +10,9 @@
+ /// Members sign the EIP-712 digest under the Base domain with their Base signer keys; at threshold (tighten 1,
+ /// loosen 2, bank-only types need the bank) the board emits Ready and enqueues the attestation for Base. An expired
+ /// proposal is closed and its nonce released. FISCO's block.timestamp is in milliseconds; attestations carry seconds.
++/// Guomi profile build (contracts/fisco/sm, spec 04): SHA3 runs as SM3 on an SM chain, so the Base digest cannot be
++/// computed here. Signatures are stored as opaque bytes, attributed to the member whose SM2-signed FISCO transaction
++/// submits them; Base verifies every signature itself.
+ abstract contract Board {
+     enum Status { NONE, OPEN, READY, CLOSED }
+ 
+@@ -59,6 +61,7 @@
+     error NotReady();
+     error AlreadyDelivered();
+     error Superseded();
++    error DigestOffChain();
+ 
+     event ProposalOpened(uint8 indexed kind, uint256 indexed id, bytes32 indexed key, uint64 nonce, uint64 deadline, address opener);
+     event Signed(uint8 indexed kind, uint256 indexed id, address signer, uint8 count);
+@@ -82,14 +85,16 @@
+         _;
+     }
+ 
++    /// The submitting member's own signature, unverified here: its member service checks it against the off-chain
++    /// Base digest before submitting, and Base checks it again. A bad one only makes Base refuse the message.
+     function sign(uint256 id, bytes calldata sig) external {
+         Proposal storage p = proposals[id];
+         if (p.status != Status.OPEN) revert NotOpen();
+         if (_nowSeconds() > p.deadline) revert Expired();
+-        (address signer, ECDSA.RecoverError err,) = ECDSA.tryRecover(digestOf(p.fields, p.kind), sig);
+-        if (err != ECDSA.RecoverError.NoError) revert BadSignature();
+-        (bool member, uint8 role) = registry.signerRole(signer);
++        (bool member, uint8 role) = registry.roleOf(msg.sender);
+         if (!member) revert NotMember();
++        if (sig.length != 65) revert BadSignature();
++        address signer = registry.baseSignerOf(role);
+         uint256 n = p.signers.length;
+         for (uint256 i; i < n; ++i) if (p.signers[i] == signer) revert AlreadySigned();
+         // Insert keeping signers ascending: Base requires sorted, distinct signers.
+@@ -144,9 +149,10 @@
+         return proposals[id];
+     }
+ 
+-    /// The digest members sign: byte-identical to Base's for the same attestation (non-SM profile).
+-    function digestOf(bytes memory fields, uint8 kind) public view returns (bytes32) {
+-        return P.digest(registry.domainSeparator(), _structHash(kind, fields));
++    /// Not computable on an SM chain (it would be an SM3 value Base never accepts): members compute the Base digest
++    /// off-chain from the proposal's fields and the registry's baseHook and domainName.
++    function digestOf(bytes memory, uint8) public pure returns (bytes32) {
++        revert DigestOffChain();
+     }
+ 
+     /// Allocates the proposal id and the nonce stored + 1 for (kind, subkey); one open proposal per key.
+--- a/MemberRegistry.sol
++++ b/MemberRegistry.sol
+@@ -43,6 +43,7 @@
+     error NotMember();
+     error AlreadyApproved();
+     error InvalidChange();
++    error DomainOffChain();
+ 
+     event MemberSet(uint8 indexed role, address fiscoAccount, address baseSigner);
+     event DomainSet(address baseHook, string domainName);
+@@ -107,9 +108,10 @@
+         return members[role].baseSigner;
+     }
+ 
+-    /// The Base EIP-712 domain: constant chain id 84532 (never FISCO's 20200), name and hook from this registry.
+-    function domainSeparator() external view returns (bytes32) {
+-        return P.domainSeparator(domainName, baseHook);
++    /// Guomi profile build: an SM chain would hash the domain with SM3, a value Base never accepts. Members build the
++    /// Base domain off-chain from baseHook and domainName.
++    function domainSeparator() external pure returns (bytes32) {
++        revert DomainOffChain();
+     }
+ 
+     function _apply(uint8 kind, bytes memory data) internal {

@@ -18,6 +18,7 @@ coverage/
 contracts/*/out/
 contracts/*/cache/
 contracts/*/broadcast/
+contracts/fisco/sm/build/
 packages/protocol/out/
 packages/protocol/cache/
 spikes/**/out/
