@@ -1,0 +1,24 @@
+# V4 spike: WeCross router v1.4.0 (zone payment, BCOS3 stub) and its account manager, JDK 8,
+# on the V2 chain network. start.sh daemonises java, so the container then follows its log.
+name: p0v4
+x-jdk8: &jdk8
+  image: eclipse-temurin:8-jdk@sha256:c4c47c71319207b45be56e96988351a34633a93033c298262d6b575de54f7cc8
+  user: "${UID_GID:-1000:1000}"
+services:
+  account-manager:
+    <<: *jdk8
+    working_dir: /am
+    volumes: ["./downloads/WeCross-Account-Manager:/am"]
+    command: ["bash", "-c", "bash start.sh && exec tail -F start.out"]
+    networks: { p0v2_fisco: { ipv4_address: 10.88.20.41 } }
+  router:
+    <<: *jdk8
+    working_dir: /r
+    volumes: ["./downloads/routers-payment/10.88.20.40-8250-25500:/r"]
+    command: ["bash", "-c", "bash start.sh && exec tail -F start.out"]
+    networks: { p0v2_fisco: { ipv4_address: 10.88.20.40 } }
+    ports: ["127.0.0.1:19150:8250"]
+    depends_on: [account-manager]
+networks:
+  p0v2_fisco:
+    external: true
