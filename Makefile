@@ -6,7 +6,7 @@ ENV_FILES = --env-file infra/.env.example $(if $(wildcard .env),--env-file .env)
 GRADLE_IMAGE = gradle@sha256:213476fe3598a433b19077b5b85ae95656cc0cba6fbc707d598c5a7ee865c52f
 COMPOSE = docker compose -f infra/compose.yml $(ENV_FILES)
 # Profiles that exist so far; later milestones add chain, wecross, agent, tee-sim, mocks.
-PROFILES ?= core chain mocks tee-sim agent dev
+PROFILES ?= core chain mocks tee-sim agent dev wecross
 PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 
 .PHONY: help setup install up down ps logs test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-live redteam slither deploy-contracts deploy-fisco tunnel reset-fork up-base
@@ -28,6 +28,7 @@ up: ## Start the local stack (waits for healthchecks; deploys the contracts on a
 	bash scripts/dev/ensure-fork-deploy.sh
 	$(COMPOSE) $(PROFILE_FLAGS) up -d --wait --build
 	@if [ -f .run/deployments-changed ]; then $(COMPOSE) $(PROFILE_FLAGS) restart bundler bank regulator operator bridge-relayer && rm .run/deployments-changed; fi
+	@case " $(PROFILES) " in *" wecross "*) bash scripts/wecross/up.sh ;; esac
 
 reset-fork: ## Fresh anvil fork, contracts and consortium redeployed, services restarted
 	$(COMPOSE) --profile dev restart anvil
