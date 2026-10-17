@@ -6,7 +6,8 @@
     "test": "vitest run --config vitest.unit.config.ts",
     "test:int": "vitest run --config vitest.int.config.ts",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "test:warp": "vitest run --config vitest.warp.config.ts"
   },
   "devDependencies": {
     "@praetor/bundler": "workspace:*",

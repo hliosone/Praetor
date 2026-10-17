@@ -322,10 +322,10 @@ export async function fund(s: Stack, acc: Account, usdc = 5_300_000_000n, xauUsd
   }
 }
 
-/** An agent userOp signed by agent-signer (the seed acts as mcp, its only allowed caller). */
+/** An agent userOp signed by agent-signer with the key acc.agent (the seed acts as mcp, its only allowed caller). */
 export async function agentOp(s: Stack, acc: Account, calls: Call[]) {
   const p = await ok(bundler(s, '/userop/prepare', { sender: acc.address, callData: encodeExecute(calls), validator: 'agent' }), 'prepare agent op');
-  const { signature } = await ok(signer(s, 'mcp', `/v1/agents/${acc.address}/sign-userop`, { userOp: p.userOp, chainId: 84532, entryPoint: ENTRY_POINT, keyVersion: 1 }), 'agent signature');
+  const { signature } = await ok(signer(s, 'mcp', `/v1/agents/${acc.address}/sign-userop`, { userOp: p.userOp, chainId: 84532, entryPoint: ENTRY_POINT, agentKey: acc.agent }), 'agent signature');
   return bundler(s, '/userop/send', { userOp: { ...p.userOp, signature } });
 }
 
