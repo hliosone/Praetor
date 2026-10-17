@@ -1,0 +1,36 @@
+// Praetor's WeCross EVM stub (spec 00, V4): a router plugin for Base. It compiles against the libraries the WeCross
+// 1.4.0 router already ships (same classloader), so the jar holds only our classes.
+plugins {
+    id 'java'
+}
+
+group = 'io.praetor'
+version = '1.0.0'
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+def routerLibs = [
+    'com.webank:wecross-java-stub:1.4.0',
+    'com.fasterxml.jackson.core:jackson-databind:2.14.2',
+    'org.bouncycastle:bcprov-jdk18on:1.77',
+    'com.moandjiezana.toml:toml4j:0.7.2',
+    'org.apache.commons:commons-lang3:3.11',
+    'org.slf4j:slf4j-api:1.7.36',
+]
+
+dependencies {
+    routerLibs.each { compileOnly it; testImplementation it }
+    testImplementation 'junit:junit:4.13.2'
+}
+
+jar {
+    archiveFileName = "praetor-evm-stub-${project.version}.jar"
+}
+
+test {
+    testLogging { events 'passed', 'failed'; exceptionFormat 'full' }
+}

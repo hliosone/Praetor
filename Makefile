@@ -3,12 +3,13 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 ENV_FILES = --env-file infra/.env.example $(if $(wildcard .env),--env-file .env) $(if $(wildcard .run/compose.env),--env-file .run/compose.env)
+GRADLE_IMAGE = gradle@sha256:213476fe3598a433b19077b5b85ae95656cc0cba6fbc707d598c5a7ee865c52f
 COMPOSE = docker compose -f infra/compose.yml $(ENV_FILES)
 # Profiles that exist so far; later milestones add chain, wecross, agent, tee-sim, mocks.
 PROFILES ?= core chain mocks tee-sim agent dev
 PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 
-.PHONY: help setup install up down ps logs test test-guards test-unit test-scripts test-contracts test-contracts-full test-fork lint gitleaks test-int e2e e2e-live redteam slither deploy-contracts deploy-fisco tunnel reset-fork up-base
+.PHONY: help setup install up down ps logs test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-live redteam slither deploy-contracts deploy-fisco tunnel reset-fork up-base
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -62,8 +63,13 @@ lint: ## Type-check every TypeScript package
 	pnpm -s exec tsc -p tsconfig.json
 	pnpm -s -r --if-present typecheck
 
-test-unit: test-scripts test-contracts
+test-unit: test-scripts test-contracts test-wecross
 	pnpm -r --if-present --reporter-hide-prefix test
+
+test-wecross: ## The WeCross EVM stub's JUnit tests, in the pinned Gradle / JDK 8 image (no host JDK)
+	docker volume create praetor-gradle >/dev/null
+	docker run --rm -v praetor-gradle:/gradle $(GRADLE_IMAGE) chown $$(id -u):$$(id -g) /gradle
+	docker run --rm -u $$(id -u):$$(id -g) -e GRADLE_USER_HOME=/gradle -v praetor-gradle:/gradle -v "$$PWD/wecross/evm-stub":/work -w /work $(GRADLE_IMAGE) gradle test --no-daemon -q
 
 # Every commit: the quick fuzz profile. Milestone gate: `make test-contracts-full` (10k fuzz runs, spec 10).
 test-contracts:
