@@ -23,7 +23,7 @@ Single source of truth for where the build stands. After a context reset: read `
 - [x] M0 Monorepo scaffold, Makefile, compose skeleton (anvil fork with `--network optimism`, MySQL, Caddy), CI scripts, lint, gitleaks, docs skeleton check, attribution check (gate: `make up`, `make test` green; a test commit with a co-author trailer is rejected)
 - [x] M1 `packages/protocol` (gate: vectors green on TS and Solidity; interface frozen)
 - [x] M2 Base contracts (gate: forge unit/fuzz >= 10k/invariants, hook coverage >= 90%, Slither explained)
-- [ ] M3 userop, chain, bundler (gate: fork integration I1, I7, I11, gas snapshot)
+- [x] M3 userop, chain, bundler (gate: fork integration I1, I7, I11, gas snapshot)
 - [ ] M4 FISCO chain + contracts + fisco-client (gate: 4-node integration)
 - [ ] M5 member services governance, bridge-relayer, seed script (gate: F9 steps 1, 2, 5, 6, 7 + FROZEN refusal)
 - [ ] M6 identity (gate: 43-step scenario, PersonKYC, AgentMandate 2 sigs, revocation)
@@ -49,3 +49,4 @@ Single source of truth for where the build stands. After a context reset: read `
 | M0 | 2026-10-17 07:04 | 2026-10-17 07:12 | 8 min |
 | M1 | 2026-10-17 07:12 | 2026-10-17 07:24 | 12 min |
 | M2 | 2026-10-17 07:24 | 2026-10-17 08:18 | 54 min |
+| M3 | 2026-10-17 08:18 | 2026-10-17 08:57 | 39 min |
