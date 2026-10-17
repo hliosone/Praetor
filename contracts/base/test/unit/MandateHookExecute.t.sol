@@ -116,6 +116,39 @@ contract MandateHookExecuteTest is LinScenario {
         hook.preCheck(ENTRYPOINT, 0, abi.encodePacked(Calls.single(address(usdc), 0, ""), ENTRYPOINT));
     }
 
+    function test_malformedExecuteEncodingsAreHidden() public {
+        bytes4 sel = IERC7579Account.execute.selector;
+        bytes[4] memory bad = [
+            abi.encodePacked(sel, bytes32(0)),
+            abi.encodePacked(sel, bytes32(0), uint256(96), uint256(0)),
+            abi.encodePacked(sel, bytes32(0), uint256(64)),
+            abi.encodePacked(sel, bytes32(0), uint256(64), uint256(1000), bytes32(0))
+        ];
+        for (uint256 i; i < bad.length; ++i) {
+            _expectRefused(P.Reason.HIDDEN_CALL, bytes32(0));
+            _pre(ENTRYPOINT, bad[i]);
+        }
+        _expectRefused(P.Reason.HIDDEN_CALL, bytes32(0));
+        _pre(ENTRYPOINT, Calls.withMode(MODE_SINGLE, abi.encodePacked(address(usdc))));
+    }
+
+    function test_noncesViewCoversEveryType() public {
+        _sanction(partner, true, _pks(regPk));
+        _jurisdiction("CN", true, _pks(regPk));
+        _attester(attester, true, _pks(bankPk));
+        assertEq(hook.nonces(0, bytes32(0)), 0);
+        assertEq(hook.nonces(1, bytes32(uint256(2))), 1);
+        assertEq(hook.nonces(2, bytes32(uint256(uint160(account)))), 1);
+        assertEq(hook.nonces(3, bytes32(uint256(uint160(address(xau))))), 1);
+        assertEq(hook.nonces(4, bytes32(uint256(uint160(partner)))), 1);
+        assertEq(hook.nonces(5, bytes32(bytes2("CN"))), 1);
+        assertEq(hook.nonces(6, bytes32(uint256(uint160(attester)))), 1);
+        assertEq(hook.nonces(7, bytes32(0)), 1);
+        assertEq(hook.modules().usdc, address(usdc));
+        assertTrue(hook.isModuleType(4));
+        assertFalse(hook.isModuleType(2));
+    }
+
     // ---------------------------------------------------------------- standing-order path (S)
 
     function test_executorPathOnlyFromStandingOrders() public {
