@@ -13,6 +13,7 @@ import type { StandingOrders } from './standing-orders.js';
 import type { Audit } from './audit.js';
 import type { Views } from './views.js';
 import type { Clients } from './clients.js';
+import { requireMp, type MpSessions } from './mp-session.js';
 import { HttpError, type handler } from './app.js';
 
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/).transform((s) => s as Address);
@@ -50,6 +51,10 @@ export type RouteModules = {
   bank: Pick<Clients['bank'], 'policyCheck'>;
   runner: Pick<Clients['runner'], 'chat'>;
   agentKeyOf(account: Address): Promise<Address>;
+  /** The account's WeChat binding on Base (bytes32(0) when none). */
+  bindingOf(account: Address): Promise<Hex>;
+  /** UNLINK_WECHAT succeeded on Base: the mini program loses its access. */
+  onWechatUnlinked(account: Address): Promise<void>;
 };
 
 export function apiRoutes(r: Router, h: typeof handler, session: express.RequestHandler, m: RouteModules) {
@@ -76,12 +81,20 @@ export function apiRoutes(r: Router, h: typeof handler, session: express.Request
       z.object({ kind: z.literal(K.RESUME_AGENT) }),
       z.object({ kind: z.literal(K.REMOVE_PAYEE), payee: address }),
       z.object({ kind: z.literal(K.CANCEL_STANDING_ORDER), id: z.number().int().min(1) }),
+      z.object({ kind: z.literal(K.UNLINK_WECHAT) }),
     ]).parse(req.body);
     const account = acct(res);
+    let bindingHash: Hex | undefined;
+    if (b.kind === K.UNLINK_WECHAT) {
+      // The payload names the binding Base holds now, so the hook clears exactly that one.
+      bindingHash = await m.bindingOf(account);
+      if (/^0x0{64}$/.test(bindingHash)) throw new HttpError(409, 'WeChat is not linked');
+    }
     const args = b.kind === K.SET_AGENT_KEY ? { kind: b.kind, account, agentKey: await m.agentKeyOf(account), validUntil: b.validUntil }
       : b.kind === K.REVOKE_AGENT_KEY ? { kind: b.kind, account, agentKey: await m.agentKeyOf(account) }
       : b.kind === K.REMOVE_PAYEE ? { kind: b.kind, account, payee: b.payee }
       : b.kind === K.CANCEL_STANDING_ORDER ? { kind: b.kind, account, id: b.id }
+      : b.kind === K.UNLINK_WECHAT ? { kind: b.kind, account, bindingHash }
       : { kind: b.kind, account };
     send(res, await m.ownerActions.prepare(account, args as never));
   }));
@@ -95,7 +108,9 @@ export function apiRoutes(r: Router, h: typeof handler, session: express.Request
 
   r.post('/owner-actions/submit', session, h(async (req, res) => {
     const b = z.object({ ownerAction, payload: hex, assertion }).parse(req.body);
-    send(res, await m.ownerActions.submit(acct(res), { ownerAction: b.ownerAction as OwnerAction, payload: b.payload, assertion: b.assertion as never }));
+    const r = await m.ownerActions.submit(acct(res), { ownerAction: b.ownerAction as OwnerAction, payload: b.payload, assertion: b.assertion as never });
+    if (r.success && b.ownerAction.action === K.UNLINK_WECHAT) await m.onWechatUnlinked(acct(res));
+    send(res, r);
   }));
 
   r.get('/approvals', session, h(async (req, res) => {
@@ -166,10 +181,78 @@ export function apiRoutes(r: Router, h: typeof handler, session: express.Request
   }));
 }
 
-/** The mini program's link routes: the request id is the capability (the mini program is not signed in yet). */
-export function mpRoutes(r: Router, h: typeof handler, link: WechatLink) {
-  r.get('/link/:id', h(async (req, res) => send(res, await link.view(String(req.params.id)))));
-  r.post('/link/:id/soter', express.json(), h(async (req, res) => send(res, await link.soter(String(req.params.id), soter.parse(req.body)))));
+export type MpRouteModules = {
+  link: WechatLink;
+  sessions: MpSessions;
+  approvals: Approvals;
+  views: Pick<Views, 'portfolio' | 'status' | 'agent' | 'activity'>;
+  standingOrders: Pick<StandingOrders, 'list'>;
+  runner: Pick<Clients['runner'], 'chat'>;
+  config: Record<string, unknown>;
+};
+
+/**
+ * The mini program's api (spec 05 "/mp/*: same reads + approvals"): sign-in from a wx.login code, the owner's reads,
+ * Tier-2 approvals with SOTER only (no passkey, no owner action: those stay on the web app), the F2 link (its request
+ * id is the capability; a signed-in scan must come from the session's WeChat user) and the agent chat. Bearer tokens,
+ * no cookie, so no CSRF.
+ */
+export function mpRoutes(r: Router, h: typeof handler, m: MpRouteModules) {
+  const linked = requireMp(m.sessions, { linked: true });
+  const signedIn = requireMp(m.sessions, { linked: false });
+  const acct = (res: Response) => res.locals.account as Address;
+  const mp = (res: Response) => res.locals.mp as { openidHash: Hex; bindingHash: Hex | null };
+
+  r.post('/session', h(async (req, res) => send(res, await m.sessions.login(z.object({ code: z.string().min(1).max(128) }).parse(req.body).code))));
+  r.get('/config', (_req, res) => send(res, m.config));
+
+  r.get('/link/:id', h(async (req, res) => send(res, await m.link.view(String(req.params.id)))));
+  r.post('/link/:id/soter', (req, res, next) => (req.header('authorization') ? signedIn(req, res, next) : next()), h(async (req, res) => {
+    const b = soter.parse(req.body);
+    const s = res.locals.mp as { openidHash: Hex } | undefined;
+    let session: { openidHash: Hex; bindingHash: Hex } | undefined;
+    if (s) {
+      const bindingHash = m.sessions.expectedBinding(s.openidHash, b.resultJSON);
+      if (!bindingHash) throw new HttpError(400, 'resultJSON lacks uid or cpu_id');
+      session = { openidHash: s.openidHash, bindingHash };
+    }
+    send(res, await m.link.soter(String(req.params.id), b, session));
+  }));
+
+  r.get('/portfolio', linked, h(async (_req, res) => send(res, await m.views.portfolio(acct(res)))));
+  r.get('/status', linked, h(async (_req, res) => send(res, await m.views.status(acct(res)))));
+  r.get('/agent', linked, h(async (_req, res) => send(res, await m.views.agent(acct(res)))));
+  r.get('/activity', linked, h(async (req, res) => send(res, await m.views.activity(acct(res), z.coerce.number().int().min(1).max(100).default(20).parse(req.query.limit)))));
+  r.get('/standing-orders', linked, h(async (_req, res) => send(res, await m.standingOrders.list(acct(res)))));
+
+  r.get('/approvals', linked, h(async (req, res) => {
+    const state = z.enum(['pending', 'executed', 'failed', 'rejected', 'expired']).optional().parse(req.query.state);
+    send(res, { approvals: await m.approvals.list(acct(res), state) });
+  }));
+  r.get('/approvals/:id', linked, h(async (req, res) => {
+    const a = await m.approvals.get(acct(res), z.string().max(64).parse(req.params.id));
+    if (!a) throw new HttpError(404, 'unknown approval request');
+    send(res, a);
+  }));
+  r.post('/approvals/:id/soter', linked, h(async (req, res) => {
+    const b = soter.parse(req.body);
+    // The hook decides; this only spares a doomed on-chain attempt: the result must come from the linked WeChat user's phone.
+    const expected = m.sessions.expectedBinding(mp(res).openidHash, b.resultJSON);
+    if (!expected || expected.toLowerCase() !== mp(res).bindingHash?.toLowerCase()) throw new HttpError(403, 'this phone is not the one linked to the account');
+    send(res, await m.approvals.approveWithSoter(acct(res), String(req.params.id), b));
+  }));
+  r.post('/approvals/:id/reject', linked, h(async (req, res) => {
+    await m.approvals.reject(acct(res), String(req.params.id));
+    send(res, { state: 'rejected' });
+  }));
+
+  r.post('/agent/chat', linked, h(async (req, res) => {
+    const { message } = z.object({ message: z.string().min(1).max(4000) }).parse(req.body);
+    const up = await m.runner.chat(acct(res), message);
+    res.writeHead(up.status, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
+    if (up.body) for await (const chunk of up.body as unknown as AsyncIterable<Uint8Array>) res.write(chunk);
+    res.end();
+  }));
 }
 
 /** Internal routes for mcp (INTERNAL_TOKEN_API): approval requests and standing-order proposals from the agent's tools. */
