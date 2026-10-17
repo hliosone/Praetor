@@ -92,11 +92,10 @@ export class MpSessions {
     if (account === NONE) return { openidHash: openidHash as Hex, account: null, bindingHash: null };
     const b = await this.d.bindings.get(openidHash as Hex);
     if (!b || b.account.toLowerCase() !== account) return null;
-    // Base may have dropped the binding without the api (executeRecovery, an unlink sent by another client).
-    if ((await this.d.bindingOf(b.account)).toLowerCase() !== b.bindingHash.toLowerCase()) {
-      await this.d.bindings.removeAccount(b.account);
-      return null;
-    }
+    // Base may have dropped the binding without the api (executeRecovery, an unlink sent by another client). Refused
+    // while Base disagrees; the record stays (a lagging RPC node right after LINK_WECHAT must not unlink the user):
+    // sign-in and the api's own unlink remove it.
+    if ((await this.d.bindingOf(b.account)).toLowerCase() !== b.bindingHash.toLowerCase()) return null;
     return { openidHash: openidHash as Hex, account: b.account, bindingHash: b.bindingHash };
   }
 
