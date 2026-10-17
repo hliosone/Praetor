@@ -29,7 +29,7 @@ describe('key plan', () => {
   });
 
   it('has staff enrolment tokens per member service and an internal token for member services (Q28, D24)', () => {
-    for (const n of ['STAFF_ENROL_TOKEN_BANK', 'STAFF_ENROL_TOKEN_REGULATOR', 'STAFF_ENROL_TOKEN_OPERATOR', 'INTERNAL_TOKEN_MEMBERS']) {
+    for (const n of ['STAFF_ENROL_TOKEN_BANK', 'STAFF_ENROL_TOKEN_REGULATOR', 'STAFF_ENROL_TOKEN_OPERATOR', 'INTERNAL_TOKEN_MEMBERS', 'INTERNAL_TOKEN_MCP', 'INTERNAL_TOKEN_AGENT', 'INTERNAL_TOKEN_API']) {
       expect(plannedNames()).toContain(n);
     }
   });

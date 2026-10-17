@@ -53,6 +53,9 @@ const SHARED: { names: string[]; make: Generator }[] = [
     // api -> member services (opening proposals, owner-action co-signing); signing a consortium decision also
     // needs a staff passkey (spec 05), so this token alone can never make a member sign a loosening.
     'INTERNAL_TOKEN_MEMBERS',
+    // agent-runner -> mcp (per-account agent bearer issuance), scheduler and api -> agent-runner, mcp -> api (approval
+    // requests). Docker network only.
+    'INTERNAL_TOKEN_MCP', 'INTERNAL_TOKEN_AGENT', 'INTERNAL_TOKEN_API',
     // One-time tokens to enrol the first staff passkey of each member service (Q28), consumed on first use.
     'STAFF_ENROL_TOKEN_BANK', 'STAFF_ENROL_TOKEN_REGULATOR', 'STAFF_ENROL_TOKEN_OPERATOR'].map((n) => ({ names: [n], make: () => ({ [n]: hex32() }) })),
   { names: ['OPENCODE_SERVER_PASSWORD'], make: () => ({ OPENCODE_SERVER_PASSWORD: password() }) },

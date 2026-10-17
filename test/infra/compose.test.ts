@@ -18,6 +18,7 @@ type Service = {
   restart?: string;
   depends_on?: Record<string, { condition?: string }>;
   networks?: string[] | Record<string, unknown>;
+  environment?: Record<string, string>;
 };
 const compose = parse(read('infra/compose.yml'), { merge: true }) as {
   services: Record<string, Service>;
@@ -62,6 +63,19 @@ describe('infra/compose.yml', () => {
 
   it('runs on the 10.88.0.0/16 network (Q9)', () => {
     expect(compose.networks.praetor?.ipam?.config?.[0]?.subnet).toBe('10.88.0.0/16');
+  });
+
+  it('isolates the agent: agent-runner only on the agent network, without the keys or tokens of other services', () => {
+    const on = (s: Service, n: string) => (Array.isArray(s.networks) ? s.networks.includes(n) : Object.keys(s.networks ?? {}).includes(n));
+    expect(compose.networks.agent?.ipam?.config?.[0]?.subnet).toBe('10.90.0.0/24');
+    const runner = compose.services['agent-runner']!;
+    expect(Object.keys(runner.networks as Record<string, unknown>)).toEqual(['agent']);
+    const forbidden = /^(SIGNER_HMAC|ATTESTER_HMAC|INTERNAL_TOKEN_(BUNDLER|MEMBERS|API)|KYC_|MYSQL_|SESSION_SECRET|.*_KEY$)/;
+    // OPENCODE_API_KEY is the model provider's credential, the one key the agent needs.
+    expect(Object.keys(runner.environment ?? {}).filter((k) => forbidden.test(k) && k !== 'OPENCODE_API_KEY')).toEqual([]);
+    expect(Object.keys(compose.services['fake-llm']!.networks as Record<string, unknown>)).toEqual(['agent']);
+    const members = services.filter(([, s]) => on(s, 'agent')).map(([n]) => n).sort();
+    expect(members).toEqual(['agent-runner', 'fake-llm', 'mcp', 'scheduler']);
   });
 
   it('keeps the custodial WeIdentity services on their own network, joined only by bank, MySQL and one FISCO node', () => {

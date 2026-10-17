@@ -15,6 +15,7 @@ const op: UserOp = {
 function app(overrides: Partial<Record<string, (...a: unknown[]) => Promise<unknown>>> = {}) {
   const bundler = {
     register: async () => undefined,
+    accounts: async () => [A(1), A(2)],
     prepare: async () => ({ userOp: op, userOpHash: `0x${'11'.repeat(32)}` as Hex }),
     send: async () => ({ userOpHash: `0x${'11'.repeat(32)}`, txHash: `0x${'22'.repeat(32)}`, success: true, reasons: [0], refusalLogTx: null, skipped: false, gasUsed: 5n }),
     tx: async () => ({ txHash: `0x${'33'.repeat(32)}`, success: true }),
@@ -26,6 +27,11 @@ function app(overrides: Partial<Record<string, (...a: unknown[]) => Promise<unkn
 const auth = { authorization: `Bearer ${TOKEN}` };
 
 describe('bundler HTTP API', () => {
+  it('lists the registered accounts (scheduler) behind the token', async () => {
+    await request(app()).get('/accounts').expect(401);
+    expect((await request(app()).get('/accounts').set(auth).expect(200)).body).toEqual({ accounts: [A(1), A(2)] });
+  });
+
   it('serves /health and /version without auth', async () => {
     expect((await request(app()).get('/health')).body).toEqual({ ok: true, rpc: true, db: true });
     expect((await request(app()).get('/version')).body.version).toBe('test');

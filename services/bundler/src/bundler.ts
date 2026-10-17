@@ -49,6 +49,10 @@ const SPONSORSHIP_TTL_S = 600n;
 export class Bundler {
   constructor(private chain: Chain, private store: Store, private cfg: BundlerConfig) {}
 
+  accounts(): Promise<Address[]> {
+    return this.store.accounts();
+  }
+
   async register(address: Address): Promise<void> {
     await this.store.register(address);
   }

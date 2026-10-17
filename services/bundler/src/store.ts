@@ -8,6 +8,7 @@ export type OpRecord = { userOpHash: Hex; sender: Address; validator: string; tx
 export interface Store {
   isRegistered(address: Address): Promise<boolean>;
   register(address: Address): Promise<void>;
+  accounts(): Promise<Address[]>;
   refusalCount(account: Address, day: number): Promise<number>;
   bumpRefusal(account: Address, day: number): Promise<void>;
   recordOp(r: OpRecord): Promise<void>;
@@ -22,6 +23,7 @@ export class MemoryStore implements Store {
   private ops = new Map<string, OpRecord>();
   async isRegistered(a: Address) { return this.regs.has(key(a)); }
   async register(a: Address) { this.regs.add(key(a)); }
+  async accounts() { return [...this.regs] as Address[]; }
   async refusalCount(a: Address, day: number) { return this.counts.get(`${key(a)}:${day}`) ?? 0; }
   async bumpRefusal(a: Address, day: number) { this.counts.set(`${key(a)}:${day}`, (await this.refusalCount(a, day)) + 1); }
   async recordOp(r: OpRecord) { this.ops.set(key(r.userOpHash), r); }
@@ -33,6 +35,10 @@ export class MySqlStore implements Store {
 
   async isRegistered(a: Address) {
     return (await this.db.select().from(accounts).where(eq(accounts.address, key(a)))).length > 0;
+  }
+
+  async accounts(): Promise<Address[]> {
+    return (await this.db.select().from(accounts)).map((r) => r.address as Address);
   }
 
   async register(a: Address) {

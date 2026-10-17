@@ -12,7 +12,7 @@ const sendBody = z.object({ userOp: z.unknown() });
 const txBody = z.object({ to: address, data: hex });
 const accountBody = z.object({ address });
 
-type Deps = { bundler: Pick<Bundler, 'register' | 'prepare' | 'send' | 'tx' | 'getOp'>; token: string; health: () => Promise<Record<string, boolean>>; version: string };
+type Deps = { bundler: Pick<Bundler, 'register' | 'accounts' | 'prepare' | 'send' | 'tx' | 'getOp'>; token: string; health: () => Promise<Record<string, boolean>>; version: string };
 
 const STATUS = new Map<Function, number>([[NotSponsorable, 403], [NotAllowed, 403], [RateLimited, 429], [ValidationFailed, 422]]);
 
@@ -41,6 +41,10 @@ export function createApp(d: Deps) {
     if (got.length !== expected.length || !timingSafeEqual(got, expected)) return res.status(401).json({ error: 'unauthorized' });
     next();
   });
+
+  app.get('/accounts', h(async (_req, res) => {
+    res.json({ accounts: await d.bundler.accounts() });
+  }));
 
   app.post('/accounts', h(async (req, res) => {
     await d.bundler.register(accountBody.parse(req.body).address);

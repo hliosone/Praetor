@@ -191,6 +191,17 @@ export async function setDemoPrices(s: Stack, xau = 265_000_000_000n, xag = 3_11
   }
 }
 
+/** A demo price shock (source DEMO): the feeder holds it for DEMO_HOLD_S. The oracle refuses moves over 25%. */
+export async function shockPrice(s: Stack, asset: 'XAU' | 'XAG', pct: number): Promise<bigint> {
+  const token = asset === 'XAU' ? s.base.txau : s.base.txag;
+  const [price] = (await pub(s).readContract({ address: s.base.priceOracle, abi: PriceOracleAbi, functionName: 'getPrice', args: [token] })) as readonly [bigint, bigint];
+  const next = (price * BigInt(Math.round((100 + pct) * 100))) / 10_000n;
+  const w = createWalletClient({ chain: baseSepolia, transport: http(s.baseRpc), account: privateKeyToAccount(localKey(s, 'ORACLE_FEEDER_KEY')) });
+  const h = await w.writeContract({ address: s.base.priceOracle, abi: PriceOracleAbi, functionName: 'setPrice', args: [token, next, await baseNow(pub(s)), 1], chain: baseSepolia });
+  await pub(s).waitForTransactionReceipt({ hash: h });
+  return next;
+}
+
 // ---------------------------------------------------------------- account, mandate, funds
 
 /** The agent key lives in agent-signer (TEE): only its address is known here. */

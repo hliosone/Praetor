@@ -9,7 +9,8 @@
   "scripts": {
     "keys": "tsx scripts/keys/generate.ts",
     "test:scripts": "vitest run --root scripts",
-    "seed": "tsx scripts/demo/seed.ts"
+    "seed": "tsx scripts/demo/seed.ts",
+    "shock": "tsx scripts/demo/shock.ts"
   },
   "devDependencies": {
     "@praetor/chain": "workspace:*",
