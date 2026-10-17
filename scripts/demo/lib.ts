@@ -24,6 +24,9 @@ export type Stack = {
   members: Record<Role, string>;
   signer: string;
   attester: string;
+  mcp: string;
+  agentRunner: string;
+  fakeLlm: string;
   rpId: string;
   origin: string;
 };
@@ -38,6 +41,9 @@ export function stack(over: Partial<Stack> = {}): Stack {
     members: { bank: 'http://10.88.0.21:3020', regulator: 'http://10.88.0.22:3020', operator: 'http://10.88.0.23:3020' },
     signer: process.env.AGENT_SIGNER_URL_HOST ?? 'http://10.88.0.50:3050',
     attester: process.env.SOTER_ATTESTER_URL_HOST ?? 'http://10.88.0.51:3060',
+    mcp: process.env.MCP_URL_HOST ?? 'http://10.88.0.60:3080',
+    agentRunner: process.env.AGENT_RUNNER_URL_HOST ?? 'http://10.90.0.10:3100',
+    fakeLlm: process.env.FAKE_LLM_URL_HOST ?? 'http://10.90.0.20:3090',
     rpId: 'praetor.localhost',
     origin: 'https://praetor.localhost',
     ...over,
@@ -294,6 +300,60 @@ export async function agentOp(s: Stack, acc: Account, calls: Call[]) {
   const p = await ok(bundler(s, '/userop/prepare', { sender: acc.address, callData: encodeExecute(calls), validator: 'agent' }), 'prepare agent op');
   const { signature } = await ok(signer(s, 'mcp', `/v1/agents/${acc.address}/sign-userop`, { userOp: p.userOp, chainId: 84532, entryPoint: ENTRY_POINT, keyVersion: 1 }), 'agent signature');
   return bundler(s, '/userop/send', { userOp: { ...p.userOp, signature } });
+}
+
+/** KYC through the bank's Demo-provider path (session, HMAC-signed decision, suitability): what the api and
+ *  kyc-vendor-mock do for a user. The person data stays in the bank's sealed record. */
+export async function kycViaVendor(s: Stack, userRef: string, account: Address, person: { fullName: string; birthdate: string; nationality: string; documentNumber: string }) {
+  const { createHmac } = await import('node:crypto');
+  const sess = await ok(member(s, 'bank', '/kyc/sessions', { userRef, account, method: 'vendor' }), 'kyc session');
+  const raw = json({ sessionId: sess.sessionId, decision: 'approved', liveness: true, person, docHash: `0x${'1'.repeat(64)}`, selfieHash: `0x${'2'.repeat(64)}` });
+  const r = await fetch(`${s.members.bank}/kyc/vendor/callback`, { method: 'POST', body: raw, headers: { 'content-type': 'application/json', 'x-praetor-signature': `sha256=${createHmac('sha256', s.env.KYC_VENDOR_HMAC!).update(raw).digest('hex')}` } });
+  if (r.status !== 204) throw new Error(`kyc callback: ${r.status}`);
+  return ok(member(s, 'bank', '/suitability', { userRef, answers: [1, 1, 1, 1, 1] }), 'suitability');
+}
+
+// ---------------------------------------------------------------- agent (M8)
+
+/** The names the owner gave its payees, as the api will store them in mcp (M9). */
+export async function setPayeeLabels(s: Stack, account: Address, labels: { address: Address; label: string }[]) {
+  const r = await fetch(`${s.mcp}/internal/payee-labels`, { method: 'PUT', headers: { 'content-type': 'application/json', authorization: `Bearer ${s.env.INTERNAL_TOKEN_API}` }, body: json({ account, labels }) });
+  if (r.status !== 204) throw new Error(`payee labels: ${r.status}`);
+}
+
+const runner = (s: Stack, method: string, path: string, body?: unknown) =>
+  fetch(`${s.agentRunner}${path}`, { method, headers: { 'content-type': 'application/json', authorization: `Bearer ${s.env.INTERNAL_TOKEN_AGENT}` }, body: body === undefined ? undefined : json(body) });
+
+/** Automated tests only: this account's agent runs the scripted model, and its next steps are these. */
+export async function scriptAgent(s: Stack, account: Address, steps: ({ tool: string; args: Record<string, unknown> } | { text: string })[]) {
+  if ((await runner(s, 'PUT', `/accounts/${account}/model`, { model: 'fake/scripted' })).status !== 204) throw new Error('model override refused');
+  const r = await fetch(`${s.fakeLlm}/admin/script/${account.toLowerCase()}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: json({ steps }) });
+  if (r.status !== 204) throw new Error(`fake llm script: ${r.status}`);
+}
+
+export type AgentTurn = { text: string; tools: { tool: string; status: string; input: unknown; output: unknown }[] };
+
+/** One chat turn through agent-runner (what the api will do for the user's chat). */
+export async function agentChat(s: Stack, account: Address, message: string): Promise<AgentTurn> {
+  const r = await runner(s, 'POST', '/chat', { account, message });
+  const text = await r.text();
+  const ev = text.split('\n\n').find((b) => b.startsWith('event: result'));
+  if (!ev) throw new Error(`agent chat failed: ${text.slice(0, 300)}`);
+  return JSON.parse(ev.slice(ev.indexOf('data: ') + 6)) as AgentTurn;
+}
+
+/** The last turn of an account's agent (a scheduler wake), if any. */
+export async function lastAgentTurn(s: Stack, account: Address): Promise<(AgentTurn & { reason: string; error?: string }) | null> {
+  const r = await runner(s, 'GET', `/accounts/${account}/last`);
+  return r.status === 200 ? r.json() : null;
+}
+
+/** Waits for a fresh operator heartbeat (the agent's actions are STALE_STATUS without one). */
+export async function waitHeartbeat(s: Stack) {
+  await waitFor('fresh heartbeat', async () => {
+    const [, , , hb] = await read<readonly [number, number, number, bigint]>(s, 'statusOf', ['0x0000000000000000000000000000000000000001']);
+    return BigInt(hb) > (await baseNow(pub(s)));
+  }, 400_000);
 }
 
 export { toJson, fromJson };

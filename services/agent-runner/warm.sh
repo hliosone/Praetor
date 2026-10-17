@@ -13,7 +13,7 @@ for i in $(seq 1 90); do
   sleep 1
 done
 sleep 5
-kill %1 2>/dev/null || pkill -f "opencode serve" || true
+# The build step ends the server with its container: killing it here hangs `docker build` (seen with BuildKit).
 test -d /opt/oc/config/opencode/node_modules/@opencode-ai/plugin
 test -f /opt/oc/cache/opencode/models.json
 rm -rf /tmp/p /tmp/wd /tmp/ws

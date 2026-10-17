@@ -28,7 +28,9 @@ let lastTick = { at: 0, mode: env.PYTH_API_KEY ? 'pyth' : 'seeded', error: '' };
 
 async function lastUpdate(token: Address): Promise<Update | null> {
   const head = await publicClient.getBlockNumber();
-  const logs = await publicClient.getLogs({ address: d.priceOracle, event: UPDATED, args: { token }, fromBlock: head > LOOKBACK ? head - LOOKBACK : 0n, toBlock: head });
+  const back = head > LOOKBACK ? head - LOOKBACK : 0n;
+  const fromBlock = back > BigInt(d.deployBlock) ? back : BigInt(d.deployBlock);
+  const logs = await publicClient.getLogs({ address: d.priceOracle, event: UPDATED, args: { token }, fromBlock, toBlock: head });
   const l = logs.at(-1);
   if (l) return { price8: l.args.price8!, publishTime: BigInt(l.args.publishTime!), source: Number(l.args.source) };
   const [price8, publishTime] = (await publicClient.readContract({ address: d.priceOracle, abi: PriceOracleAbi, functionName: 'getPrice', args: [token] })) as readonly [bigint, bigint];

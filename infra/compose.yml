@@ -354,6 +354,7 @@ services:
       INTERNAL_TOKEN_API: ${INTERNAL_TOKEN_API}
       AGENT_SUBNET: 10.90.0.0/24
       PUBLIC_URL: ${PUBLIC_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
     volumes:
       - ./deployments:/app/infra/deployments:ro
     depends_on:

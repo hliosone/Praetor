@@ -15,9 +15,11 @@ const LOOKBACK = 20_000n;
 
 export function chainReader(pub: PublicClient, d: Deployment): Ports['reader'] {
   const hook = { address: d.mandateHook, abi: MandateHookAbi } as const;
+  // Never before the deployment: on a fork, blocks before the fork point are not served (and hold no Praetor logs).
   const from = async () => {
     const head = await pub.getBlockNumber();
-    return head > LOOKBACK ? head - LOOKBACK : 0n;
+    const back = head > LOOKBACK ? head - LOOKBACK : 0n;
+    return back > BigInt(d.deployBlock) ? back : BigInt(d.deployBlock);
   };
   return {
     balances: async (account) => {

@@ -32,3 +32,12 @@ Steps are added during Phase B, each time something needs a human (phone Face ID
 | **You see** | Each CVM's dashboard shows the app id and compose hash; the services' `/v1/info` say `simulator: false`. |
 | **Claude checks** | Puts the hashes in `ALLOWED_COMPOSE_HASHES_AGENT` / `_ATTESTER` (Phala encrypted env), sets `ATTESTATION_MODE=phala`, runs one KYA and one attester activation: bank-service verifies both quotes through `https://cloud-api.phala.com/api/v1/attestations/verify` and refuses a quote whose compose hash is not listed. Automated stand-in: the simulator path (`test/integration/agent-signer.test.ts`, `bank-kya.test.ts`, `soter-attester.test.ts`) and the Phala path with a scripted verifier (`services/bank/test/attestation.test.ts`). |
 | **Fallback** | The verify API is unreachable or its response shape differs: keep the CVMs, show the quotes and compose hashes, and say plainly that the bank's prod verification was exercised only against a scripted verifier. |
+
+## 3. The agent with the real model, and claude.ai as an external agent (M8)
+
+| | |
+|---|---|
+| **You do** | (a) In the web app chat (M13) or through Claude with `scripts/demo/lib.ts agentChat`, ask Lin's agent "Pay the café 12.50", then "What is my portfolio?", in English and in 中文. (b) In claude.ai, add a custom connector with the URL `https://<public host>/mcp`, sign in to Praetor when asked and allow access. |
+| **You see** | (a) The real DeepSeek model calls `praetor_pay`, the payment lands, the answer quotes the transaction; in 中文 the answer is in Chinese. (b) claude.ai lists the Praetor tools and `get_portfolio` answers with Lin's numbers. |
+| **Claude checks** | The agent-runner transcript shows only `praetor_*` tools ran (any built-in tool call was rejected); mcp logged an OAuth bearer for (b) and the agent bearer for (a); the tx is on the explorer. Automated stand-in: F4/F5 with the scripted model, `services/mcp/test/oauth.test.ts` (28 OAuth cases, the claude.ai registration body). |
+| **Fallback** | The free model refuses or is down: set `OPENCODE_API_KEY` (paid DeepSeek) or show the scripted run; claude.ai cannot reach the tunnel: use the MCP inspector against the same URL. |

@@ -15,6 +15,12 @@
 		reverse_proxy kyc-vendor-mock:3040
 	}
 
+	# MCP for external agents (OAuth only: Caddy's address is outside the agent network).
+	@mcp path /mcp /oauth/* /.well-known/oauth-authorization-server /.well-known/oauth-protected-resource /.well-known/oauth-protected-resource/*
+	handle @mcp {
+		reverse_proxy mcp:3080
+	}
+
 	handle {
 		respond "Praetor" 200
 	}

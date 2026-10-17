@@ -7,6 +7,8 @@ import { connect, loadMigrations, migrate } from '@praetor/db';
 import { createMcpApp } from './app.js';
 import { apiApprovals, chainReader, dbLabels, submitter } from './ports.js';
 import { MySqlTokenStore } from './store.js';
+import { oauthRouter } from './oauth.js';
+import { MySqlOAuthStore } from './oauth-store.js';
 import type { Ports } from './tools.js';
 
 const env = z.object({
@@ -23,6 +25,7 @@ const env = z.object({
   API_URL: z.string().url().optional(),
   AGENT_SUBNET: z.string().default('10.90.0.0/24'),
   PUBLIC_URL: z.string().url().default('https://praetor.localhost'),
+  SESSION_SECRET: z.string().min(32),
   EXPLORER_URL: z.string().url().default('https://sepolia.basescan.org'),
   PORT: z.coerce.number().int().default(3080),
 }).parse(process.env);
@@ -49,5 +52,8 @@ const ports: Ports = {
   standingOrders: { execute: (account, id) => bundlerTx(d.standingOrders, encodeFunctionData({ abi: StandingOrdersAbi, functionName: 'execute', args: [account, id] })) },
 };
 
-const app = createMcpApp({ tokens, ports: () => ports, internalToken: env.INTERNAL_TOKEN_MCP, apiToken: env.INTERNAL_TOKEN_API, agentSubnet: env.AGENT_SUBNET, baseUrl: env.PUBLIC_URL });
+const app = createMcpApp({
+  tokens, ports: () => ports, internalToken: env.INTERNAL_TOKEN_MCP, apiToken: env.INTERNAL_TOKEN_API, agentSubnet: env.AGENT_SUBNET, baseUrl: env.PUBLIC_URL,
+  extra: (a) => a.use(oauthRouter({ store: new MySqlOAuthStore(conn.runner), baseUrl: env.PUBLIC_URL, webOrigin: env.PUBLIC_URL, secret: env.SESSION_SECRET })),
+});
 app.listen(env.PORT, () => log.info({ port: env.PORT }, 'mcp listening'));

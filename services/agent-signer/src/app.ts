@@ -7,6 +7,7 @@ import { concat, encodeFunctionData, getAddress, hexToBytes, isAddressEqual, kec
 import { privateKeyToAccount } from 'viem/accounts';
 import { ReplayGuard, verifyCaller } from '@praetor/protocol/caller-auth';
 import { decodeExecute, fromJson, userOpHash, BASE_CHAIN_ID, ENTRY_POINT } from '@praetor/userop';
+import { isOwnAuthentication } from './weid.js';
 
 export type KeySource = {
   getKey(path: string): Promise<Hex>;
@@ -120,8 +121,8 @@ export function createSignerApp(d: SignerDeps) {
       add: z.array(z.object({ type: z.string(), endpoint: z.string().max(256) })).min(1).max(2),
     }).parse(b.fields);
     const weid = `did:weid:101:${agent.address.toLowerCase()}`;
-    // Only the agent's own keys may control its document: a foreign controller would hand the DID to someone else.
-    for (const a of f.authentication) if (a.split(',')[2] !== weid) throw new HttpError(400, 'foreign controller in authentication');
+    // Only the entry createWeIdWithPubKey wrote for this very key: anything else would hand the DID to someone else.
+    if (!isOwnAuthentication(f.authentication, weid, agent.publicKey)) throw new HttpError(400, 'authentication is not exactly the agent key');
     for (const s of [...f.service.map((x) => ({ type: x.split(',')[1] ?? '', endpoint: x.split(',').slice(2).join(',') })), ...f.add]) {
       const ok = (s.type === 'AgentWallet' && s.endpoint === `eip155:${BASE_CHAIN_ID}:${account}`) || (s.type === 'MCP' && s.endpoint === d.mcpUrl) || s.type === 'WeIdentity';
       if (!ok) throw new HttpError(400, `service not allowed: ${s.type}`);

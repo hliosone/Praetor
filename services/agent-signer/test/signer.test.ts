@@ -5,6 +5,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { signCaller } from '@praetor/protocol/caller-auth';
 import { encodeExecute, toJson, ENTRY_POINT, type UserOp } from '@praetor/userop';
 import { createSignerApp, type KeySource } from '../src/app.js';
+import { weidKeyMultibase } from '../src/weid.js';
 
 const secrets = { mcp: 'm'.repeat(64), api: 'a'.repeat(64), bank: 'b'.repeat(64) };
 const ACCOUNT = getAddress('0x00000000000000000000000000000000000c0ffe');
@@ -98,7 +99,8 @@ describe('sign-userop (mcp only)', () => {
 
 describe('sign-weid (bank only)', () => {
   const weid = () => `did:weid:101:${agentAddr(1).toLowerCase()}`;
-  const ownAuth = () => `${weid()}#keys-1234abcd,Ed25519VerificationKey2020,${weid()},zKEY`;
+  const agentPub = () => privateKeyToAccount(keyOf(`praetor/agent/${ACCOUNT.toLowerCase()}/v1`)).publicKey;
+  const ownAuth = () => `${weid()}#keys-1234abcd,Ed25519VerificationKey2020,${weid()},${weidKeyMultibase(agentPub())}`;
   const updateAbi = parseAbi(['function updateWeId(address identity, string updated, string[] authentication, string[] service)']);
   const svcBody = (o: Record<string, unknown> = {}) => ({
     kind: 'addService', keyVersion: 1,
@@ -128,9 +130,10 @@ describe('sign-weid (bank only)', () => {
     expect(await recoverTransactionAddress({ serializedTransaction: r.body.rawTx })).toBe(agentAddr(1));
   });
 
-  it('refuses a foreign controller in the authentication list, another wallet, another MCP host or another service type', async () => {
+  it('refuses an authentication list other than the agent key alone, another wallet, another MCP host or another service type', async () => {
     const p = `/v1/agents/${ACCOUNT}/sign-weid`;
     await call('bank', 'POST', p, svcBody({ authentication: [ownAuth(), `${weid()}#keys-9,Ed25519VerificationKey2020,did:weid:101:0x00000000000000000000000000000000000000ba,zX`] })).expect(400);
+    await call('bank', 'POST', p, svcBody({ authentication: [`${weid()}#keys-1234abcd,Ed25519VerificationKey2020,${weid()},${weidKeyMultibase(privateKeyToAccount(keyOf('mallory')).publicKey)}`] })).expect(400);
     await call('bank', 'POST', p, svcBody({ add: [{ type: 'AgentWallet', endpoint: 'eip155:84532:0x00000000000000000000000000000000000000aa' }] })).expect(400);
     await call('bank', 'POST', p, svcBody({ add: [{ type: 'MCP', endpoint: 'https://evil.example/mcp' }] })).expect(400);
     await call('bank', 'POST', p, svcBody({ add: [{ type: 'Payout', endpoint: 'x' }] })).expect(400);

@@ -2,6 +2,7 @@
 import { randomBytes } from 'node:crypto';
 import type { SqlRunner } from '@praetor/db';
 import { sha256, type TokenStore } from './app.js';
+import { SCOPE } from './oauth.js';
 
 type Row = Record<string, unknown>;
 
@@ -21,7 +22,7 @@ export class MySqlTokenStore implements TokenStore {
   }
 
   async oauthAccount(token: string): Promise<string | null> {
-    const [x] = (await this.r.query("SELECT account FROM oauth_tokens WHERE token_hash = ? AND kind = 'access' AND revoked = FALSE AND expires_at > ?", [sha256(token), this.now()])) as Row[];
+    const [x] = (await this.r.query("SELECT account FROM oauth_tokens WHERE token_hash = ? AND kind = 'access' AND revoked = FALSE AND expires_at > ? AND scope = ?", [sha256(token), this.now(), SCOPE])) as Row[];
     return x ? String(x.account) : null;
   }
 

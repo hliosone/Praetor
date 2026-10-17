@@ -5,7 +5,7 @@ import type { Instance, InstanceManager } from './instances.js';
 export type ToolStep = { tool: string; status: string; input: unknown; output: unknown };
 export type TurnResult = { text: string; tools: ToolStep[]; sessionId: string };
 
-type Part = { type: string; text?: string; tool?: string; state?: { status?: string; input?: unknown; output?: unknown } };
+type Part = { type: string; text?: string; tool?: string; state?: { status?: string; input?: unknown; output?: unknown; error?: unknown } };
 type Message = { info: { role: string }; parts: Part[] };
 
 export class Runner {
@@ -60,7 +60,7 @@ export class Runner {
       const last = (await this.call(i, 'POST', `/session/${session}/message`, { model: { providerID, modelID: rest.join('/') }, parts: [{ type: 'text', text }] }, this.turnTimeoutMs)) as Message;
       const all = (await this.call(i, 'GET', `/session/${session}/message`)) as Message[];
       const turn = all.slice(before).filter((m) => m.info.role === 'assistant');
-      const tools = turn.flatMap((m) => m.parts.filter((p) => p.type === 'tool').map((p) => ({ tool: p.tool ?? '', status: p.state?.status ?? '', input: p.state?.input, output: p.state?.output })));
+      const tools = turn.flatMap((m) => m.parts.filter((p) => p.type === 'tool').map((p) => ({ tool: p.tool ?? '', status: p.state?.status ?? '', input: p.state?.input, output: p.state?.output ?? p.state?.error })));
       const finalText = last.parts.filter((p) => p.type === 'text').map((p) => p.text ?? '').join('').trim();
       return { text: finalText, tools, sessionId: session };
     } finally {

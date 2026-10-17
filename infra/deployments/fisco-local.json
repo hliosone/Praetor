@@ -2,13 +2,13 @@
   "env": "local",
   "chainId": 20200,
   "baseDeployment": "fork",
-  "memberRegistry": "0xbf64aD81ba4aa3a934CA7FF9dc2E8d27c18A71c6",
-  "baseOutbox": "0xA7181e3A81D4E8dc94f688aFAe0cCbb22C820d0F",
-  "agentStatus": "0xb22dB8fb383Dd42c2e797Fe87F835431cDd0c074",
-  "assetRegistry": "0x9Dd7f16F97B705e42f5Ff1429263869E30455721",
-  "sanctionsList": "0xCAf3d71E54E8Ced9eE81092f38fA53654fc79c9F",
-  "jurisdictionRules": "0x7B7844F70503cB0fCeB420Fb00601C0c2f117a79",
-  "attesterRegistry": "0x45CFE421D57dD92c25FC6E03DA8f2CCbf2f5E2C5",
-  "mandateRegistry": "0x745ed9e00704E6Ba752d7659ABe3338f644CA4FF",
-  "auditLog": "0x508A88476CE33B21F3fB9f6B3454Bac4D41E8cBF"
+  "memberRegistry": "0x9C367E0EbEe01f3896B40cdfb965A873E70D252b",
+  "baseOutbox": "0x798424aE57ff00e4D08F2D884C6f78dA241b9BD8",
+  "agentStatus": "0x28Ee5857eC0A120aB7d8b06F525E0b8D2B4b028d",
+  "assetRegistry": "0x87bc80d6b43Ca68A137c626262BC473b3D4d5E28",
+  "sanctionsList": "0x35e28f3a41507483D006A3B5f2c951A5B292aE72",
+  "jurisdictionRules": "0x0492C640AcdC7613e1Aa581A8f3Ea3ecc1D4424D",
+  "attesterRegistry": "0xcC570CCD2C21dd70177060Fc0B2F9dac8d1174DA",
+  "mandateRegistry": "0xd9042D724C37Bc7ea8D76893704756bDA3639B1F",
+  "auditLog": "0x6c4eB6774Cf917aC8e7837De1f85d850ddc761ed"
 }

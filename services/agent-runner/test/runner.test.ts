@@ -31,7 +31,7 @@ function fakeOpencode(port: number, opts: { askPermission?: boolean } = {}) {
   });
   app.get('/session/:id/message', (_req, res) => res.json(state.messages.length === 0 ? [] : [
     { info: { role: 'user' }, parts: [{ type: 'text', text: 'pay' }] },
-    { info: { role: 'assistant' }, parts: [{ type: 'tool', tool: 'praetor_pay', state: { status: 'completed', input: { amount: '12.50' }, output: 'Paid 12.50 USDC' } }, { type: 'text', text: 'Paid 12.50 USDC.' }] },
+    { info: { role: 'assistant' }, parts: [{ type: 'tool', tool: 'praetor_pay', state: { status: 'completed', input: { amount: '12.50' }, output: 'Paid 12.50 USDC' } }, { type: 'tool', tool: 'praetor_pay', state: { status: 'error', input: { amount: '5000' }, error: 'Blocked: SANCTIONED' } }, { type: 'text', text: 'Paid 12.50 USDC.' }] },
   ]));
   const s = app.listen(port);
   servers.push(s);
@@ -87,7 +87,11 @@ describe('turns', () => {
     const r = await runner.turn(ACCOUNT, 'Pay the café 12.50');
     expect(states[0]!.rejected).toEqual(['per_1:reject']);
     expect(r.text).toBe('Paid 12.50 USDC.');
-    expect(r.tools).toEqual([{ tool: 'praetor_pay', status: 'completed', input: { amount: '12.50' }, output: 'Paid 12.50 USDC' }]);
+    // A refused action is a tool error in OpenCode: its text is kept as the step's output.
+    expect(r.tools).toEqual([
+      { tool: 'praetor_pay', status: 'completed', input: { amount: '12.50' }, output: 'Paid 12.50 USDC' },
+      { tool: 'praetor_pay', status: 'error', input: { amount: '5000' }, output: 'Blocked: SANCTIONED' },
+    ]);
     expect(states[0]!.auth).toBe(`Basic ${Buffer.from('opencode:pw').toString('base64')}`);
     expect((states[0]!.messages[0] as { model: unknown }).model).toEqual({ providerID: 'fake', modelID: 'scripted' });
   });
