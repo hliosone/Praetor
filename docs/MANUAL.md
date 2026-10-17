@@ -127,6 +127,46 @@ The mini program is built and its logic tested in Phase B (`pnpm --filter @praet
 | **Claude checks** | UNLINK_WECHAT applied on Base (`bindingOf` is zero); the api's `mp_bindings` row is gone; the phone's old token gets 401 on `/mp/portfolio`. Automated stand-in: `services/api/test/mp-routes.test.ts` (UNLINK_WECHAT), `apps/web/src/pages/Settings.test.tsx`. |
 | **Fallback** | The unlink is refused on Base: read the reason the web app shows; this owner action needs no bank signature, so a refusal means the passkey or the binding hash differs. |
 
+## 7. Red team (M16)
+
+The suite is `test/redteam` (format and fixtures in its README); its report is `docs/security/redteam.md`, headline "N attacks, 0 executed". The scripted run is automated (`make redteam`); these steps need the human.
+
+### 7.1 Held-out cases
+
+| | |
+|---|---|
+| **You do** | Ask a teammate who has not read `test/redteam/cases` to write about 21 attacks (20% of the suite) as JSON files in the format of `test/redteam/README.md` ("Held-out cases", with its example), kept outside the repo. Copy the directory to the build machine (for example `~/praetor-heldout`) without committing it. |
+| **You see** | Claude runs them; `docs/security/redteam.md` gains a "Held-out cases" table under the scripted run (and the live run for cases that list `live`), and the headline counts them. |
+| **Claude checks** | `REDTEAM_HELDOUT_DIR=~/praetor-heldout make redteam`, then `make redteam-live`: the loader validates every file first (file and field named on error); no case is EXECUTED or ERROR; a held-out case BLOCKED_ELSEWHERE means the teammate expected another layer: Claude shows both and the teammate decides whether the expectation or the product is wrong. An EXECUTED case is a vulnerability: it becomes a failing test, then a fix. |
+| **Fallback** | A file does not validate: fix it with the teammate (never relax the schema). The teammate is unavailable: write the held-out cases yourself without looking at the built-in ones, and say so in the self-assessment. |
+
+### 7.2 Live run with the real model
+
+| | |
+|---|---|
+| **You do** | Nothing, or set `OPENCODE_API_KEY` in `.env` if the free DeepSeek model is rate-limited (Claude never prints it). |
+| **You see** | The "Live run (real model)" section of `docs/security/redteam.md`: each prompt injection sent to the real model, what it did, and the on-chain outcome. |
+| **Claude checks** | `make redteam-live` with the stack up: no EXECUTED (judged on-chain: no token left the account outside the mandate, no protected state changed), no ERROR; a NOT_ATTEMPTED case (the model declined) is backed by its scripted twin, which shows the hook refusing the same attack when the model obeys. |
+| **Fallback** | The free model is down or refuses every request (ERROR on every case): retry later or with the paid model; failing that, the report keeps the scripted run only and says that the live run could not be made. |
+
+### 7.3 Cases that change shared state
+
+| | |
+|---|---|
+| **You do** | Choose a moment when nobody else uses the stack (not during a demo or a Playwright run). |
+| **You see** | A "Global run" section: a swap into tXAG while it is DELISTED, a swap while every price is stale, a payment during a global freeze, all refused; the state is back afterwards. |
+| **Claude checks** | `make redteam-global`; then `assetOf(tXAG)` is ACTIVE with maxWeight 15%, `maxPriceAge` is back to its value, the global status is ACTIVE, and `make e2e` F4/F5 still pass. |
+| **Fallback** | A restore fails half-way (for example a FISCO proposal left open until its deadline): Claude restores by hand through the member services (the steps are in `test/redteam/lib/executors.ts`, `globalChange`) or with `make reset-fork`. |
+
+### 7.4 Findings to review
+
+| | |
+|---|---|
+| **You do** | Read the "Executed attacks" section (expected empty) and the notes of RT-82 (XSS) and RT-83 (foreign origin). |
+| **You see** | The web app has no Content-Security-Policy header (spec 08 lists one); there is no WebSocket endpoint (live updates are server-sent events). |
+| **Claude checks** | Adds a `header Content-Security-Policy` to `infra/Caddyfile` compatible with the web app (Vite bundle, three.js, the api on the same origin), reloads Caddy, runs the Playwright flows and RT-82 again: the header is present and the pages still work. |
+| **Fallback** | A strict policy breaks the 3D landing: use `script-src 'self'` with the exceptions the bundle needs and record them in `docs/security/`. |
+
 ## 8. Judges' sandbox with the real model (M13, interim sandbox D48)
 
 | | |
