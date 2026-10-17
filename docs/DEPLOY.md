@@ -1,6 +1,6 @@
 # Deploying Praetor
 
-> **Status at M17.** Deployment to the cloud is a **Phase C step, done with the human** (spec 10); it has not happened yet. The production compose overrides (`infra/compose.prod.yml`) and the deployment rehearsal are **built in M18** by the lead; the server bootstrap script of spec 11 (`scripts/deploy/server-bootstrap.sh`) does not exist yet. This document gives the plan and the commands that exist today, and is where Phase C records the values it uses (never a secret). Chinese version: `docs/zh-CN/DEPLOY.md`.
+> **Status at M17.** Deployment to the cloud is a **Phase C step, done with the human** (spec 10); it has not happened yet. The production compose overrides (`infra/compose.prod.yml`) and the deployment rehearsal are **built in M18** by the lead; the server bootstrap script of spec 11 (`scripts/deploy/server-bootstrap.sh`) does not exist yet. This document gives the plan and the commands that exist today, and is where Phase C records the values it uses (never a secret). Chinese version: [zh-CN/DEPLOY.md](zh-CN/DEPLOY.md).
 
 ## 1. Environments
 
@@ -58,7 +58,7 @@ make deploy-contracts ENV=base-sepolia   # LIVE_ keys, domain "Praetor", writes 
 make deploy-contracts ENV=sandbox        # SANDBOX_ keys, domain "Praetor-sandbox", writes infra/deployments/sandbox.json
 ```
 
-`scripts/deploy/contracts.sh` maps the set's keys to the names `contracts/base/script/Deploy.s.sol` reads (without printing a value), deploys every contract, wires the hook to its modules last, and funds the paymaster deposit (0.02 ETH on live). The RPC is `BASE_LIVE_RPC_URL` (default `https://sepolia.base.org`). `SOTER_COUNTER_STRICT` is a constructor flag of the hook (default true); if Phase C shows that the SOTER counter does not increase on iOS, it must be set before this step (known risk 16). The M16 live deployment may be reused instead of redeploying.
+`scripts/deploy/contracts.sh` maps the set's keys to the names `contracts/base/script/Deploy.s.sol` reads (without printing a value), deploys every contract, wires the hook to its modules last, and funds the paymaster deposit (0.02 ETH on live). The RPC is `BASE_LIVE_RPC_URL` (default `https://sepolia.base.org`). `SOTER_COUNTER_STRICT` is a constructor flag of the hook (default true); if Phase C shows that the SOTER counter does not increase on iOS, it must be set before this step (known risk 16). The M16 live deployment may be reused instead of redeploying, with one constraint: the hook's three member addresses are immutable (constructor arguments), so reusing a deployment means the server holds the member keys that deployed it. A server that generates its own keys (spec 11) needs its own deployment and its own funding; choose one of the two before Phase C starts.
 
 ## 6. Deploy the FISCO consortium
 
