@@ -84,7 +84,7 @@ Praetor 账户的每一次执行都经过 `MandateHook.preCheck`（I1），无�
 | 一个恶意的成员密钥 | 冻结或限制（安全方向），列入制裁，暂停资产 | 放宽需要两个成员；每项决定都是一个 FISCO 提案，其签名者记录在审计轨迹中 | |
 | 重放旧消息或旧审批 | 重新应用旧状态或旧审批 | nonce（stored + 1）、截止时间、一次性摘要（`usedDigest`）、SOTER 计数器、恢复时重置的 epoch | |
 | 被攻陷的预言机喂价方 | 推送错误价格 | 每次更新至多 25 %（`MAX_DEVIATION_BPS`），过期检查（`maxPriceAge`，4 天），滑点界限，银行的最大权重（T0），DEMO 价格带有标记 | 风险 6 |
-| Web 攻击者 | XSS、CSRF、会话窃取、对 MCP 的 OAuth 滥用 | `HttpOnly`、`SameSite=Lax` 会话 cookie（https 下带 `Secure`）；每个改变状态的 api 请求都需要 CSRF token；OAuth 2.1 仅允许 PKCE S256，精确匹配的重定向 URI，一次性授权码，刷新令牌轮换并按族撤销，令牌仅以哈希存储（`services/mcp/test/oauth.test.ts`，28 个用例） | 没有 CSP 或安全响应头，api 请求没有 Origin 检查，api 没有速率限制（风险 21）；WebSocket、Web 推送和微信公众号回调尚未构建 |
+| Web 攻击者 | XSS、CSRF、会话窃取、对 MCP 的 OAuth 滥用 | `HttpOnly`、`SameSite=Lax` 会话 cookie（https 下带 `Secure`）；每个改变状态的 api 请求都需要 CSRF token；OAuth 2.1 仅允许 PKCE S256，精确匹配的重定向 URI，一次性授权码，刷新令牌轮换并按族撤销，令牌仅以哈希存储（`services/mcp/test/oauth.test.ts`，28 个用例） | 自 D71 起：Caddy 提供严格的 CSP（脚本仅限本站、禁止嵌入、禁止 object）、HSTS、nosniff 与 no-referrer；api 拒绝来自其他 Origin 的写请求；登录、开户、恢复和小程序登录按客户端限流（`services/api/test/hardening.test.ts`、`test/infra/caddy.test.ts`）。剩余：见风险 21 |
 | 读取日志的内部人员 | 获取个人信息 | KYC 数据密封在银行数据库中；状态响应不含个人信息；bundler 和成员服务在日志中隐去 authorization 头；集成测试套件中的 I9 日志扫描 | api 保存注册邮箱（不是 KYC 数据） |
 
 ## 5. 已知风险
@@ -109,10 +109,10 @@ Praetor 账户的每一次执行都经过 `MandateHook.preCheck`（I1），无�
 16. **iOS 上的 SOTER 计数器。** 如果计数器在 iOS 上不递增，hook 的 `soterCounterStrict`（不可变的构造函数标志，通过 `SOTER_COUNTER_STRICT=1` 默认为 true）必须以 false 部署；由于每个审批的摘要只能使用一次，重放仍然不可能。
 17. **WeIdentity REST** 是托管式且无认证的；它运行在独立的 `identity` 网络上，只有银行、MySQL 和一个 FISCO 节点加入（D29，`test/infra/compose.test.ts`）。
 18. **WeCross 传输说明**（[wecross.md](../security/wecross.md)）：一个无法投递的请求可能阻塞 hub 队列（看门狗不依赖它）；两个 hub setter 没有访问控制；路由器在失败时会把链账户的私钥写入日志（只保存在主机或 CVM 上）；路由器 RPC 在 Docker 网络上是明文 HTTP；在 `BRIDGE=wecross` 模式下，bridge-relayer 持有 WeCross 路由器的 FISCO 密钥（D42）。
-19. **`INTERNAL_TOKEN_API` 可触达智能体密钥。** mcp 的 `POST /internal/resubmit`（在人工审批之后使用）可以用智能体密钥为任意账户提交至多八个调用，其保护是 `INTERNAL_TOKEN_API`，而 api、notifier 和 mcp 共享该令牌。因此，被攻陷的 api 或 notifier 可以在每个账户的 T1 授权委托内行事，如同被攻陷的 mcp。同样，agent-runner 持有 `INTERNAL_TOKEN_MCP`，可为任意账户签发智能体 bearer。hook 仍约束每一个调用。更窄的路由（只重新提交带有有效审批的调用）是后续工作。
+19. **`INTERNAL_TOKEN_API` 可触达智能体密钥。** mcp 的 `POST /internal/resubmit`（在人工审批之后使用）可以用智能体密钥为任意账户提交至多八个调用，其保护是 `INTERNAL_TOKEN_API`，而 api、notifier 和 mcp 共享该令牌。因此，被攻陷的 api 或 notifier 可以在每个账户的 T1 授权委托内行事，如同被攻陷的 mcp。同样，agent-runner 持有 `INTERNAL_TOKEN_MCP`，可为任意账户签发智能体 bearer。hook 仍约束每一个调用。 自 D72 起，resubmit 接口只为在钩子上存在有效且未被消耗的审批的单笔调用签名（`services/mcp/test/app.test.ts`），api 令牌不再能在已批准的调用之外使用智能体密钥；agent-runner 的 `INTERNAL_TOKEN_MCP` 仍可为任意账户签发智能体凭证。
 20. **共享的内部令牌。** `INTERNAL_TOKEN_MEMBERS` 由 api 和三个成员服务共享，`INTERNAL_TOKEN_BUNDLER` 由每个 bundler 调用方共享，`SESSION_SECRET` 由 api 和 mcp 共享。联盟签名仍需要员工针对确切摘要的 passkey 断言，但有四个自动的、经规则检查的签名例外：运营方的心跳，银行在自身检查后的 KYA，银行在规则检查后的所有者操作联署，以及银行在重新计算链后的锚定联署（D24、D26、D41）。
-21. **已构建代码中的 Web 加固情况。** 没有 Content-Security-Policy 或其他安全响应头（Caddy、api、Web 应用），改变状态的请求没有 Origin 检查（CSRF 防护依赖 `SameSite=Lax` 加 CSRF token），api、成员服务和 KYC 模拟服务没有速率限制，生产构建附带 source map，且 `/api/console/agents` 无需认证即可列出至多 50 个账户及其状态和 KYA 属性（相同数据在 Base 上公开）。
-22. **所见即所签，仅部分实现。** Web 应用在 passkey 签名前会根据请求的原像重新计算 Tier2Approval 摘要；而所有者操作、微信绑定确认、部署 userOp 和控制台提案则按 api 返回的内容签名。被攻陷的 api 可能让用户的 passkey 签署与所展示内容不同的所有者操作；银行的规则检查（D26）及其联署限制了损害（银行上限、仅限我们的模块、KYA 智能体密钥），但无法阻止例如额外增加一个收款人。Web 应用仍在构建中（M13）。
+21. **已构建代码中的 Web 加固情况。** 自 D70 和 D71 起已完成：Caddy 提供 CSP 与安全响应头，api 对状态变更请求检查 Origin，公开的认证接口按客户端限流，控制台的账户列表需要工作人员会话。剩余：成员服务与 KYC 模拟服务没有限流（仅在内部网络），限流计数保存在进程内存中。
+22. **所见即所签。** Web 应用在 passkey 签名前根据请求的原像重新计算 Tier2Approval 摘要；自 D46 起，它还会重新计算每个所有者操作的摘要，核对其类型、账户与载荷哈希，并对策略、智能体密钥、新通行密钥、撤销和取消恢复，根据页面所显示的内容重建载荷。仍按 api 返回内容签名的有：微信绑定确认、账户的部署 userOp 以及控制台提案（成员服务会自行从 FISCO 读取提案摘要并验证工作人员的断言）。
 23. **员工 WebAuthn 细节。** 成员服务接受 high-s 的 P-256 员工签名，且不检查签名计数器。可塑性不等于伪造，且挑战只能使用一次；影响较低。
 24. **内存中的状态。** 员工会话和挑战、银行的报价 nonce、微信绑定会话以及 agent-signer 的速率限制都保存在内存中，重启后重置。
 25. **生产环境的拒绝按服务分别实现。** `packages/config` 拒绝模拟器证明、伪造的腾讯接口、fork、默认密码以及无节流的沙盒，但只有 bundler、bridge-relayer 和成员服务加载它；agent-signer、soter-attester、银行和 agent-runner 各自实现检查（模拟器、伪造的腾讯接口、微信 API 地址、伪 LLM）；oracle-feeder 的 DEMO 模式不会被拒绝；生产环境要求设置 `SANDBOX_RATE_LIMIT_PER_HOUR`，但目前没有任何代码执行它（沙盒尚未构建）。
