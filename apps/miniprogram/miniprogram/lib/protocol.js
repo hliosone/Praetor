@@ -25,6 +25,7 @@ __export(protocol_exports, {
   OwnerActionKind: () => OwnerActionKind,
   bytesToHex: () => bytesToHex,
   callHash: () => callHash,
+  checksumAddress: () => checksumAddress,
   digest: () => digest,
   domainSeparator: () => domainSeparator,
   encodeStruct: () => encodeStruct,
@@ -438,3 +439,11 @@ var linkPayloadHash = (linkNonce) => keccak256(wordBytes32(linkNonce));
 var unlinkPayloadHash = (bindingHash) => keccak256(wordBytes32(bindingHash));
 var soterChallenge = (d) => bytesToHex(wordBytes32(d)).slice(2);
 var sameAddress = (a, b) => typeof a === "string" && typeof b === "string" && a.toLowerCase() === b.toLowerCase();
+function checksumAddress(a) {
+  wordAddress(a);
+  const lower = a.slice(2).toLowerCase();
+  const h = keccak256(utf8(lower)).slice(2);
+  let out = "0x";
+  for (let i = 0; i < 40; i++) out += parseInt(h[i], 16) >= 8 ? lower[i].toUpperCase() : lower[i];
+  return out;
+}

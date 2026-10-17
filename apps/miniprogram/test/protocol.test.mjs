@@ -106,6 +106,18 @@ describe('lib/protocol.js equals packages/protocol on random inputs', () => {
   });
 });
 
+describe('checksumAddress (EIP-55, for display)', () => {
+  it('matches viem on Circle USDC and on random addresses, and refuses a non-address', async () => {
+    const { getAddress } = await import('viem');
+    expect(p.checksumAddress('0x036cbd53842c5426634e7929541ec2318f3dcf7e')).toBe('0x036CbD53842c5426634e7929541eC2318f3dCF7e');
+    for (let i = 0; i < 50; i++) {
+      const a = hex(20);
+      expect(p.checksumAddress(a)).toBe(getAddress(a));
+    }
+    expect(() => p.checksumAddress('0x1234')).toThrow();
+  });
+});
+
 describe('the bundle as shipped', () => {
   const code = readFileSync(new URL('lib/protocol.js', MP), 'utf8');
 

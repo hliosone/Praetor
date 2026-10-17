@@ -146,3 +146,13 @@ export const unlinkPayloadHash = (bindingHash) => keccak256(wordBytes32(bindingH
 export const soterChallenge = (d) => bytesToHex(wordBytes32(d)).slice(2);
 
 export const sameAddress = (a, b) => typeof a === 'string' && typeof b === 'string' && a.toLowerCase() === b.toLowerCase();
+
+/** EIP-55 mixed-case form, so an address decoded from calldata reads exactly as the web app shows it. */
+export function checksumAddress(a) {
+  wordAddress(a);
+  const lower = a.slice(2).toLowerCase();
+  const h = keccak256(utf8(lower)).slice(2);
+  let out = '0x';
+  for (let i = 0; i < 40; i++) out += parseInt(h[i], 16) >= 8 ? lower[i].toUpperCase() : lower[i];
+  return out;
+}
