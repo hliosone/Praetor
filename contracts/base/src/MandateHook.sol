@@ -4,8 +4,9 @@ pragma solidity 0.8.28;
 import {PraetorTypes as P} from "@praetor/protocol/PraetorTypes.sol";
 import {IMandateHookEvents} from "@praetor/protocol/PraetorEvents.sol";
 import {IERC7579Hook, MODULE_TYPE_HOOK} from "./interfaces/IERC7579.sol";
-import {MandateState, Modules, Ctx, StatusRec, CapsRec, KyaRec, AssetRec, AttesterRec} from "./hook/HookTypes.sol";
+import {MandateState, Modules, Ctx, CapsRec, KyaRec, AssetRec, AttesterRec, ApprovalRec} from "./hook/HookTypes.sol";
 import {ConsortiumLib} from "./hook/ConsortiumLib.sol";
+import {OwnerLib} from "./hook/OwnerLib.sol";
 
 /// @title MandateHook
 /// @notice The single global ERC-7579 hook of every Praetor account: the policy engine (spec 03). Every execution
@@ -106,6 +107,26 @@ contract MandateHook is IERC7579Hook, IMandateHookEvents {
         ConsortiumLib.applyAttester(s, _ctx(), a, sigs);
     }
 
+    // ---------------------------------------------------------------- approvals, owner actions, recovery
+
+    function registerApproval(P.Tier2Approval calldata a, P.OwnerAuth calldata auth) external {
+        OwnerLib.registerApproval(s, _ctx(), a, auth);
+    }
+
+    function applyOwnerAction(P.OwnerAction calldata a, bytes calldata payload, P.OwnerAuth calldata auth, bytes[] calldata bankSigs)
+        external
+    {
+        OwnerLib.applyOwnerAction(s, _ctx(), a, payload, auth, bankSigs);
+    }
+
+    function scheduleRecovery(P.OwnerAction calldata a, bytes calldata payload, bytes[] calldata bankSigs) external {
+        OwnerLib.scheduleRecovery(s, _ctx(), a, payload, bankSigs);
+    }
+
+    function executeRecovery(address account) external {
+        OwnerLib.executeRecovery(s, account);
+    }
+
     // ---------------------------------------------------------------- views
 
     function members() external view returns (address, address, address) {
@@ -161,6 +182,44 @@ contract MandateHook is IERC7579Hook, IMandateHookEvents {
     function attesterOf(address who) external view returns (bytes32 measurement, bool active) {
         AttesterRec memory a = s.attesters[who];
         return (a.measurement, a.active);
+    }
+
+    function policyOf(address account) external view returns (P.Policy memory) {
+        return s.policy[account];
+    }
+
+    function policyHashOf(address account) external view returns (bytes32) {
+        return s.policyHash[account];
+    }
+
+    function approvalOf(address account, bytes32 callHash) external view returns (uint64 expiresAt, bool consumed) {
+        ApprovalRec memory a = s.approvals[account][s.epoch[account]][callHash];
+        return (a.expiresAt, a.consumed);
+    }
+
+    function moduleApprovalOf(address account, bytes32 callHash) external view returns (uint64 expiresAt, bool consumed) {
+        ApprovalRec memory a = s.moduleApprovals[account][s.epoch[account]][callHash];
+        return (a.expiresAt, a.consumed);
+    }
+
+    function isDigestUsed(bytes32 digest) external view returns (bool) {
+        return s.usedDigest[digest];
+    }
+
+    function bindingOf(address account) external view returns (bytes32) {
+        return s.binding[account];
+    }
+
+    function soterCounterOf(bytes32 bindingHash) external view returns (uint64) {
+        return s.soterCounter[bindingHash];
+    }
+
+    function isPaused(address account) external view returns (bool) {
+        return s.paused[account];
+    }
+
+    function isRecoveryPending(address account) external view returns (bool) {
+        return s.recovery[account].executableAt != 0;
     }
 
     /// Stored nonce per message type, key = the left-padded address, profile or bytes2: 0 status (account 0 = global), 1 caps (profile),

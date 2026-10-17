@@ -15,6 +15,7 @@ import {Compliance} from "../../src/tokens/Compliance.sol";
 import {PraetorToken} from "../../src/tokens/PraetorToken.sol";
 import {MockUSDC} from "./MockUSDC.sol";
 import {Passkeys} from "./Passkeys.sol";
+import {StandingOrdersMock} from "./StandingOrdersMock.sol";
 
 /// Deploys the Base contract set around a MandateHook and signs consortium messages with test member keys.
 abstract contract HookBase is Passkeys, IMandateHookEvents {
@@ -42,7 +43,7 @@ abstract contract HookBase is Passkeys, IMandateHookEvents {
     MandateHook internal hook;
     PasskeyValidator internal passkeyV;
     AgentKeyValidator internal agentV;
-    address internal standingOrders = makeAddr("standingOrders");
+    address internal standingOrders;
     address internal feeder = makeAddr("feeder");
     address internal partner = makeAddr("payoutPartner");
     address internal account = makeAddr("account");
@@ -64,6 +65,7 @@ abstract contract HookBase is Passkeys, IMandateHookEvents {
         passkeyV = new PasskeyValidator(address(hook));
         agentV = new AgentKeyValidator(address(hook));
         rail = new PayoutRail(address(hook), address(usdc));
+        standingOrders = _deployStandingOrders();
         hook.setModules(Modules({
             passkeyValidator: address(passkeyV), agentKeyValidator: address(agentV), standingOrders: standingOrders,
             usdc: address(usdc), desk: address(desk), payoutRail: address(rail), oracle: address(oracle)
@@ -75,6 +77,84 @@ abstract contract HookBase is Passkeys, IMandateHookEvents {
         passkeyV.onInstall(abi.encode(owner.credIdHash, owner.x, owner.y));
         agentV.onInstall("");
         vm.stopPrank();
+    }
+
+    /// Overridden once the real executor is wired into a suite.
+    function _deployStandingOrders() internal virtual returns (address) {
+        return address(new StandingOrdersMock());
+    }
+
+    // ---------------------------------------------------------------- owner auth
+
+    function _passkeyAuth(Passkey memory p, bytes32 d) internal pure returns (P.OwnerAuth memory) {
+        return P.OwnerAuth(uint8(P.AuthKind.PASSKEY), abi.encode(p.credIdHash, _auth(p, abi.encodePacked(d))));
+    }
+
+    function _soterApproval(address who, bytes32 d, bytes32 bindingHash, uint64 counter)
+        internal
+        view
+        returns (P.SoterApproval memory sa, bytes memory sig)
+    {
+        sa = P.SoterApproval(who, d, bindingHash, counter, uint64(block.timestamp + 600));
+        sig = _sign(attesterPk, _d(P.hash(sa)));
+    }
+
+    function _soterAuth(bytes32 d, bytes32 bindingHash, uint64 counter) internal view returns (P.OwnerAuth memory) {
+        (P.SoterApproval memory sa, bytes memory sig) = _soterApproval(account, d, bindingHash, counter);
+        return P.OwnerAuth(uint8(P.AuthKind.SOTER), abi.encode(sa, sig));
+    }
+
+    function _bankSig(bytes32 d) internal view returns (bytes[] memory) {
+        return _sigs(d, _pks(bankPk));
+    }
+
+    function _noSigs() internal pure returns (bytes[] memory) {
+        return new bytes[](0);
+    }
+
+    // ---------------------------------------------------------------- owner actions
+
+    address internal landlord = makeAddr("landlord");
+    address internal utilities = makeAddr("utilities");
+    address internal cafe = makeAddr("cafe");
+    uint64 internal saltNonce;
+
+    /// Lin's policy (spec 00): auto cap 200, hard cap 2000, daily 500, monthly 3000, 10/day, buffer 1000.
+    function _linPolicy() internal view returns (P.Policy memory p) {
+        p.autoCap = 200e6;
+        p.hardCap = 2_000e6;
+        p.dailyBudget = 500e6;
+        p.monthlyBudget = 3_000e6;
+        p.dailyCount = 10;
+        p.bufferUsdc = 1_000e6;
+        p.payees = new address[](3);
+        (p.payees[0], p.payees[1], p.payees[2]) = (landlord, utilities, cafe);
+        p.merchants = new bytes32[](1);
+        p.merchants[0] = P.merchantKey(partner, keccak256("KOWLOON-LETTINGS"));
+        p.bands = new P.Band[](3);
+        p.bands[0] = P.Band(address(usdc), 4000, 5500, 6000);
+        p.bands[1] = P.Band(address(xau), 2000, 3000, 3500);
+        p.bands[2] = P.Band(address(xag), 0, 1500, 1500);
+        p.maxRebalancesPerDay = 1;
+        p.maxTradeUsd = 1_000e6;
+        p.maxSlippageBps = 100;
+        p.validUntil = uint64(block.timestamp + 365 days);
+        p.soterEnabled = true;
+    }
+
+    function _ownerActionMsg(uint8 kind, bytes memory payload) internal returns (P.OwnerAction memory a, bytes32 d) {
+        a = P.OwnerAction(account, kind, P.ownerActionPayloadHash(account, kind, payload), ++saltNonce, uint64(block.timestamp + 600), bytes32(0));
+        d = _d(P.hash(a));
+    }
+
+    /// Owner action signed by the owner's passkey and, when `withBank`, the bank.
+    function _ownerAction(uint8 kind, bytes memory payload, bool withBank) internal {
+        (P.OwnerAction memory a, bytes32 d) = _ownerActionMsg(kind, payload);
+        hook.applyOwnerAction(a, payload, _passkeyAuth(owner, d), withBank ? _bankSig(d) : _noSigs());
+    }
+
+    function _setPolicy(P.Policy memory p) internal {
+        _ownerAction(uint8(P.OwnerActionKind.SET_POLICY), abi.encode(p), true);
     }
 
     // ---------------------------------------------------------------- signing
