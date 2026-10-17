@@ -99,7 +99,7 @@ export function createApiApp(d: ApiDeps) {
       rpName: 'Praetor', rpID: d.rpId, userName: u.email, attestationType: 'none',
       authenticatorSelection: { residentKey: 'required', userVerification: 'required' }, supportedAlgorithmIDs: [-7],
     });
-    challenges.set(`reg:${userId}`, { challenge: options.challenge, at: Date.now() });
+    challenges.set(`reg:${userId}:${options.challenge}`, { challenge: options.challenge, at: Date.now() });
     res.json(options);
   }));
 
@@ -111,12 +111,22 @@ export function createApiApp(d: ApiDeps) {
       authenticatorSelection: { residentKey: 'required', userVerification: 'required' }, supportedAlgorithmIDs: [-7],
       excludeCredentials: exclude ? (await d.store.passkeysOf(userId)).map((p) => ({ id: p.credentialId })) : [],
     });
-    challenges.set(key, { challenge: options.challenge, at: Date.now() });
+    challenges.set(`${key}:${options.challenge}`, { challenge: options.challenge, at: Date.now() });
     return options;
+  };
+  // Pending registrations are keyed by their challenge too: a second request (anyone can ask for a recovery by email)
+  // never cancels the first one.
+  const challengeOf = (response: unknown) => {
+    try {
+      const cd = (response as { response?: { clientDataJSON?: unknown } } | undefined)?.response?.clientDataJSON;
+      return String((JSON.parse(Buffer.from(String(cd), 'base64url').toString('utf8')) as { challenge?: unknown }).challenge ?? '');
+    } catch {
+      return '';
+    }
   };
   /** Verifies a registration against the pending challenge: the passkey to store for the user. */
   const verifyRegistration = async (userId: string, key: string, response: unknown) => {
-    const expectedChallenge = takeChallenge(key);
+    const expectedChallenge = takeChallenge(`${key}:${challengeOf(response)}`);
     if (!expectedChallenge) throw new HttpError(400, 'no pending registration');
     let info;
     try {

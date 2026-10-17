@@ -123,6 +123,14 @@ describe('recovery when every passkey is lost', () => {
     await request(app).post('/api/passkeys/options').set('cookie', cookie).set('x-csrf-token', csrfOf(cookie)).send({}).expect(200);
   });
 
+  it('a second recovery request for the same email (anyone can make one) leaves the first one\'s registration pending', async () => {
+    const { app, onChain } = setup();
+    const { userId } = await onboard(app, onChain);
+    const { body: mine } = await request(app).post('/api/recover/options').send({ email: 'lin@example.com' }).expect(200);
+    await request(app).post('/api/recover/options').send({ email: 'lin@example.com' }).expect(200);
+    await request(app).post('/api/recover/verify').send({ userId, response: softPasskey('lin-new', RP, ORIGIN).registration(mine.options.challenge) }).expect(200);
+  });
+
   it('knows no account for an unknown email', async () => {
     const { app } = setup();
     await request(app).post('/api/recover/options').send({ email: 'nobody@example.com' }).expect(404);
