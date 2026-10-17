@@ -1,0 +1,2 @@
+FROM praetor/jdk11-tools:p0
+RUN apt-get update && apt-get install -y --no-install-recommends jq openssl xxd python3 && rm -rf /var/lib/apt/lists/*
