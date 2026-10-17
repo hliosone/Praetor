@@ -13,6 +13,7 @@ import { Agent } from './pages/Agent.js';
 import { Audit } from './pages/Audit.js';
 import { Settings } from './pages/Settings.js';
 import { Console } from './pages/Console.js';
+import { Recover } from './pages/Recover.js';
 
 /** Signed-in pages: without a session, back to the landing page. */
 function RequireSession({ children }: { children: ReactNode }) {
@@ -30,6 +31,7 @@ export function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/start" element={<Onboarding />} />
           <Route path="/console/*" element={<Console />} />
+          <Route path="/recover" element={<Recover />} />
           <Route element={<RequireSession><AppLayout /></RequireSession>}>
             <Route path="/home" element={<Home />} />
             <Route path="/approve/:id" element={<Approve />} />

@@ -41,6 +41,7 @@ export function Landing() {
               <Link className="button" to="/sandbox">{t('landing.sandbox')}</Link>
               <Link className="button" to="/console">{t('landing.console')}</Link>
             </div>
+            <p className="small"><Link to="/recover">{t('landing.lost')}</Link></p>
             {error && <p className="error" role="alert">{t('common.error', { e: error })}</p>}
           </div>
           <div className="stage"><PhoneView screen={screens[beat]!} label={t('phone.approve', { amount: '300' })} /></div>

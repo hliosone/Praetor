@@ -8,6 +8,7 @@ import { useI18n } from '../i18n/index.js';
 import { api } from '../lib/api.js';
 import { assertDigest, signAndSubmit } from '../lib/passkey.js';
 import type { Prepared } from '../lib/api.js';
+import { Devices } from '../components/Devices.js';
 
 export function Settings() {
   const { t, lang, setLang } = useI18n();
@@ -43,6 +44,7 @@ export function Settings() {
         }}>{t('settings.unlink')}</button>
         {msg && <p role="status">{msg}</p>}
       </section>
+      <Devices />
       <section className="panel stack">
         <h2>{t('settings.language')}</h2>
         <select value={lang} onChange={(e) => setLang(e.target.value as 'en' | 'zh-CN')} aria-label={t('settings.language')}>
