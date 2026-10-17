@@ -13,6 +13,7 @@ import { createApiApp, HttpError } from './app.js';
 import { clients, UpstreamError } from './clients.js';
 import { Rotation } from './rotation.js';
 import { SandboxFaucet } from './sandbox.js';
+import { MySqlPushStore } from './push.js';
 import { MySqlApiStore, MySqlApprovalStore, MySqlMpBindingStore, MySqlProposalStore } from './mysql.js';
 import { StandingOrders, type Directory } from './standing-orders.js';
 import { Audit, type AuditRow } from './audit.js';
@@ -56,6 +57,7 @@ const env = z.object({
   CHAIN_MODE: z.enum(['fork', 'live']).default('fork'),
   SANDBOX_ENABLED: z.enum(['0', '1', '']).default('0').transform((v) => v === '1'),
   SANDBOX_RATE_LIMIT_PER_HOUR: z.coerce.number().int().positive().default(3),
+  VAPID_PUBLIC: z.string().default(''),
   PORT: z.coerce.number().int().default(3200),
 }).parse(process.env);
 
@@ -191,7 +193,10 @@ const views = new Views({ reader, tokens: { usdc: d.usdc, txau: d.txau, txag: d.
 const config = {
   chainId: d.chainId, domainName: d.domainName, mandateHook: d.mandateHook, usdc: d.usdc, txau: d.txau, txag: d.txag, deskSpreadBps: 30,
   treasuryDesk: d.treasuryDesk, payoutRail: d.payoutRail,
+  // The web app subscribes its service worker to push with this key (VAPID, RFC 8292).
+  vapidPublic: env.VAPID_PUBLIC,
 };
+const push = new MySqlPushStore(conn.runner);
 const MEMBERS = { bank: env.BANK_URL, regulator: env.REGULATOR_URL, operator: env.OPERATOR_URL } as const;
 const member: MemberCall = async (role, method, path, body, session) => {
   const r = await fetch(`${MEMBERS[role]}${path}`, {
@@ -264,6 +269,7 @@ const app = createApiApp({
     onboarding, ownerActions, approvals, link, standingOrders, audit, statement, views, config, bank: c.bank, runner: c.runner,
     chainNowMs: async () => Number(await now()) * 1000,
     sandbox,
+    push,
     rotation: new Rotation({
       agentKeyOf,
       signerAddress: async (account, v) => (await c.signer.address(account, v)).address,
@@ -284,7 +290,7 @@ const app = createApiApp({
     a.use('/mp', mp);
     const internal = express.Router();
     internal.use(express.json());
-    internalRoutes(internal, h, env.INTERNAL_TOKEN_API, approvals, standingOrders);
+    internalRoutes(internal, h, env.INTERNAL_TOKEN_API, approvals, standingOrders, push);
     a.use('/internal', internal);
     const consoleRouter = express.Router();
     consoleRouter.use(express.json({ limit: '64kb' }));

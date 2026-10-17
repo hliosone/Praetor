@@ -12,6 +12,7 @@ import type { WechatLink } from './wechat-link.js';
 import type { StandingOrders } from './standing-orders.js';
 import type { Audit } from './audit.js';
 import type { Views } from './views.js';
+import type { PushStore } from './push.js';
 import type { Clients } from './clients.js';
 import { requireMp, type MpSessions } from './mp-session.js';
 import { HttpError, type handler } from './app.js';
@@ -53,6 +54,8 @@ export type RouteModules = {
   bank: Pick<Clients['bank'], 'policyCheck'>;
   runner: Pick<Clients['runner'], 'chat'>;
   agentKeyOf(account: Address): Promise<Address>;
+  /** Web push: the browser subscriptions of the account (the notifier reads them). */
+  push: { subscribe(account: Address, s: { endpoint: string; keys: { p256dh: string; auth: string } }): Promise<void> };
   /** Judges' sandbox (interim, D48): demo USDC for a sandbox account on the fork. */
   sandbox: { fund(account: Address, client: string): Promise<unknown> };
   /** F10: the next agent key version, through the onboarding's agent steps. */
@@ -126,6 +129,12 @@ export function apiRoutes(r: Router, h: typeof handler, session: express.Request
     if (out.success && (b.ownerAction.action === K.REVOKE_AGENT_KEY || b.ownerAction.action === K.SET_AGENT_KEY)) await m.revokeMandates(acct(res));
     if (out.success && b.ownerAction.action === K.UNLINK_WECHAT) await m.onWechatUnlinked(acct(res));
     send(res, out);
+  }));
+
+  r.post('/push/subscribe', session, h(async (req, res) => {
+    const b = z.object({ endpoint: z.string().url().max(512).startsWith('https://'), keys: z.object({ p256dh: z.string().min(1).max(256), auth: z.string().min(1).max(64) }) }).parse(req.body);
+    await m.push.subscribe(acct(res), { endpoint: b.endpoint, keys: b.keys });
+    res.status(204).end();
   }));
 
   r.post('/sandbox/faucet', session, h(async (req, res) => send(res, await m.sandbox.fund(acct(res), req.ip ?? 'unknown'))));
@@ -281,13 +290,15 @@ export function mpRoutes(r: Router, h: typeof handler, m: MpRouteModules) {
 }
 
 /** Internal routes for mcp (INTERNAL_TOKEN_API): approval requests and standing-order proposals from the agent's tools. */
-export function internalRoutes(r: Router, h: typeof handler, token: string, approvals: Approvals, standingOrders: StandingOrders) {
+export function internalRoutes(r: Router, h: typeof handler, token: string, approvals: Approvals, standingOrders: StandingOrders, push?: PushStore) {
   const want = Buffer.from(`Bearer ${token}`);
   r.use((req: Request, res: Response, next: NextFunction) => {
     const got = Buffer.from(req.header('authorization') ?? '');
     if (got.length !== want.length || !timingSafeEqual(got, want)) return res.status(401).json({ error: 'unauthorized' });
     next();
   });
+  // The notifier's read of an account's web push subscriptions.
+  r.get('/push-subscriptions', h(async (req, res) => send(res, { subscriptions: push ? await push.list(address.parse(req.query.account)) : [] })));
   const call = z.object({ to: address, value: big, data: hex });
   r.post('/approvals', h(async (req, res) => {
     const b = z.object({ account: address, calls: z.array(call).min(1).max(8), callHash: bytes32, reason: z.string().max(64), summary: z.string().max(280) }).parse(req.body);

@@ -74,3 +74,21 @@ describe('sandbox faucet route (interim, D48)', () => {
     expect(seen).toEqual([{ account: ACCOUNT, client: 'string' }]);
   });
 });
+
+describe('web push subscriptions (spec 07 PWA)', () => {
+  const sub = { endpoint: 'https://push.example/abc', keys: { p256dh: 'BPx', auth: 'au' } };
+
+  it('stores the browser\'s push subscription for the signed-in account', async () => {
+    const saved: unknown[] = [];
+    const { a } = app({ push: { subscribe: async (account: Address, s: unknown) => { saved.push({ account, s }); } } });
+    await request(a).post('/api/push/subscribe').send(sub).expect(204);
+    expect(saved).toEqual([{ account: ACCOUNT, s: sub }]);
+  });
+
+  it('refuses a subscription whose endpoint is not https', async () => {
+    const saved: unknown[] = [];
+    const { a } = app({ push: { subscribe: async (_a: Address, s: unknown) => { saved.push(s); } } });
+    expect((await request(a).post('/api/push/subscribe').send({ ...sub, endpoint: 'http://push.example/abc' })).status).toBeGreaterThanOrEqual(400);
+    expect(saved).toEqual([]);
+  });
+});
