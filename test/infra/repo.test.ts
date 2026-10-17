@@ -41,7 +41,7 @@ describe('secrets stay out of git (I10)', () => {
 
   it('keeps every directory holding keys or passwords out of Docker build contexts (the repository root)', () => {
     const di = readFileSync(root + '.dockerignore', 'utf8').split('\n').map((l) => l.trim());
-    for (const p of ['.env', '.run', 'infra/fisco/nodes', 'infra/wecross/generated', 'keys', 'secrets']) expect(di).toContain(p);
+    for (const p of ['.env', '.run', 'infra/fisco/nodes', 'infra/wecross/generated', 'keys', 'secrets', '.claude', 'CLAUDE.md']) expect(di).toContain(p);
   });
 
   it('runs gitleaks in make test', () => {

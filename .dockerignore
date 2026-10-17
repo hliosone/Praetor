@@ -14,3 +14,5 @@ coverage
 infra/fisco/nodes
 **/*.log
 infra/wecross/generated
+.claude
+CLAUDE.md
