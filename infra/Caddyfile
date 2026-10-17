@@ -11,6 +11,10 @@
 		respond "ok" 200
 	}
 
+	handle /kyc-mock/* {
+		reverse_proxy kyc-vendor-mock:3040
+	}
+
 	handle {
 		respond "Praetor" 200
 	}

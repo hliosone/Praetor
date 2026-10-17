@@ -26,6 +26,11 @@ export type MemberDeps = {
   version: string;
   /** Role-specific routes (bank: caps, KYA, policy, owner actions...). */
   extend?: (r: Router, helpers: { h: typeof h; staffAssertion: typeof assertionSchema }) => void;
+  /** Routes outside the token gate, each authenticating its caller itself (bank: the KYC provider's HMAC callback).
+   *  `req.rawBody` holds the exact bytes received. */
+  extendPublic?: (r: Router, helpers: { h: typeof h }) => void;
+  /** Where unexpected (5xx) failures are reported; the first line of the message only. */
+  log?: { error: (o: object, msg: string) => void };
 };
 
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/).transform((s) => s as `0x${string}`);
@@ -45,13 +50,19 @@ const json = (v: unknown) => JSON.parse(JSON.stringify(v, (_, x) => (typeof x ==
 export function createMemberApp(d: MemberDeps) {
   const app = express();
   app.disable('x-powered-by');
-  app.use(express.json({ limit: '256kb' }));
+  app.use(express.json({ limit: '256kb', verify: (req, _res, buf) => { (req as unknown as { rawBody: Buffer }).rawBody = buf; } }));
   app.get('/health', h(async (_req, res) => {
     const c = await d.health();
     const ok = Object.values(c).every(Boolean);
     res.status(ok ? 200 : 503).json({ ok, ...c });
   }));
   app.get('/version', (_req, res) => res.json({ service: d.role, version: d.version }));
+
+  if (d.extendPublic) {
+    const pub = express.Router();
+    d.extendPublic(pub, { h });
+    app.use(pub);
+  }
 
   const expected = Buffer.from(`Bearer ${d.token}`);
   app.use((req, res, next) => {
@@ -120,7 +131,9 @@ export function createMemberApp(d: MemberDeps) {
     if (err instanceof StaffError) return res.status(403).json({ error: 'StaffError', detail: err.message });
     const status = (err as { status?: number }).status;
     if (status) return res.status(status).json({ error: (err as Error).name, detail: (err as Error).message });
-    res.status(500).json({ error: 'Internal', detail: (err as Error).message?.split('\n')[0] });
+    const detail = (err as Error).message?.split('\n')[0];
+    d.log?.error({ path: _req.path, error: (err as Error).name, detail }, 'request failed');
+    res.status(500).json({ error: 'Internal', detail });
   });
   return app;
 }

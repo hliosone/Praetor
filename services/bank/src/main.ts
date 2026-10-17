@@ -1,6 +1,7 @@
 // bank-service (member: bank), governance parts of M5 (spec 05): caps (staff-signed), KYA (bank-signed after its
 // checks), the policy check that precedes SET_POLICY, owner-action co-signatures, token identity registration.
-// KYC and TEE quote verification arrive with M6 and M7.
+// M6: KYC (Demo KYC provider, EUDI wallet), suitability, PersonKYC and AgentMandate on WeIdentity. TEE quote
+// verification arrives with M7.
 import { z } from 'zod';
 import { decodeEventLog, parseAbi, type Address, type Hex, type PublicClient, type WalletClient } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -10,7 +11,15 @@ import { MandateRegistryAbi } from '@praetor/fisco-client';
 import { digest, praetorDomain, POLICY_ABI, type OwnerAction, type Policy } from '@praetor/protocol';
 import { startMember, type MemberContext } from '@praetor/member-kit';
 import type { Request, Response, NextFunction } from 'express';
+import { weidClient } from '@praetor/weid-client';
 import { checkCosign, type CosignReaders } from './cosign.js';
+import { KycService } from './kyc.js';
+import { MandateService } from './mandate.js';
+import { kycPublicRoutes, kycRoutes } from './kyc-routes.js';
+import { ensureBankIdentity, memoIdentity } from './identity.js';
+import { MySqlKv, MySqlKycStore, MySqlMandateStore } from './stores.js';
+import { MOCK_SANCTIONS } from './sanctions-mock.js';
+import { PasskeyValidatorAbi } from '@praetor/chain';
 
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/).transform((s) => s as Address);
 const bytes32 = z.string().regex(/^0x[0-9a-fA-F]{64}$/).transform((s) => s as Hex);
@@ -30,12 +39,46 @@ export function startBank(env: Record<string, string | undefined> = process.env)
     BASE_RPC_URL: z.string().url(),
     KYA_ALLOW_UNATTESTED: z.enum(['0', '1']).default('0'),
     PRAETOR_ENV: z.string().default('local'),
+    KYC_ENC_KEY: z.string().regex(/^(0x)?[0-9a-fA-F]{64}$/),
+    KYC_VENDOR_HMAC: z.string().min(32),
+    WEID_REST_URL: z.string().url().default('http://weid-rest:6001/weid/api/invoke'),
+    WEID_HELPER_URL: z.string().url().default('http://weid-helper:6100'),
+    EUDI_VERIFIER_BACKEND: z.string().url().optional(),
+    EUDI_INTENDED_USE_ID: z.string().default('TEST-01'),
+    PUBLIC_HOST: z.string().default('praetor.localhost'),
+    PUBLIC_URL: z.string().url().default('https://praetor.localhost'),
   }).parse(env);
   if (flags.PRAETOR_ENV === 'prod' && flags.KYA_ALLOW_UNATTESTED === '1') throw new Error('prod refuses KYA_ALLOW_UNATTESTED=1 (I13)');
   const deskKey = resolveKey('DESK_OPERATOR_KEY', env);
   const bankSignerKey = resolveKey('BANK_BASE_SIGNER_KEY', env);
   const { publicClient, walletClient } = baseClients(flags.BASE_RPC_URL, deskKey);
-  return startMember({ role: 'bank', env, extend: (r, ctx) => routes(r, ctx, { publicClient: publicClient as PublicClient, desk: walletClient as WalletClient, bankSignerKey, allowUnattested: flags.KYA_ALLOW_UNATTESTED === '1' }) });
+  const weid = weidClient({ restUrl: flags.WEID_REST_URL, helperUrl: flags.WEID_HELPER_URL });
+  let services: { kyc: KycService; mandate: MandateService } | undefined;
+  const identityServices = (ctx: MemberContext) => {
+    if (services) return services;
+    const identity = memoIdentity(() => ensureBankIdentity(weid, new MySqlKv(ctx.runner)));
+    const kyc = new KycService({
+      store: new MySqlKycStore(ctx.runner), weid, encKey: flags.KYC_ENC_KEY.replace(/^0x/, ''), sanctions: MOCK_SANCTIONS, identity,
+      publicUrl: flags.PUBLIC_URL, eudi: { backend: flags.EUDI_VERIFIER_BACKEND ?? '', intendedUseId: flags.EUDI_INTENDED_USE_ID },
+    });
+    const mandate = new MandateService({
+      store: new MySqlMandateStore(ctx.runner), kycRecord: (u) => kyc.record(u), identity, weid, rpId: flags.PUBLIC_HOST, origin: flags.PUBLIC_URL,
+      passkeyOf: async (account, credIdHash) => {
+        const [x, y] = (await publicClient.readContract({ address: ctx.base.passkeyValidator, abi: PasskeyValidatorAbi, functionName: 'ownerKey', args: [account as Address, credIdHash] })) as readonly [bigint, bigint];
+        return x === 0n && y === 0n ? null : { x, y };
+      },
+    });
+    services = { kyc, mandate };
+    return services;
+  };
+  return startMember({
+    role: 'bank', env, migrations: ['bank'],
+    extendPublic: (r, ctx) => kycPublicRoutes(r, { kyc: identityServices(ctx).kyc, vendorHmac: flags.KYC_VENDOR_HMAC }),
+    extend: (r, ctx) => {
+      routes(r, ctx, { publicClient: publicClient as PublicClient, desk: walletClient as WalletClient, bankSignerKey, allowUnattested: flags.KYA_ALLOW_UNATTESTED === '1' });
+      kycRoutes(r, { ...identityServices(ctx), eudi: flags.EUDI_VERIFIER_BACKEND ? { backend: flags.EUDI_VERIFIER_BACKEND } : undefined });
+    },
+  });
 }
 
 type Deps = { publicClient: PublicClient; desk: WalletClient; bankSignerKey: Hex; allowUnattested: boolean };

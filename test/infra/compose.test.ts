@@ -14,6 +14,7 @@ type Service = {
   healthcheck?: unknown;
   command?: string | string[];
   labels?: Record<string, string>;
+  pull_policy?: string;
   restart?: string;
   depends_on?: Record<string, { condition?: string }>;
   networks?: string[] | Record<string, unknown>;
@@ -42,8 +43,12 @@ describe('infra/compose.yml', () => {
     }
   });
 
-  it('pins every pulled image by digest', () => {
-    for (const [name, s] of services) if (!s.build) expect(s.image, name).toMatch(/@sha256:[0-9a-f]{64}$/);
+  it('pins every pulled image by digest (locally built ones are never pulled)', () => {
+    for (const [name, s] of services) {
+      if (s.build) continue;
+      if (s.pull_policy === 'never') expect(s.image, name).toMatch(/^praetor\//);
+      else expect(s.image, name).toMatch(/@sha256:[0-9a-f]{64}$/);
+    }
   });
 
   it('publishes ports only from caddy (80/443) and anvil on loopback 18545 (spec 11)', () => {

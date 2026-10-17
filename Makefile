@@ -5,7 +5,7 @@ SHELL := /bin/bash
 ENV_FILES = --env-file infra/.env.example $(if $(wildcard .env),--env-file .env) $(if $(wildcard .run/compose.env),--env-file .run/compose.env)
 COMPOSE = docker compose -f infra/compose.yml $(ENV_FILES)
 # Profiles that exist so far; later milestones add chain, wecross, agent, tee-sim, mocks.
-PROFILES ?= core chain dev
+PROFILES ?= core chain mocks dev
 PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 
 .PHONY: help setup install up down ps logs test test-guards test-unit test-scripts test-contracts test-contracts-full test-fork lint gitleaks test-int e2e e2e-live redteam slither deploy-contracts deploy-fisco tunnel reset-fork up-base
@@ -21,6 +21,7 @@ setup: ## Install the commit-msg hook and dependencies
 up: ## Start the local stack (waits for healthchecks; deploys the contracts on a fresh fork)
 	bash scripts/dev/compose-env.sh
 	bash infra/fisco/gen.sh
+	$(MAKE) --no-print-directory fisco-image
 	$(MAKE) --no-print-directory up-base
 	bash scripts/dev/ensure-fork-deploy.sh
 	$(COMPOSE) $(PROFILE_FLAGS) up -d --wait --build
@@ -29,6 +30,9 @@ up: ## Start the local stack (waits for healthchecks; deploys the contracts on a
 reset-fork: ## Fresh anvil fork, contracts and consortium redeployed, services restarted
 	$(COMPOSE) --profile dev restart anvil
 	$(MAKE) --no-print-directory up
+
+fisco-image: ## Build the FISCO node image once (the nodes never rebuild it: see infra/compose.yml)
+	@docker image inspect praetor/fisco-bcos:3.17.1 >/dev/null 2>&1 || docker build -t praetor/fisco-bcos:3.17.1 infra/fisco
 
 up-base:
 	$(COMPOSE) --profile core --profile dev up -d --wait anvil mysql caddy

@@ -33,12 +33,16 @@ export type MemberContext = {
   base: Deployment;
   log: pino.Logger;
   db: ReturnType<typeof connect>['db'];
+  runner: ReturnType<typeof connect>['runner'];
 };
 
 export type MemberOptions = {
   role: Role;
   env?: Record<string, string | undefined>;
   extend?: (r: Router, ctx: MemberContext) => void;
+  extendPublic?: (r: Router, ctx: MemberContext) => void;
+  /** Extra migration sets of this member's database (packages/db/migrations/<name>). */
+  migrations?: string[];
   jobs?: (ctx: MemberContext) => () => void;
 };
 
@@ -52,6 +56,7 @@ export async function startMember(o: MemberOptions): Promise<{ server: Server; p
   const log = pino({ level: cfg.LOG_LEVEL, redact: ['req.headers.authorization'] });
   const conn = connect({ host: cfg.MYSQL_HOST, user: o.role, password, database: o.role });
   await migrate(conn.runner, loadMigrations('member'));
+  for (const m of o.migrations ?? []) await migrate(conn.runner, loadMigrations(m));
   const base = loadDeployments(cfg.DEPLOYMENTS_FILE);
   const fisco = JSON.parse(readFileSync(cfg.FISCO_DEPLOYMENTS_FILE, 'utf8')) as ConsortiumAddresses;
   const { publicClient } = baseClients(cfg.BASE_RPC_URL);
@@ -59,14 +64,14 @@ export async function startMember(o: MemberOptions): Promise<{ server: Server; p
     rpcUrl: cfg.FISCO_RPC_URL, fiscoKey: resolveKey(`${R}_FISCO_KEY`, env), baseSignerKey: resolveKey(`${R}_BASE_SIGNER_KEY`, env),
     addresses: fisco, domain: { name: base.domainName, hook: base.mandateHook }, baseNow: () => baseNow(publicClient),
   });
-  const ctx: MemberContext = { role: o.role, env, consortium, base, log, db: conn.db };
+  const ctx: MemberContext = { role: o.role, env, consortium, base, log, db: conn.db, runner: conn.runner };
   const staff = new StaffAuth(new MySqlStaffStore(conn.db as never), { enrolToken, rpId: cfg.PUBLIC_HOST, origin: cfg.PUBLIC_URL });
   const health = async () => ({
     fisco: await consortium.pub.getBlockNumber().then(() => true, () => false),
     base: await publicClient.getBlockNumber().then(() => true, () => false),
     db: await conn.runner.query('SELECT 1').then(() => true, () => false),
   });
-  const app = createMemberApp({ role: o.role, consortium, staff, token: cfg.INTERNAL_TOKEN_MEMBERS, health, version: '0.1.0', extend: o.extend ? (r) => o.extend!(r, ctx) : undefined });
+  const app = createMemberApp({ role: o.role, consortium, staff, token: cfg.INTERNAL_TOKEN_MEMBERS, health, version: '0.1.0', log, extend: o.extend ? (r) => o.extend!(r, ctx) : undefined, extendPublic: o.extendPublic ? (r) => o.extendPublic!(r, ctx) : undefined });
   const server = await new Promise<Server>((resolve) => {
     const s = app.listen(cfg.PORT, () => resolve(s));
   });

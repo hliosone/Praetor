@@ -82,3 +82,21 @@ describe('member service API (spec 05)', () => {
     await request(app).post('/staff/enrol').set(auth).send({ token: 'enrol-tok', credentialId: pk.credIdHash, x: toHex(pk.x), y: toHex(pk.y), label: 'bob' }).expect(403);
   });
 });
+
+describe('public routes', () => {
+  it('are mounted before the token gate and see the raw body (for HMAC checks)', async () => {
+    const consortium = {} as never;
+    const staff = {} as never;
+    let raw = '';
+    const app = createMemberApp({
+      role: 'bank', consortium, staff, token: TOKEN, health: async () => ({}), version: 't',
+      extendPublic: (r) => r.post('/hook', (req, res) => {
+        raw = (req as unknown as { rawBody: Buffer }).rawBody.toString('utf8');
+        res.json({ ok: true });
+      }),
+    });
+    await request(app).post('/hook').set('content-type', 'application/json').send('{"a": 1}').expect(200);
+    expect(raw).toBe('{"a": 1}');
+    await request(app).post('/caps').send({}).expect(401);
+  });
+});
