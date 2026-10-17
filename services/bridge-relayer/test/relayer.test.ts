@@ -104,6 +104,15 @@ describe('bridge-relayer (spec 05)', () => {
     expect(base.sent).toHaveLength(0);
   });
 
+  it('with BRIDGE=wecross, records a message WeCross already applied as soon as Base shows it, freeing the board for the next proposal', async () => {
+    outbox.msgs = [statusMsg(0n, 3n, 1_990n)];
+    wecross.asked = [0n];
+    base.applied = 3n;
+    expect((await relayer('wecross').tick())[0]!.outcome).toBe('already-applied');
+    expect(outbox.marked).toEqual([{ id: 0n, baseTx: ZERO, transport: 1 }]);
+    expect(base.sent).toHaveLength(0);
+  });
+
   it('with BRIDGE=wecross, asks WeCross once to deliver a new message (as the router account), then waits for it', async () => {
     outbox.msgs = [statusMsg(0n, 1n, 1_990n)];
     expect((await relayer('wecross').tick())[0]!.outcome).toBe('requested');

@@ -56,15 +56,25 @@ export class Relayer {
     return out;
   }
 
+  /** Base already holds this message's nonce (or a later one): applied by WeCross, a member or an earlier run. */
+  private async applied(kind: number, message: Record<string, unknown>): Promise<boolean> {
+    return (await this.base.appliedNonce(kind, message)) >= BigInt((message.nonce ?? message.epoch ?? message.seq) as bigint);
+  }
+
   private async deliver(m: OutboxMessage, now: bigint): Promise<TickResult> {
+    const { fn, message } = decodeMessage(m);
     if (this.cfg.mode === 'wecross' && now - m.enqueuedAt < this.cfg.watchdogS) {
       if (this.wecross && !(await this.wecross.requested(m.id))) {
         await this.wecross.request(m.id);
         return { id: m.id, outcome: 'requested' };
       }
+      // Recorded as soon as Base shows WeCross applied it: the board keeps the key busy until then (no next proposal).
+      if (await this.applied(m.kind, message)) {
+        await this.outbox.markDelivered(m.id, ZERO, 1);
+        return { id: m.id, outcome: 'already-applied' };
+      }
       return { id: m.id, outcome: 'waiting' };
     }
-    const { fn, message } = decodeMessage(m);
     const to = m.kind === ANCHOR_KIND ? this.cfg.anchor : this.cfg.hook;
     const data = m.kind === ANCHOR_KIND
       ? encodeFunctionData({ abi: AnchorAbi, functionName: 'anchor', args: [message as never, m.sigs] })
@@ -72,9 +82,7 @@ export class Relayer {
     const sim = await this.base.simulate(to, data);
     if (!sim.ok) {
       if (/BadNonce|BadSequence/.test(sim.error)) {
-        const applied = await this.base.appliedNonce(m.kind, message);
-        const own = BigInt((message.nonce ?? message.epoch ?? message.seq) as bigint);
-        if (applied >= own) {
+        if (await this.applied(m.kind, message)) {
           await this.outbox.markDelivered(m.id, ZERO, this.cfg.mode === 'wecross' ? 1 : 0);
           return { id: m.id, outcome: 'already-applied' };
         }
