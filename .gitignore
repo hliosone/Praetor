@@ -5,8 +5,8 @@
 *.key
 *.pem
 !**/fixtures/**/*.pem
-keys/
-secrets/
+/keys/
+/secrets/
 
 # Runtime
 .run/
