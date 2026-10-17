@@ -1,8 +1,17 @@
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 
 export const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 export const ANVIL_URL = process.env.ANVIL_URL ?? 'http://127.0.0.1:18545';
+// Fixed compose address (infra/compose.yml); the host reaches the Docker bridge directly.
+export const MYSQL_HOST = process.env.MYSQL_HOST ?? '10.88.0.3';
+
+/** The repo's .env as a record (values stay in memory, never printed). */
+export function dotenv(): Record<string, string> {
+  const text = readFileSync(`${repoRoot}.env`, 'utf8');
+  return Object.fromEntries(text.split('\n').filter((l) => /^[A-Z0-9_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]));
+}
 
 // docker compose with the same env files as the Makefile, so tests see the stack `make up` started.
 export function compose(...args: string[]): string {
