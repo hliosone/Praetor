@@ -1,0 +1,7 @@
+# gitleaks config (I10): the default rules, plus one path allowlist.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Golden vectors: public hashes, public test addresses and signatures from the public anvil test keys"
+paths = ['''^packages/protocol/vectors/[a-z0-9-]+\.json$''']
