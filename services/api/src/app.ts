@@ -103,11 +103,13 @@ export function createApiApp(d: ApiDeps) {
     res.json(options);
   }));
 
-  const registrationOptions = async (userId: string, key: string, userName: string) => {
+  // `exclude`: the user's passkeys, so a device does not register twice. Only for a signed-in owner: a recovery is asked
+  // for by email alone, and a credential id leads to the account on Base (keccak256 is the OwnerKeySet topic).
+  const registrationOptions = async (userId: string, key: string, userName: string, exclude: boolean) => {
     const options = await generateRegistrationOptions({
       rpName: 'Praetor', rpID: d.rpId, userName, attestationType: 'none',
       authenticatorSelection: { residentKey: 'required', userVerification: 'required' }, supportedAlgorithmIDs: [-7],
-      excludeCredentials: (await d.store.passkeysOf(userId)).map((p) => ({ id: p.credentialId })),
+      excludeCredentials: exclude ? (await d.store.passkeysOf(userId)).map((p) => ({ id: p.credentialId })) : [],
     });
     challenges.set(key, { challenge: options.challenge, at: Date.now() });
     return options;
@@ -186,7 +188,7 @@ export function createApiApp(d: ApiDeps) {
   r.post('/passkeys/options', session, h(async (_req, res) => {
     const u = await me(res);
     if ((await d.store.passkeysOf(u.id)).length >= MAX_PASSKEYS) throw new HttpError(409, `at most ${MAX_PASSKEYS} passkeys`);
-    res.json(await registrationOptions(u.id, `device:${u.id}`, u.email));
+    res.json(await registrationOptions(u.id, `device:${u.id}`, u.email, true));
   }));
   r.post('/passkeys/verify', session, h(async (req, res) => {
     const u = await me(res);
@@ -205,7 +207,7 @@ export function createApiApp(d: ApiDeps) {
     const { email } = z.object({ email: z.string().email().max(200) }).parse(req.body);
     const u = await d.store.userByEmail(email);
     if (!u?.account || !d.recovery) throw new HttpError(404, 'no account for this email');
-    res.json({ userId: u.id, options: await registrationOptions(u.id, `recover:${u.id}`, u.email) });
+    res.json({ userId: u.id, options: await registrationOptions(u.id, `recover:${u.id}`, u.email, false) });
   }));
   r.post('/recover/verify', h(async (req, res) => {
     const b = z.object({ userId: z.string().uuid(), response: z.any() }).parse(req.body);

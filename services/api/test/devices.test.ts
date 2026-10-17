@@ -74,6 +74,14 @@ describe('recovery when every passkey is lost', () => {
     expect((await request(app).post(`/api/recover/${userId}/execute`).send({}).expect(200)).body).toEqual({ success: true, txHash: '0x01' });
   });
 
+  it('names none of the account\'s passkeys to whoever types the email (its credIdHash finds the account on Base)', async () => {
+    const { app, onChain } = setup();
+    const { pk } = await onboard(app, onChain);
+    const { body: o } = await request(app).post('/api/recover/options').send({ email: 'lin@example.com' }).expect(200);
+    expect(JSON.stringify(o)).not.toContain(pk.credentialId);
+    expect(o.options.excludeCredentials ?? []).toEqual([]);
+  });
+
   it('knows no account for an unknown email', async () => {
     const { app } = setup();
     await request(app).post('/api/recover/options').send({ email: 'nobody@example.com' }).expect(404);
