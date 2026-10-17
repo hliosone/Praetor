@@ -85,7 +85,7 @@ spikes/             第 0 阶段的验证实验
 
 ## 状态
 
-已构建并测试：Base 与 FISCO 合约、协议、bundler 与 paymaster、联盟服务、WeIdentity 身份与 KYC、运行在 dstack 模拟器上的两个 TEE、带 MCP 服务器的智能体、api、定期付款指令与出款、带锚点和 camt.053 的审计链（本地分叉上的流程 F1 至 F9），以及 WeCross 传输（其里程碑验收，即经 WeCross 的 F9，尚待完成）。进行中或尚待完成：Web 应用与评委沙盒（M13）、微信小程序（M14）、密钥轮换与恢复流程 F10 及国密配置（M15）、Base Sepolia 上的实链运行与红队测试套件（M16）、生产部署（M18 与 C 阶段）。详情：[docs/PROGRESS.md](docs/PROGRESS.md)。
+已在本地分叉上构建并测试：Base 与 FISCO 合约、协议、bundler 与 paymaster、联盟成员服务、WeIdentity 身份与 KYC、dstack 模拟器上的两个 TEE、智能体及其 MCP 服务器、api、定期付款与出款、带锚定和 camt.053 的审计链、WeCross 传输、网页应用（含联盟控制台与临时评委沙盒，D48）、微信小程序（逻辑与 api；真机测试在 Phase C）、智能体密钥轮换与所有者恢复（F10）、国密配置冒烟测试、生产 compose 覆盖文件及其拒绝检查。流程 F1 至 F10 既通过 api 运行，也通过网页应用运行（Playwright，虚拟认证器）。待完成：Base Sepolia 上的实链证据运行与红队结果（M16）、部署演练（M18），以及 Phase C（真机、Phala Cloud、服务器）。详见 [docs/PROGRESS.md](docs/PROGRESS.md)。
 
 ## 许可
 

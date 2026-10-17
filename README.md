@@ -85,7 +85,7 @@ spikes/             Phase 0 verification spikes
 
 ## Status
 
-Built and tested: the Base and FISCO contracts, the protocol, the bundler and paymaster, the consortium services, WeIdentity identity and KYC, both TEEs on the dstack simulator, the agent with its MCP server, the api, standing orders and payouts, the audit chain with anchors and camt.053 (flows F1 to F9 on the local fork), and the WeCross transport (its milestone gate, F9 over WeCross, is pending). In progress or still to come: the web app and the judges' sandbox (M13), the WeChat mini program (M14), key rotation and recovery flow F10 and the Guomi profile (M15), the live run on Base Sepolia and the red-team suite (M16), the production deployment (M18 and Phase C). Details: [docs/PROGRESS.md](docs/PROGRESS.md).
+Built and tested on the local fork: the Base and FISCO contracts, the protocol, the bundler and paymaster, the consortium services, WeIdentity identity and KYC, both TEEs on the dstack simulator, the agent with its MCP server, the api, standing orders and payouts, the audit chain with anchors and camt.053, the WeCross transport, the web app with the consortium console and an interim judges' sandbox (D48), the WeChat mini program (logic and api; phones in Phase C), agent key rotation and owner recovery (F10), the Guomi profile smoke, the production compose override and its refusal checks. Flows F1 to F10 run through the api and through the web app (Playwright, virtual authenticator). Still to come: the live evidence run on Base Sepolia and the red-team results (M16), the deployment rehearsal (M18), then Phase C (phones, Phala Cloud, the server). Details: [docs/PROGRESS.md](docs/PROGRESS.md).
 
 ## Licence
 
