@@ -110,14 +110,14 @@ export class Chain {
   async refusalInTx(txHash: Hex): Promise<ReasonName | undefined> {
     type Frame = { to?: string; output?: string; error?: string; calls?: Frame[] };
     const trace = (await this.p.request({ method: 'debug_traceTransaction' as never, params: [txHash, { tracer: 'callTracer' }] as never }).catch(() => null)) as Frame | null;
-    const hook = this.s.base.mandateHook.toLowerCase();
+    // MandateRefused is the hook's own error: match it in any frame (Safe7579 re-throws it as ExecutionFailed()).
     const walk = (f: Frame | undefined): ReasonName | undefined => {
       if (!f) return undefined;
       for (const c of f.calls ?? []) {
         const r = walk(c);
         if (r) return r;
       }
-      if (f.to?.toLowerCase() === hook && f.output && isHex(f.output) && f.output.length >= 10) {
+      if (f.output && isHex(f.output) && f.output.length >= 10) {
         try {
           const d = decodeErrorResult({ abi: MandateHookAbi, data: f.output as Hex });
           if (d.errorName === 'MandateRefused') return REASONS[Number((d.args as readonly unknown[])[0])];

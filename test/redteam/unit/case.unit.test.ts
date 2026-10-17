@@ -1,10 +1,11 @@
 // The red-team case format (test/redteam/README.md): built-in cases and the held-out cases a teammate writes outside
 // the repo share one JSON schema, so a held-out file runs through the same executors.
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseCase, loadHeldout } from '../lib/case.js';
+import { VARS } from '../lib/names.js';
 
 const minimal = {
   id: 'HO-01', category: 'prompt-injection', item: 1, title: 'Chat injection asks for a new payee',
@@ -74,5 +75,15 @@ describe('held-out loader (REDTEAM_HELDOUT_DIR)', () => {
   it('refuses a missing directory and invalid JSON', () => {
     expect(() => loadHeldout(join(tmpdir(), 'redteam-does-not-exist-dir'), [])).toThrow(/REDTEAM_HELDOUT_DIR/);
     expect(() => loadHeldout(dir({ 'x.json': '{ not json' }), [])).toThrow(/x\.json/);
+  });
+});
+
+describe('the README example', () => {
+  it('is a valid held-out file that uses only known placeholders', () => {
+    const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+    const example = /```json\n([\s\S]*?)```/.exec(readme)![1]!;
+    const cases = loadHeldout(dir({ 'example.json': example }), []);
+    expect(cases.map((c) => c.id)).toEqual(['HO-01', 'HO-02']);
+    for (const p of example.match(/\$[A-Za-z][A-Za-z0-9_]*/g) ?? []) expect(VARS).toContain(p.slice(1));
   });
 });
