@@ -16,9 +16,10 @@ export class FiscoOutbox implements OutboxPort {
     return r.transactionHash;
   }
 
-  /** FISCO block time is in milliseconds; enqueuedAt is written in seconds. */
+  /** FISCO time in seconds, like enqueuedAt: the web3 RPC reports seconds while the EVM's block.timestamp is in ms. */
   async now(): Promise<bigint> {
-    return (await this.pub.getBlock()).timestamp / 1000n;
+    const t = (await this.pub.getBlock()).timestamp;
+    return t > 10_000_000_000n ? t / 1000n : t;
   }
 }
 
