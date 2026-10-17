@@ -107,6 +107,155 @@ services:
       <<: *health
       test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3010/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
 
+  bank:
+    build:
+      context: ..
+      dockerfile: infra/node-service.Dockerfile
+      args:
+        SERVICE: bank
+    image: praetor/bank:local
+    profiles: [chain]
+    environment:
+      PRAETOR_ENV: ${PRAETOR_ENV}
+      CHAIN_MODE: ${CHAIN_MODE}
+      BASE_RPC_URL: ${BASE_RPC_URL}
+      FISCO_RPC_URL: ${FISCO_RPC_URL}
+      DEPLOYMENTS_FILE: /app/${DEPLOYMENTS_FILE}
+      FISCO_DEPLOYMENTS_FILE: /app/${FISCO_DEPLOYMENTS_FILE}
+      MYSQL_HOST: mysql
+      MYSQL_PASSWORD_BANK: ${MYSQL_PASSWORD_BANK}
+      INTERNAL_TOKEN_MEMBERS: ${INTERNAL_TOKEN_MEMBERS}
+      STAFF_ENROL_TOKEN_BANK: ${STAFF_ENROL_TOKEN_BANK}
+      PUBLIC_HOST: ${PUBLIC_HOST}
+      PUBLIC_URL: ${PUBLIC_URL}
+      BANK_FISCO_KEY: ${BANK_FISCO_KEY}
+      BANK_BASE_SIGNER_KEY: ${BANK_BASE_SIGNER_KEY}
+      DESK_OPERATOR_KEY: ${DESK_OPERATOR_KEY}
+      KYA_ALLOW_UNATTESTED: ${KYA_ALLOW_UNATTESTED}
+    volumes:
+      - ./deployments:/app/infra/deployments:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+      fisco-node0:
+        condition: service_healthy
+    networks:
+      praetor:
+        ipv4_address: 10.88.0.21
+    healthcheck:
+      <<: *health
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3020/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+
+  regulator:
+    build:
+      context: ..
+      dockerfile: infra/node-service.Dockerfile
+      args:
+        SERVICE: regulator
+    image: praetor/regulator:local
+    profiles: [chain]
+    environment:
+      PRAETOR_ENV: ${PRAETOR_ENV}
+      CHAIN_MODE: ${CHAIN_MODE}
+      BASE_RPC_URL: ${BASE_RPC_URL}
+      FISCO_RPC_URL: ${FISCO_RPC_URL}
+      DEPLOYMENTS_FILE: /app/${DEPLOYMENTS_FILE}
+      FISCO_DEPLOYMENTS_FILE: /app/${FISCO_DEPLOYMENTS_FILE}
+      MYSQL_HOST: mysql
+      MYSQL_PASSWORD_REGULATOR: ${MYSQL_PASSWORD_REGULATOR}
+      INTERNAL_TOKEN_MEMBERS: ${INTERNAL_TOKEN_MEMBERS}
+      STAFF_ENROL_TOKEN_REGULATOR: ${STAFF_ENROL_TOKEN_REGULATOR}
+      PUBLIC_HOST: ${PUBLIC_HOST}
+      PUBLIC_URL: ${PUBLIC_URL}
+      REGULATOR_FISCO_KEY: ${REGULATOR_FISCO_KEY}
+      REGULATOR_BASE_SIGNER_KEY: ${REGULATOR_BASE_SIGNER_KEY}
+    volumes:
+      - ./deployments:/app/infra/deployments:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+      fisco-node0:
+        condition: service_healthy
+    networks:
+      praetor:
+        ipv4_address: 10.88.0.22
+    healthcheck:
+      <<: *health
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3020/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+
+  operator:
+    build:
+      context: ..
+      dockerfile: infra/node-service.Dockerfile
+      args:
+        SERVICE: operator
+    image: praetor/operator:local
+    profiles: [chain]
+    environment:
+      PRAETOR_ENV: ${PRAETOR_ENV}
+      CHAIN_MODE: ${CHAIN_MODE}
+      BASE_RPC_URL: ${BASE_RPC_URL}
+      FISCO_RPC_URL: ${FISCO_RPC_URL}
+      DEPLOYMENTS_FILE: /app/${DEPLOYMENTS_FILE}
+      FISCO_DEPLOYMENTS_FILE: /app/${FISCO_DEPLOYMENTS_FILE}
+      MYSQL_HOST: mysql
+      MYSQL_PASSWORD_OPERATOR: ${MYSQL_PASSWORD_OPERATOR}
+      INTERNAL_TOKEN_MEMBERS: ${INTERNAL_TOKEN_MEMBERS}
+      STAFF_ENROL_TOKEN_OPERATOR: ${STAFF_ENROL_TOKEN_OPERATOR}
+      PUBLIC_HOST: ${PUBLIC_HOST}
+      PUBLIC_URL: ${PUBLIC_URL}
+      OPERATOR_FISCO_KEY: ${OPERATOR_FISCO_KEY}
+      OPERATOR_BASE_SIGNER_KEY: ${OPERATOR_BASE_SIGNER_KEY}
+      HEARTBEAT_INTERVAL_S: ${HEARTBEAT_INTERVAL_S}
+      HEARTBEAT_TTL_S: ${HEARTBEAT_TTL_S}
+    volumes:
+      - ./deployments:/app/infra/deployments:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+      fisco-node0:
+        condition: service_healthy
+    networks:
+      praetor:
+        ipv4_address: 10.88.0.23
+    healthcheck:
+      <<: *health
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3020/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+
+  bridge-relayer:
+    build:
+      context: ..
+      dockerfile: infra/node-service.Dockerfile
+      args:
+        SERVICE: bridge-relayer
+    image: praetor/bridge-relayer:local
+    profiles: [chain]
+    environment:
+      PRAETOR_ENV: ${PRAETOR_ENV}
+      CHAIN_MODE: ${CHAIN_MODE}
+      BASE_RPC_URL: ${BASE_RPC_URL}
+      FISCO_RPC_URL: ${FISCO_RPC_URL}
+      DEPLOYMENTS_FILE: /app/${DEPLOYMENTS_FILE}
+      FISCO_DEPLOYMENTS_FILE: /app/${FISCO_DEPLOYMENTS_FILE}
+      BUNDLER_URL: http://bundler:3010
+      INTERNAL_TOKEN_BUNDLER: ${INTERNAL_TOKEN_BUNDLER}
+      BRIDGE: ${BRIDGE}
+      BRIDGE_WATCHDOG_S: ${BRIDGE_WATCHDOG_S}
+      RELAYER_FISCO_KEY: ${RELAYER_FISCO_KEY}
+    volumes:
+      - ./deployments:/app/infra/deployments:ro
+    depends_on:
+      bundler:
+        condition: service_healthy
+      fisco-node0:
+        condition: service_healthy
+    networks:
+      praetor:
+        ipv4_address: 10.88.0.24
+    healthcheck:
+      <<: *health
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3030/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+
   # Four PBFT sealers (bank, regulator, operator, operator-2); web3 RPC only on the Docker network (spec 04).
   fisco-node0:
     <<: *fisco

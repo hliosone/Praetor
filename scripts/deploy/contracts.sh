@@ -23,9 +23,7 @@ export DEPLOY_ENV="$ENV_NAME" DOMAIN_NAME="$DOMAIN"
 export FORK_BLOCK="${FORK_BLOCK:-$(grep -E '^FORK_BLOCK=' infra/.env.example | cut -d= -f2)}"
 
 if [ "$ENV_NAME" = fork ]; then
-  deployer=$(cast wallet address --private-key "$DEPLOYER_KEY")
-  # The fork funds its own keys (no faucet); 10 ETH covers deployment and the paymaster deposit.
-  cast rpc --rpc-url "$RPC" anvil_setBalance "$deployer" 0x8AC7230489E80000 >/dev/null
+  bash scripts/dev/fund-fork.sh
   export PAYMASTER_DEPOSIT_WEI="${PAYMASTER_DEPOSIT_WEI:-1000000000000000000}"
 else
   export PAYMASTER_DEPOSIT_WEI="${PAYMASTER_DEPOSIT_WEI:-20000000000000000}"
