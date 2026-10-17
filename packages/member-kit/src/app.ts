@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import express, { type NextFunction, type Request, type Response, type Router } from 'express';
 import { z } from 'zod';
 import type { Hex } from 'viem';
@@ -85,6 +85,39 @@ export function createMemberApp(d: MemberDeps) {
     await d.staff.add(b.assertion, b.credentialId, { x: b.x, y: b.y }, b.label);
     res.status(204).end();
   }));
+
+  // Console sessions (spec 07): the api relays a console write only for a staff member who proved a passkey over a
+  // fresh, single-use challenge (otherwise anyone could hold a proposal key open and block, say, a freeze).
+  const challenges = new Map<string, number>();
+  const sessions = new Map<string, { label: string; until: number }>();
+  app.post('/staff/challenge', (_req, res) => {
+    const now = Date.now();
+    for (const [c, until] of challenges) if (until < now) challenges.delete(c);
+    const challenge = `0x${randomBytes(32).toString('hex')}`;
+    challenges.set(challenge, now + 120_000);
+    res.json({ challenge });
+  });
+  app.post('/staff/login', h(async (req, res) => {
+    const { assertion } = z.object({ assertion: assertionSchema }).parse(req.body);
+    let signed: string;
+    try {
+      signed = `0x${Buffer.from((JSON.parse(assertion.clientDataJSON) as { challenge: string }).challenge, 'base64url').toString('hex')}`;
+    } catch {
+      throw new StaffError('unreadable clientDataJSON');
+    }
+    const until = challenges.get(signed);
+    if (!until || until < Date.now()) throw new StaffError('unknown or expired challenge');
+    challenges.delete(signed);
+    const rec = await d.staff.verify(signed as Hex, assertion);
+    const session = randomBytes(32).toString('hex');
+    sessions.set(session, { label: rec.label, until: Date.now() + 30 * 60_000 });
+    res.json({ session, label: rec.label });
+  }));
+  app.get('/staff/session', (req, res) => {
+    const s = sessions.get(req.header('x-staff-session') ?? '');
+    if (!s || s.until < Date.now()) return res.status(401).json({ error: 'no staff session' });
+    res.json({ label: s.label });
+  });
 
   const boardParam = (req: Request) => ({ board: z.enum(BOARDS).parse(req.params.board), id: BigInt(z.string().regex(/^\d+$/).parse(req.params.id)) });
   app.get('/proposals/:board/:id', h(async (req, res) => {

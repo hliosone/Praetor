@@ -91,6 +91,26 @@ describe('member service API (spec 05)', () => {
   });
 });
 
+describe('staff sessions (console, spec 07)', () => {
+  it('a staff passkey over a fresh challenge opens a short session the api checks before relaying console writes', async () => {
+    const { app, assertion } = await setup();
+    const { challenge } = (await request(app).post('/staff/challenge').set(auth).expect(200)).body;
+    expect(challenge).toMatch(/^0x[0-9a-f]{64}$/);
+    const { session, label } = (await request(app).post('/staff/login').set(auth).send({ assertion: assertion(challenge) }).expect(200)).body;
+    expect(label).toBe('alice');
+    expect((await request(app).get('/staff/session').set({ ...auth, 'x-staff-session': session }).expect(200)).body).toEqual({ label: 'alice' });
+    await request(app).get('/staff/session').set({ ...auth, 'x-staff-session': 'forged' }).expect(401);
+  });
+
+  it('refuses a replayed challenge and an assertion over anything else', async () => {
+    const { app, assertion } = await setup();
+    const { challenge } = (await request(app).post('/staff/challenge').set(auth).expect(200)).body;
+    await request(app).post('/staff/login').set(auth).send({ assertion: assertion(DIGEST) }).expect(403);
+    await request(app).post('/staff/login').set(auth).send({ assertion: assertion(challenge) }).expect(200);
+    await request(app).post('/staff/login').set(auth).send({ assertion: assertion(challenge) }).expect(403);
+  });
+});
+
 describe('public routes', () => {
   it('are mounted before the token gate and see the raw body (for HMAC checks)', async () => {
     const consortium = {} as never;
