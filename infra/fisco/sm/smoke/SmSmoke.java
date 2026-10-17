@@ -490,7 +490,8 @@ public final class SmSmoke {
     byte[] abc = "abc".getBytes(StandardCharsets.UTF_8);
     byte[] sha3 = Abi.wordAt(chain.call("SmProbe", probe, "sha3Of", abc), 0);
     report.check("evm.sha3", "the SHA3 opcode computes SM3 (keccak256(\"abc\") in Solidity returns SM3(\"abc\"))", Hex.toHexString(sha3).equals(SM3_ABC), Abi.hex(sha3));
-    byte[] args = Arrays.copyOfRange(chain.encode("SmProbe", "sha3Of", abc), 4, chain.encode("SmProbe", "sha3Of", abc).length);
+    byte[] encoded = chain.encode("SmProbe", "sha3Of", abc);
+    byte[] args = Arrays.copyOfRange(encoded, 4, encoded.length);
     Call.CallOutput keccakSel = chain.rawCall(probe, probe, Abi.concat(Arrays.copyOf(base.keccak("sha3Of(bytes)"), 4), args));
     Call.CallOutput sm3Sel = chain.rawCall(probe, probe, Abi.concat(chain.selector("sha3Of(bytes)"), args));
     report.check("evm.selectors", "the dispatcher answers the SM3 selector and refuses the keccak one", sm3Sel.getStatus() == 0 && keccakSel.getStatus() != 0,

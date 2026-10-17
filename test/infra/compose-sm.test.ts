@@ -61,6 +61,13 @@ describe('FISCO tooling keeps the main profile as it was', () => {
     expect(gen).toMatch(/SM=1 needs ADMIN/);
   });
 
+  it('deploys WeIdentity with sm_crypto=0 and the ECDSA SDK certificates unless WEID_SM=1', () => {
+    const deploy = read('infra/weid/deploy.sh');
+    expect(deploy).toContain('sm_crypto="${WEID_SM:-0}"');
+    expect(deploy).toContain('certs=(ca.crt sdk.crt sdk.key)');
+    expect(deploy).toMatch(/^sm_crypto=\$\{sm_crypto\}$/m);
+  });
+
   it('pins the console (Java SDK 3.8.0 and the SM solc) by sha256, fetched only on request', () => {
     const fetch = read('infra/fisco/fetch.sh');
     expect(fetch).toContain('255f1b67b22f0672612e41f93e816c2ba53a9dd3684ccc2a64c75e1b02fb6d1a');

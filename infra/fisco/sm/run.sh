@@ -12,10 +12,11 @@ JDK=eclipse-temurin:11-jdk@sha256:e25e6f22a886aff4da695ac1a239c0f608ff997622a8c3
 export SM_CHAIN="$work/chain/nodes" SM_UID="$(id -u)" SM_GID="$(id -g)"
 compose=(docker compose -p praetor-sm -f infra/fisco/sm/compose.yml)
 
+# Containers outside the compose project first: the network cannot be removed while they are attached.
 cleanup() {
-  "${compose[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
   docker rm -f praetor-sm-java >/dev/null 2>&1 || true
-  [ -f infra/fisco/sm/weid.sh ] && bash infra/fisco/sm/weid.sh down >/dev/null 2>&1 || true
+  bash infra/fisco/sm/weid.sh down >/dev/null 2>&1 || true
+  "${compose[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
@@ -49,7 +50,7 @@ echo "== Java SDK smoke on the SM chain"
 status=0
 jdk praetor-sm smoke || status=$?
 
-if [ "${SKIP_WEID:-0}" != 1 ] && [ -f infra/fisco/sm/weid.sh ]; then
+if [ "${SKIP_WEID:-0}" != 1 ]; then
   echo "== WeIdentity on the SM chain"
   bash infra/fisco/sm/weid.sh up || echo "weid: see $work/weid (recorded, not a gate)"
 fi
