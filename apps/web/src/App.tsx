@@ -14,6 +14,7 @@ import { Audit } from './pages/Audit.js';
 import { Settings } from './pages/Settings.js';
 import { Console } from './pages/Console.js';
 import { Recover } from './pages/Recover.js';
+import { Sandbox } from './pages/Sandbox.js';
 
 /** Signed-in pages: without a session, back to the landing page. */
 function RequireSession({ children }: { children: ReactNode }) {
@@ -32,6 +33,7 @@ export function App() {
           <Route path="/start" element={<Onboarding />} />
           <Route path="/console/*" element={<Console />} />
           <Route path="/recover" element={<Recover />} />
+          <Route path="/sandbox" element={<Sandbox />} />
           <Route element={<RequireSession><AppLayout /></RequireSession>}>
             <Route path="/home" element={<Home />} />
             <Route path="/approve/:id" element={<Approve />} />
