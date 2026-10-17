@@ -161,6 +161,8 @@ const read = <T>(s: Stack, functionName: string, args: readonly unknown[]) =>
 // ---------------------------------------------------------------- consortium bootstrap
 
 export const PARTNER = (s: Stack) => addressOf(localKey(s, 'PAYOUT_PARTNER_KEY'));
+/** Listed by the regulator at bootstrap: the judges' sandbox's prompt-injection target (apps/web Sandbox.tsx). */
+export const DEMO_SANCTIONED = labelAddress('demo-sanctioned');
 
 /** Caps, assets, partner, CN payouts blocked, a heartbeat: through FISCO proposals, delivered by the relayer. */
 export async function bootstrapConsortium(s: Stack): Promise<void> {
@@ -177,13 +179,15 @@ export async function bootstrapConsortium(s: Stack): Promise<void> {
     if (status !== 1) await openAndSign(s, 'bank', '/assets', { asset, kind, status: 1, maxWeightBps: maxW }, ['bank']);
   }
   if (!(await read<boolean>(s, 'isPayoutBlocked', ['0x434e']))) await openAndSign(s, 'regulator', '/jurisdictions', { jurisdiction: 'CN', blocked: true }, ['regulator']);
+  if (!(await read<boolean>(s, 'isSanctioned', [DEMO_SANCTIONED]))) await openAndSign(s, 'regulator', '/sanctions', { target: DEMO_SANCTIONED, listed: true }, ['regulator']);
   await ok(member(s, 'operator', '/heartbeat/beat', {}), 'heartbeat');
   await waitFor('consortium bootstrap on Base', async () => {
     const [p] = await read<readonly [bigint, bigint, bigint]>(s, 'capsOf', [3]);
     const [, partner] = await read<readonly [number, number, number, bigint]>(s, 'assetOf', [PARTNER(s)]);
     const blocked = await read<boolean>(s, 'isPayoutBlocked', ['0x434e']);
+    const sanctioned = await read<boolean>(s, 'isSanctioned', [DEMO_SANCTIONED]);
     const [,,, hb] = await read<readonly [number, number, number, bigint]>(s, 'statusOf', [PARTNER(s)]);
-    return p > 0n && partner === 1 && blocked && hb > (await baseNow(pub(s)));
+    return p > 0n && partner === 1 && blocked && sanctioned && hb > (await baseNow(pub(s)));
   }, 180_000);
 }
 
@@ -288,6 +292,9 @@ export async function onboard(s: Stack, acc: Account, policy: Policy = linPolicy
   if (!check.ok) throw new Error(`policy refused by the bank: rule ${check.failedRule}`);
   await ownerAction(s, acc, { kind: K.SET_POLICY, account: acc.address, policy: p }, check.fiscoRef);
   await ownerAction(s, acc, { kind: K.SET_AGENT_KEY, account: acc.address, agentKey: agent, validUntil: Number(now + 2_592_000n) });
+  // Automated tests: the agent runs the scripted model with nothing queued until a test queues its steps, so a band
+  // wake right after funding never has the real model act on a test account (as onboardViaApi does).
+  await scriptAgent(s, acc.address, []);
 }
 
 const fiat = parseAbi(['function masterMinter() view returns (address)', 'function configureMinter(address,uint256) returns (bool)', 'function mint(address,uint256) returns (bool)']);
