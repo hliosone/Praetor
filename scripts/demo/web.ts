@@ -72,7 +72,7 @@ export async function kycMockSubmit(redirectUrl: string, person: { fullName: str
 }
 
 /** F1 steps 1 to 14 through the api, compactly: what F2, F3 and F6 start from. Returns the agent key. */
-export async function onboardViaApi(web: WebClient, label: string, person: { fullName: string; birthdate: string; nationality: string; documentNumber: string }) {
+export async function onboardViaApi(web: WebClient, label: string, person: { fullName: string; birthdate: string; nationality: string; documentNumber: string }, o: { scripted?: boolean } = {}) {
   await web.signUp(`${label}@example.com`);
   const p = await web.ok('POST', '/api/onboarding/account/deploy');
   if (!p.deployed && !(await web.ok('POST', '/api/onboarding/account/deploy/submit', { assertion: web.assert(p.userOpHash) })).success) throw new Error('account not deployed');
@@ -88,8 +88,8 @@ export async function onboardViaApi(web: WebClient, label: string, person: { ful
   const sk = await web.ok('POST', '/api/owner-actions/prepare', { kind: OwnerActionKind.SET_AGENT_KEY, validUntil: Number(now + 7_776_000n) });
   if (!(await web.ownerAction(sk)).success) throw new Error('SET_AGENT_KEY failed');
   // Automated tests: the agent runs the scripted model with nothing queued until a test queues its steps, so a
-  // scheduler wake never has the real model act on a test account.
-  await scriptAgent(s, web.account!, []);
+  // scheduler wake never has the real model act on a test account. The evidence run keeps the real model.
+  if (o.scripted !== false) await scriptAgent(s, web.account!, []);
   return agent.agentKey as `0x${string}`;
 }
 

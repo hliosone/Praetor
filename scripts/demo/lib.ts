@@ -2,7 +2,7 @@
 // like the api will, with software passkeys standing in for staff and owner devices. Reads .env without printing.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { createPublicClient, createWalletClient, encodeAbiParameters, encodeFunctionData, http, keccak256, pad, parseAbi, toHex, type Address, type Hex } from 'viem';
+import { createPublicClient, createWalletClient, encodeAbiParameters, encodeFunctionData, erc20Abi, http, keccak256, pad, parseAbi, toHex, type Address, type Hex } from 'viem';
 import { baseSepolia } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { MandateHookAbi, PriceOracleAbi, PraetorTokenAbi, baseNow, loadDeployments, type Deployment } from '@praetor/chain';
@@ -18,6 +18,8 @@ export type Role = 'bank' | 'regulator' | 'operator';
 
 export type Stack = {
   env: Record<string, string>;
+  /** The key set in use (D1): LOCAL on the fork, LIVE on Base Sepolia (CHAIN_MODE=live). */
+  set: 'LOCAL' | 'LIVE';
   base: Deployment;
   baseRpc: string;
   bundler: string;
@@ -33,10 +35,12 @@ export type Stack = {
 
 export function stack(over: Partial<Stack> = {}): Stack {
   const env = Object.fromEntries(readFileSync(`${root}.env`, 'utf8').split('\n').filter((l) => /^[A-Z0-9_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]));
+  const live = process.env.CHAIN_MODE === 'live';
   return {
     env,
-    base: loadDeployments(`${root}infra/deployments/fork.json`),
-    baseRpc: process.env.ANVIL_URL ?? 'http://127.0.0.1:18545',
+    set: live ? 'LIVE' : 'LOCAL',
+    base: loadDeployments(`${root}infra/deployments/${live ? 'base-sepolia' : 'fork'}.json`),
+    baseRpc: live ? (env.BASE_LIVE_RPC_URL || 'https://sepolia.base.org') : (process.env.ANVIL_URL ?? 'http://127.0.0.1:18545'),
     bundler: process.env.BUNDLER_URL ?? 'http://10.88.0.10:3010',
     members: { bank: 'http://10.88.0.21:3020', regulator: 'http://10.88.0.22:3020', operator: 'http://10.88.0.23:3020' },
     signer: process.env.AGENT_SIGNER_URL_HOST ?? 'http://10.88.0.50:3050',
@@ -51,7 +55,8 @@ export function stack(over: Partial<Stack> = {}): Stack {
 }
 
 export const pub = (s: Stack) => createPublicClient({ chain: baseSepolia, transport: http(s.baseRpc) });
-export const localKey = (s: Stack, role: string) => s.env[`LOCAL_${role}`] as Hex;
+/** A key of the stack's set (LOCAL_ on the fork, LIVE_ on Base Sepolia, D1). */
+export const localKey = (s: Stack, role: string) => s.env[`${s.set}_${role}`] as Hex;
 export const addressOf = (k: Hex) => privateKeyToAccount(k).address;
 export const labelAddress = (label: string) => privateKeyToAccount(keccak256(toHex(`praetor-demo:${label}`))).address;
 
@@ -299,9 +304,14 @@ export async function onboard(s: Stack, acc: Account, policy: Policy = linPolicy
 
 const fiat = parseAbi(['function masterMinter() view returns (address)', 'function configureMinter(address,uint256) returns (bool)', 'function mint(address,uint256) returns (bool)']);
 
-/** Fork only: Circle's FiatToken minted through an impersonated master minter. */
+/** Fork: Circle's FiatToken minted through an impersonated master minter. Live: paid from the treasury (D74). */
 async function mintUsdc(s: Stack, to: Address, amount: bigint) {
   const p = pub(s);
+  if (s.set === 'LIVE') {
+    const t = createWalletClient({ chain: baseSepolia, transport: http(s.baseRpc), account: privateKeyToAccount(localKey(s, 'TREASURY_KEY')) });
+    await p.waitForTransactionReceipt({ hash: await t.writeContract({ address: s.base.usdc, abi: erc20Abi, functionName: 'transfer', args: [to, amount], chain: baseSepolia }) });
+    return;
+  }
   const master = await p.readContract({ address: s.base.usdc, abi: fiat, functionName: 'masterMinter' });
   const minter = labelAddress('usdc-minter');
   for (const a of [master, minter]) {
