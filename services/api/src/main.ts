@@ -3,7 +3,8 @@ import express from 'express';
 import pino from 'pino';
 import { z } from 'zod';
 import { readFileSync } from 'node:fs';
-import { encodeFunctionData, erc20Abi, parseAbiItem, type Address, type Hex } from 'viem';
+import { createWalletClient, encodeFunctionData, erc20Abi, http, parseAbi, parseAbiItem, type Address, type Hex } from 'viem';
+import { baseSepolia } from 'viem/chains';
 import { AuditLogAbi, fiscoClients } from '@praetor/fisco-client';
 import { AnchorAbi, MandateHookAbi, PasskeyValidatorAbi, StandingOrdersAbi, accountReader, baseClients, baseNow, loadDeployments } from '@praetor/chain';
 import { connect, loadMigrations, migrate } from '@praetor/db';
@@ -11,6 +12,7 @@ import { prepareAccount } from '@praetor/userop';
 import { createApiApp } from './app.js';
 import { clients, UpstreamError } from './clients.js';
 import { Rotation } from './rotation.js';
+import { SandboxFaucet } from './sandbox.js';
 import { MySqlApiStore, MySqlApprovalStore, MySqlMpBindingStore, MySqlProposalStore } from './mysql.js';
 import { StandingOrders, type Directory } from './standing-orders.js';
 import { Audit, type AuditRow } from './audit.js';
@@ -51,6 +53,9 @@ const env = z.object({
   FISCO_RPC_URL: z.string().url(),
   FISCO_DEPLOYMENTS_FILE: z.string(),
   INTERNAL_TOKEN_API: z.string().min(32),
+  CHAIN_MODE: z.enum(['fork', 'live']).default('fork'),
+  SANDBOX_ENABLED: z.enum(['0', '1', '']).default('0').transform((v) => v === '1'),
+  SANDBOX_RATE_LIMIT_PER_HOUR: z.coerce.number().int().positive().default(3),
   PORT: z.coerce.number().int().default(3200),
 }).parse(process.env);
 
@@ -198,6 +203,26 @@ const agents = async () => {
   return rows.filter((r) => r.agentKey !== '0x0000000000000000000000000000000000000000').slice(0, 50);
 };
 
+// The sandbox faucet mints demo USDC on the fork the way the test scripts do: anvil impersonates FiatToken's master
+// minter, which configures a minter for the amount (D48). Live Base has no such power: the faucet refuses there.
+const FIAT = parseAbi(['function masterMinter() view returns (address)', 'function configureMinter(address minter, uint256 amount) returns (bool)', 'function mint(address to, uint256 amount) returns (bool)']);
+const sandbox = new SandboxFaucet({
+  enabled: env.SANDBOX_ENABLED, fork: env.CHAIN_MODE === 'fork', perHour: env.SANDBOX_RATE_LIMIT_PER_HOUR,
+  mint: async (to, amount) => {
+    const master = await pub.readContract({ address: d.usdc, abi: FIAT, functionName: 'masterMinter' });
+    const minter = '0x5a4d000000000000000000000000000000005a4d' as Address;
+    for (const a of [master, minter]) {
+      await pub.request({ method: 'anvil_impersonateAccount' as never, params: [a] as never });
+      await pub.request({ method: 'anvil_setBalance' as never, params: [a, '0xde0b6b3a7640000'] as never });
+    }
+    const w = createWalletClient({ chain: baseSepolia, transport: http(env.BASE_RPC_URL) });
+    await pub.waitForTransactionReceipt({ hash: await w.writeContract({ address: d.usdc, abi: FIAT, functionName: 'configureMinter', args: [minter, amount], account: master, chain: baseSepolia }) });
+    const hash = await w.writeContract({ address: d.usdc, abi: FIAT, functionName: 'mint', args: [to, amount], account: minter, chain: baseSepolia });
+    await pub.waitForTransactionReceipt({ hash });
+    return hash;
+  },
+});
+
 const agentKeyOf = async (account: Address) => (await pub.readContract({ address: d.mandateHook, abi: MandateHookAbi, functionName: 'kyaOf', args: [account] }))[0] as Address;
 
 // F10 recovery as Base records it: the last of RecoveryScheduled / Cancelled / Executed for the account.
@@ -230,6 +255,7 @@ const app = createApiApp({
   extend: (r, h, session) => apiRoutes(r, h, session, {
     onboarding, ownerActions, approvals, link, standingOrders, audit, statement, views, config, bank: c.bank, runner: c.runner,
     chainNowMs: async () => Number(await now()) * 1000,
+    sandbox,
     rotation: new Rotation({
       agentKeyOf,
       signerAddress: async (account, v) => (await c.signer.address(account, v)).address,

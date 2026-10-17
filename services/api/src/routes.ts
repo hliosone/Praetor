@@ -53,6 +53,8 @@ export type RouteModules = {
   bank: Pick<Clients['bank'], 'policyCheck'>;
   runner: Pick<Clients['runner'], 'chat'>;
   agentKeyOf(account: Address): Promise<Address>;
+  /** Judges' sandbox (interim, D48): demo USDC for a sandbox account on the fork. */
+  sandbox: { fund(account: Address, client: string): Promise<unknown> };
   /** F10: the next agent key version, through the onboarding's agent steps. */
   rotation: { rotate(account: Address): Promise<unknown> };
   /** F10 step 2: the bank revokes the AgentMandates of agent keys Base no longer holds (it reads the chain itself). */
@@ -125,6 +127,8 @@ export function apiRoutes(r: Router, h: typeof handler, session: express.Request
     if (out.success && b.ownerAction.action === K.UNLINK_WECHAT) await m.onWechatUnlinked(acct(res));
     send(res, out);
   }));
+
+  r.post('/sandbox/faucet', session, h(async (req, res) => send(res, await m.sandbox.fund(acct(res), req.ip ?? 'unknown'))));
 
   r.post('/agent/rotate', session, h(async (_req, res) => send(res, await m.rotation.rotate(acct(res)))));
 

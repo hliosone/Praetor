@@ -417,6 +417,10 @@ services:
       MP_SECRET: ${MP_SECRET}
       WECHAT_API_BASE: ${WECHAT_API_BASE}
       SOTER_FAKE_TENCENT: ${SOTER_FAKE_TENCENT}
+      # Judges' sandbox (interim, D48): the demo USDC faucet, on the fork only.
+      CHAIN_MODE: ${CHAIN_MODE}
+      SANDBOX_ENABLED: ${SANDBOX_ENABLED}
+      SANDBOX_RATE_LIMIT_PER_HOUR: ${SANDBOX_RATE_LIMIT_PER_HOUR}
     volumes:
       - ./deployments:/app/infra/deployments:ro
     depends_on:

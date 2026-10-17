@@ -65,3 +65,12 @@ describe('owner actions for devices and recovery (F10 step 6)', () => {
     ]);
   });
 });
+
+describe('sandbox faucet route (interim, D48)', () => {
+  it('funds the signed-in account, naming the client address for the rate limit', async () => {
+    const seen: unknown[] = [];
+    const { a } = app({ sandbox: { fund: async (account: Address, client: string) => { seen.push({ account, client: typeof client }); return { txHash: '0x01', amount: '5000000000' }; } } });
+    expect((await request(a).post('/api/sandbox/faucet').send({}).expect(200)).body).toEqual({ txHash: '0x01', amount: '5000000000' });
+    expect(seen).toEqual([{ account: ACCOUNT, client: 'string' }]);
+  });
+});
