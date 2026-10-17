@@ -57,6 +57,7 @@ test: test-guards gitleaks lint test-unit ## Unit tests of every package + guard
 test-guards:
 	bash scripts/git-hooks/test-commit-msg.sh
 	bash scripts/checks/no-emdash.sh
+	pnpm -s exec tsx scripts/checks/links.ts
 
 gitleaks: ## Secret scan of history and uncommitted changes (I10)
 	bash scripts/checks/gitleaks.sh
