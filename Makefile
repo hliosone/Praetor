@@ -107,8 +107,9 @@ test-int: ## Integration tests, one per architecture link (needs make up)
 e2e: ## Flows F1 to F10 against BASE_URL (default: local stack), through the api and through the web app
 	pnpm -s --filter @praetor/test test:e2e
 	$(MAKE) --no-print-directory e2e-web
-	@# Last: F10's recovery moves the fork's clock forward 48 h.
-	pnpm -s --filter @praetor/test test:warp
+	@# Last: F10's recovery moves the fork's clock forward 48 h, beyond what FISCO accepts for a heartbeat (one day):
+	@# a fresh fork follows, whatever the result, so the stack stays usable.
+	pnpm -s --filter @praetor/test test:warp; status=$$?; $(MAKE) --no-print-directory reset-fork; exit $$status
 
 e2e-smoke: ## Smoke subset of the flows (onboarding, agent payment, audit) against the running stack
 	pnpm -s --filter @praetor/test exec vitest run --config vitest.e2e.config.ts e2e/F1-onboarding.test.ts e2e/F5-agent-payment.test.ts e2e/F8-audit.test.ts
