@@ -96,6 +96,7 @@ make test-contracts-full   # Base contracts with 10k fuzz runs and full invarian
 make test-fork      # Base contracts on a Base Sepolia fork with the real Safe7579 (network)
 make slither        # fails on any High/Medium outside docs/security/slither.md
 make deploy-contracts ENV=fork|base-sepolia|sandbox   # writes infra/deployments/<env>.json
+make deploy-fisco ENV=local|live|sandbox   # FISCO governance bootstrap + consortium, infra/deployments/fisco-<env>.json
 pnpm keys           # fills missing keys/secrets into .env (mode 600), prints public addresses only
 ```
-Contracts: `contracts/base` (Foundry; `lib` links the pinned submodules in `contracts/lib`). The hook is `src/MandateHook.sol` plus external libraries in `src/hook/` (Consortium, Owner, Decision, PostCheck). Repo layout to build: `spec/09-repo-and-reuse.md`.
+FISCO nodes: web3 RPC at 10.88.1.10-13:8545 (Docker network, reachable from the host). Contracts: `contracts/fisco` (paris, message-board pattern), `contracts/base` (Foundry; `lib` links the pinned submodules in `contracts/lib`). The hook is `src/MandateHook.sol` plus external libraries in `src/hook/` (Consortium, Owner, Decision, PostCheck). Repo layout to build: `spec/09-repo-and-reuse.md`.
