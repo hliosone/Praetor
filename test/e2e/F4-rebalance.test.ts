@@ -39,7 +39,7 @@ describe('F4 monitoring and rebalancing', () => {
       { tool: 'praetor_explain', args: { type: 'rebalance', sell: 'tXAU', buy: 'USDC', amountUsd: '650' } },
       { tool: 'praetor_rebalance', args: { sell: 'tXAU', buy: 'USDC', amountUsd: '650' } },
       { text: 'Sold 650 USD of gold: it was above its 35% max.' },
-    ]);
+    ], 'wake');
     await shockPrice(s, 'XAU', 20);
     expect(await xauWeightBps()).toBeGreaterThan(3500);
     const turn = await waitFor('agent rebalance after the wake', async () => {

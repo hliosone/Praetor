@@ -351,10 +351,11 @@ export async function setPayeeLabels(s: Stack, account: Address, labels: { addre
 const runner = (s: Stack, method: string, path: string, body?: unknown) =>
   fetch(`${s.agentRunner}${path}`, { method, headers: { 'content-type': 'application/json', authorization: `Bearer ${s.env.INTERNAL_TOKEN_AGENT}` }, body: body === undefined ? undefined : json(body) });
 
-/** Automated tests only: this account's agent runs the scripted model, and its next steps are these. */
-export async function scriptAgent(s: Stack, account: Address, steps: ({ tool: string; args: Record<string, unknown> } | { text: string })[]) {
+/** Automated tests only: this account's agent runs the scripted model, and its next steps are these, for chat turns
+ *  or for scheduler wakes (kept apart, so a wake never consumes a chat's steps). */
+export async function scriptAgent(s: Stack, account: Address, steps: ({ tool: string; args: Record<string, unknown> } | { text: string })[], turn: 'chat' | 'wake' = 'chat') {
   if ((await runner(s, 'PUT', `/accounts/${account}/model`, { model: 'fake/scripted' })).status !== 204) throw new Error('model override refused');
-  const r = await fetch(`${s.fakeLlm}/admin/script/${account.toLowerCase()}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: json({ steps }) });
+  const r = await fetch(`${s.fakeLlm}/admin/script/${account.toLowerCase()}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: json({ steps, turn }) });
   if (r.status !== 204) throw new Error(`fake llm script: ${r.status}`);
 }
 

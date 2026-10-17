@@ -1,14 +1,22 @@
 // Scripted OpenAI-compatible model for the automated tests only (spec 05; the product uses the real model). Each
 // account gets its own base URL (/v1/acct/<account>), so a test queues the exact steps of one agent: each completion
 // that offers tools returns the next step (a tool call or a text). Completions without tools (OpenCode's title
-// generation) never consume a step.
+// generation) never consume a step. Chat turns and scheduler wakes ("Scheduled check...") have separate queues, so a
+// wake arriving between a test's script and its chat never consumes the chat's steps.
 import express from 'express';
 import { z } from 'zod';
 
 type Step = { tool: string; args: Record<string, unknown> } | { text: string };
+type Turn = 'chat' | 'wake';
+type Message = { role: string; content?: unknown };
+
+const text = (c: unknown) => (typeof c === 'string' ? c : Array.isArray(c) ? c.map((p: { text?: string }) => p?.text ?? '').join('') : '');
+/** The kind of the current turn: the latest user message is the runner's wake prompt or the user's chat. */
+const turnOf = (messages: Message[] = []): Turn => (text(messages.filter((m) => m.role === 'user').at(-1)?.content).startsWith('Scheduled check') ? 'wake' : 'chat');
 
 export function createFakeLlm() {
   const scripts = new Map<string, Step[]>();
+  const key = (account: string, turn: Turn) => `${account.toLowerCase()}:${turn}`;
   const log = new Map<string, { lastRole: string; tools: number; answered: string }[]>();
   const app = express();
   app.use(express.json({ limit: '4mb' }));
@@ -16,7 +24,8 @@ export function createFakeLlm() {
 
   app.post('/admin/script/:account', (req, res) => {
     const steps = z.array(z.union([z.object({ tool: z.string(), args: z.record(z.unknown()) }), z.object({ text: z.string() })])).parse(req.body?.steps);
-    scripts.set(req.params.account.toLowerCase(), steps);
+    const turn = z.enum(['chat', 'wake']).default('chat').parse(req.body?.turn);
+    scripts.set(key(req.params.account, turn), steps);
     res.status(204).end();
   });
   app.get('/admin/log/:account', (req, res) => res.json(log.get(req.params.account.toLowerCase()) ?? []));
@@ -24,12 +33,12 @@ export function createFakeLlm() {
   app.get('/v1/acct/:account/models', (_req, res) => res.json({ data: [{ id: 'scripted', object: 'model' }] }));
   app.post('/v1/acct/:account/chat/completions', (req, res) => {
     const account = req.params.account.toLowerCase();
-    const body = req.body as { model?: string; stream?: boolean; messages?: { role: string }[]; tools?: { function?: { name?: string } }[] };
+    const body = req.body as { model?: string; stream?: boolean; messages?: Message[]; tools?: { function?: { name?: string } }[] };
     const offered = (body.tools ?? []).map((t) => t.function?.name).filter(Boolean) as string[];
     let answer: { tool: string; args: string } | { text: string };
     if (offered.length === 0) answer = { text: 'Scripted' };
     else {
-      const step = scripts.get(account)?.shift();
+      const step = scripts.get(key(account, turnOf(body.messages)))?.shift();
       if (!step) answer = { text: 'Done.' };
       else if ('text' in step) answer = { text: step.text };
       else if (!offered.includes(step.tool)) answer = { text: `Scripted tool ${step.tool} is not offered.` };

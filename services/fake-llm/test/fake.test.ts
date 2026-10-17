@@ -38,4 +38,17 @@ describe('fake LLM (automated tests only)', () => {
     const done = await chat(app, '0x1', [{ role: 'user', content: 'x' }]).expect(200);
     expect(done.body.choices[0].message.content).toBe('Done.');
   });
+
+  it('keeps chat steps and wake steps apart: a scheduler wake never consumes a chat script', async () => {
+    const app = createFakeLlm();
+    await request(app).post('/admin/script/0xc4a7').send({ steps: [{ tool: 'praetor_pay', args: { amount: '1' } }] }).expect(204);
+    const wake = [{ role: 'user', content: [{ type: 'text', text: 'Scheduled check: an asset is outside its band.' }] }];
+    expect((await chat(app, '0xc4a7', wake).expect(200)).body.choices[0].message.content).toBe('Done.');
+    const r = await chat(app, '0xc4a7', [...wake, { role: 'assistant', content: 'Done.' }, { role: 'user', content: 'pay 1' }]).expect(200);
+    expect(r.body.choices[0].message.tool_calls[0].function.name).toBe('praetor_pay');
+    // Steps queued for wakes serve wakes only.
+    await request(app).post('/admin/script/0xc4a7').send({ steps: [{ tool: 'praetor_explain', args: {} }], turn: 'wake' }).expect(204);
+    expect((await chat(app, '0xc4a7', [{ role: 'user', content: 'hello' }]).expect(200)).body.choices[0].message.content).toBe('Done.');
+    expect((await chat(app, '0xc4a7', wake).expect(200)).body.choices[0].message.tool_calls[0].function.name).toBe('praetor_explain');
+  });
 });
