@@ -10,7 +10,8 @@ import {
   digest, encodePolicy, merchantKey, merchantRef, ownerActionPayload, passkeyAuth, praetorDomain, softPasskey, OwnerActionKind as K,
   type Policy, type SoftPasskey,
 } from '@praetor/protocol';
-import { agentSignature, encodeExecute, fromJson, prepareAccount, toJson, type Call } from '@praetor/userop';
+import { signCaller } from '@praetor/protocol/caller-auth';
+import { encodeExecute, fromJson, prepareAccount, toJson, ENTRY_POINT, type Call } from '@praetor/userop';
 
 export const root = fileURLToPath(new URL('../../', import.meta.url));
 export type Role = 'bank' | 'regulator' | 'operator';
@@ -21,6 +22,7 @@ export type Stack = {
   baseRpc: string;
   bundler: string;
   members: Record<Role, string>;
+  signer: string;
   rpId: string;
   origin: string;
 };
@@ -33,6 +35,7 @@ export function stack(over: Partial<Stack> = {}): Stack {
     baseRpc: process.env.ANVIL_URL ?? 'http://127.0.0.1:18545',
     bundler: process.env.BUNDLER_URL ?? 'http://10.88.0.10:3010',
     members: { bank: 'http://10.88.0.21:3020', regulator: 'http://10.88.0.22:3020', operator: 'http://10.88.0.23:3020' },
+    signer: process.env.AGENT_SIGNER_URL_HOST ?? 'http://10.88.0.50:3050',
     rpId: 'praetor.localhost',
     origin: 'https://praetor.localhost',
     ...over,
@@ -57,6 +60,15 @@ export async function http2(url: string, token: string, body?: unknown): Promise
 
 const member = (s: Stack, role: Role, path: string, body?: unknown) => http2(`${s.members[role]}${path}`, s.env.INTERNAL_TOKEN_MEMBERS!, body);
 export const bundler = (s: Stack, path: string, body?: unknown) => http2(`${s.bundler}${path}`, s.env.INTERNAL_TOKEN_BUNDLER!, body);
+
+/** agent-signer (TEE) as one of its callers: api (address, attest) or mcp (sign-userop). */
+export async function signer(s: Stack, caller: 'api' | 'mcp' | 'bank', path: string, body?: unknown): Promise<{ status: number; body: any }> {
+  const method = body === undefined ? 'GET' : 'POST';
+  const raw = body === undefined ? '' : json(body);
+  const secret = s.env[`SIGNER_HMAC_${caller.toUpperCase()}`]!;
+  const r = await fetch(`${s.signer}${path}`, { method, body: raw || undefined, headers: { 'content-type': 'application/json', ...signCaller(caller, secret, method, path, Buffer.from(raw)) } });
+  return { status: r.status, body: await r.json().catch(() => null) };
+}
 
 async function ok(p: Promise<{ status: number; body: any }>, what: string) {
   const r = await p;
@@ -147,12 +159,12 @@ export async function setDemoPrices(s: Stack, xau = 265_000_000_000n, xag = 3_11
 
 // ---------------------------------------------------------------- account, mandate, funds
 
-export type Account = { address: Address; owner: SoftPasskey; agentKey: Hex };
+/** The agent key lives in agent-signer (TEE): only its address is known here. */
+export type Account = { address: Address; owner: SoftPasskey; agent: Address };
 
 export async function createAccount(s: Stack, label: string): Promise<Account> {
   const owner = softPasskey(`praetor-demo-owner-${label}`, s.rpId, s.origin);
   const prep = await prepareAccount(pub(s) as never, { ...s.base, credIdHash: owner.credIdHash, x: owner.x, y: owner.y }, BigInt(keccak256(toHex(`salt:${label}`))) % 2n ** 64n);
-  const agentKey = keccak256(toHex(`praetor-demo-agent-${label}`));
   const code = await pub(s).getCode({ address: prep.address });
   if (!code || code === '0x') {
     await ok(bundler(s, '/accounts', { address: prep.address }), 'register account');
@@ -161,7 +173,8 @@ export async function createAccount(s: Stack, label: string): Promise<Account> {
     const sent = await ok(bundler(s, '/userop/send', { userOp: { ...p.userOp, signature: encodePasskeySignature(owner.credIdHash, owner.sign(p.userOpHash)) } }), 'send first op');
     if (!sent.success) throw new Error('account creation failed');
   }
-  return { address: prep.address, owner, agentKey };
+  const agent = (await ok(signer(s, 'api', `/v1/agents/${prep.address}/address?v=1`), 'agent address')).address as Address;
+  return { address: prep.address, owner, agent };
 }
 
 export const linPolicy = (s: Stack, validUntil: bigint): Policy => ({
@@ -191,13 +204,16 @@ export async function ownerAction(s: Stack, acc: Account, args: Parameters<typeo
 /** KYA (bank), policy (bank check + owner + bank), agent key (owner + bank). */
 export async function onboard(s: Stack, acc: Account, policy: Policy = linPolicy(s, 0n)): Promise<void> {
   const now = await baseNow(pub(s));
-  const agent = addressOf(acc.agentKey);
+  const agent = acc.agent;
   const [current] = await read<readonly [Address]>(s, 'kyaOf', [acc.address]);
   if (current.toLowerCase() !== agent.toLowerCase()) {
+    // The bank's nonce, bound by the agent-signer quote to the agent key (M7).
+    const { nonce } = await ok(member(s, 'bank', '/kya/nonce', { account: acc.address }), 'KYA nonce');
+    const { quote } = await ok(signer(s, 'api', `/v1/agents/${acc.address}/attest`, { nonce, keyVersion: 1 }), 'agent quote');
     await ok(member(s, 'bank', '/kya', {
       account: acc.address, agentKey: agent, agentDidHash: keccak256(toHex(`did:weid:101:${agent}`)), kycCredentialHash: keccak256(toHex(`kyc:${acc.address}`)),
       mandateCredentialHash: keccak256(toHex(`mandate:${acc.address}`)), kycLevel: 2, riskProfile: 2, jurisdiction: 'HK',
-      agentMeasurement: keccak256(toHex('simulator')), validUntil: (now + 31_536_000n).toString(),
+      validUntil: (now + 31_536_000n).toString(), quote, nonce,
     }), 'KYA');
     await waitFor('KYA on Base', async () => ((await read<readonly [Address]>(s, 'kyaOf', [acc.address]))[0].toLowerCase() === agent.toLowerCase()));
   }
@@ -228,11 +244,11 @@ export async function fund(s: Stack, acc: Account, usdc = 5_300_000_000n, xauUsd
   }
 }
 
-/** An agent userOp signed with the account's agent key (the agent-signer TEE replaces this from M7). */
+/** An agent userOp signed by agent-signer (the seed acts as mcp, its only allowed caller). */
 export async function agentOp(s: Stack, acc: Account, calls: Call[]) {
   const p = await ok(bundler(s, '/userop/prepare', { sender: acc.address, callData: encodeExecute(calls), validator: 'agent' }), 'prepare agent op');
-  const r = await bundler(s, '/userop/send', { userOp: { ...p.userOp, signature: await agentSignature(p.userOpHash, acc.agentKey) } });
-  return r;
+  const { signature } = await ok(signer(s, 'mcp', `/v1/agents/${acc.address}/sign-userop`, { userOp: p.userOp, chainId: 84532, entryPoint: ENTRY_POINT, keyVersion: 1 }), 'agent signature');
+  return bundler(s, '/userop/send', { userOp: { ...p.userOp, signature } });
 }
 
 export { toJson, fromJson };
