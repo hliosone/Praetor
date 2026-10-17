@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Rejects commit messages that carry assistant attribution.
+# "Co-Authored-By" is matched case-insensitively (git trailers are case-insensitive);
+# "Claude" is matched case-sensitively so that file names like CLAUDE.md or .claude/ stay usable.
+set -euo pipefail
+msg_file="${1:?usage: commit-msg <message-file>}"
+# git strips lines starting with '#' after this hook, so they never reach the history.
+body="$(grep -v '^#' "$msg_file" || true)"
+if grep -qi 'co-authored-by' <<<"$body"; then
+  echo "commit-msg: rejected, the message contains a Co-Authored-By trailer" >&2
+  exit 1
+fi
+if grep -q 'Claude' <<<"$body"; then
+  echo "commit-msg: rejected, the message mentions Claude (no assistant attribution allowed)" >&2
+  exit 1
+fi

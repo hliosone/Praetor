@@ -1,5 +1,33 @@
+# Secrets: .env holds every private key and human-provided secret (mode 600, never committed)
 .env
 .env.*
 !.env.example
+*.key
+*.pem
+!**/fixtures/**/*.pem
+keys/
+secrets/
+
+# Runtime
 .run/
 node_modules/
+dist/
+coverage/
+
+# Foundry
+contracts/*/out/
+contracts/*/cache/
+contracts/*/broadcast/
+spikes/**/out/
+spikes/**/cache/
+spikes/**/broadcast/
+
+# Java / Gradle
+.gradle/
+build/
+*.class
+
+# FISCO / WeIdentity generated material (certs and node keys)
+infra/fisco/nodes/
+spikes/**/nodes/
+spikes/**/downloads/
