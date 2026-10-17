@@ -50,6 +50,8 @@ export type RouteModules = {
   bank: Pick<Clients['bank'], 'policyCheck'>;
   runner: Pick<Clients['runner'], 'chat'>;
   agentKeyOf(account: Address): Promise<Address>;
+  /** The owner's names for its payees, kept by mcp so the agent resolves "the café" to an address. */
+  labels(account: Address, labels: { address: Address; label: string }[]): Promise<void>;
 };
 
 export function apiRoutes(r: Router, h: typeof handler, session: express.RequestHandler, m: RouteModules) {
@@ -150,6 +152,12 @@ export function apiRoutes(r: Router, h: typeof handler, session: express.Request
   r.get('/statements/camt053', session, h(async (req, res) => {
     const { from, to } = await range(req.query);
     res.type('application/xml').set('content-disposition', `attachment; filename="praetor-camt053-${acct(res).slice(2, 10)}.xml"`).send(await m.statement(acct(res), from, to));
+  }));
+
+  r.post('/payees/label', session, h(async (req, res) => {
+    const b = z.object({ address, label: z.string().trim().min(1).max(64) }).parse(req.body);
+    await m.labels(acct(res), [{ address: b.address, label: b.label }]);
+    res.status(204).end();
   }));
 
   r.post('/wechat/link/start', session, h(async (_req, res) => send(res, await m.link.start(acct(res)))));
