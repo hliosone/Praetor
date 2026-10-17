@@ -20,14 +20,14 @@ export class MySqlApiStore implements ApiStore {
     return { id, email };
   }
   async getUser(id: string) { const [x] = await rows(this.r, 'SELECT * FROM users WHERE id = ?', [id]); return x ? user(x) : undefined; }
-  async userByEmail(email: string) { const [x] = await rows(this.r, 'SELECT * FROM users WHERE LOWER(email) = LOWER(?) AND account IS NOT NULL ORDER BY created_at DESC LIMIT 1', [email]); return x ? user(x) : undefined; }
+  async userByEmail(email: string) { const [x] = await rows(this.r, 'SELECT * FROM users WHERE LOWER(email) = LOWER(?) AND account IS NOT NULL ORDER BY created_at ASC LIMIT 1', [email]); return x ? user(x) : undefined; }
   async userByAccount(account: string) { const [x] = await rows(this.r, 'SELECT * FROM users WHERE account = ?', [account.toLowerCase()]); return x ? user(x) : undefined; }
   async setAccount(userId: string, account: string, saltNonce: bigint) { await this.r.query('UPDATE users SET account = ?, salt_nonce = ? WHERE id = ?', [account.toLowerCase(), saltNonce.toString(), userId]); }
   async addPasskey(p: Passkey) {
     await this.r.query('INSERT INTO passkeys (credential_id, user_id, public_key, counter, cred_id_hash, x, y) VALUES (?, ?, ?, ?, ?, ?, ?)', [p.credentialId, p.userId, p.publicKey, p.counter, p.credIdHash, p.x, p.y]);
   }
   async passkey(id: string) { const [x] = await rows(this.r, 'SELECT * FROM passkeys WHERE credential_id = ?', [id]); return x ? passkey(x) : undefined; }
-  async passkeysOf(userId: string) { return (await rows(this.r, 'SELECT * FROM passkeys WHERE user_id = ?', [userId])).map(passkey); }
+  async passkeysOf(userId: string) { return (await rows(this.r, 'SELECT * FROM passkeys WHERE user_id = ? ORDER BY created_at, credential_id', [userId])).map(passkey); }
   async setCounter(id: string, counter: number) { await this.r.query('UPDATE passkeys SET counter = ? WHERE credential_id = ?', [counter, id]); }
 }
 

@@ -5,6 +5,7 @@ import request from 'supertest';
 import { softPasskey } from '@praetor/protocol';
 import { createApiApp } from '../src/app.js';
 import { MemoryApiStore } from '../src/store.js';
+import { MySqlApiStore } from '../src/mysql.js';
 
 const RP = 'praetor.localhost';
 const ORIGIN = 'https://praetor.localhost';
@@ -74,8 +75,85 @@ describe('recovery when every passkey is lost', () => {
     expect((await request(app).post(`/api/recover/${userId}/execute`).send({}).expect(200)).body).toEqual({ success: true, txHash: '0x01' });
   });
 
+  it('names none of the account\'s passkeys to whoever types the email (its credIdHash finds the account on Base)', async () => {
+    const { app, onChain } = setup();
+    const { pk } = await onboard(app, onChain);
+    const { body: o } = await request(app).post('/api/recover/options').send({ email: 'lin@example.com' }).expect(200);
+    expect(JSON.stringify(o)).not.toContain(pk.credentialId);
+    expect(o.options.excludeCredentials ?? []).toEqual([]);
+  });
+
+  it('keeps recovering the first account of an email when someone signs up later with the same (unverified) email', async () => {
+    const store = new MemoryApiStore();
+    const app = createApiApp({
+      store, sessionSecret: 's'.repeat(64), rpId: RP, origin: ORIGIN,
+      accountFor: async (p) => ({ address: `0x${p.credIdHash.slice(-40)}` as `0x${string}` }),
+      recovery: { start: async () => ({ redirectUrl: 'https://praetor.localhost/kyc-mock/?session=r1' }), status: async () => ({ state: 'none' }), execute: async () => ({}) },
+    });
+    const signUp = async (label: string) => {
+      const { body: u } = await request(app).post('/api/onboarding/start').send({ email: 'lin@example.com' });
+      const { body: o } = await request(app).post('/api/onboarding/passkey/options').send({ userId: u.userId });
+      await request(app).post('/api/onboarding/passkey/verify').send({ userId: u.userId, response: softPasskey(label, RP, ORIGIN).registration(o.challenge) }).expect(200);
+      return u.userId as string;
+    };
+    const lin = await signUp('lin');
+    await signUp('squatter');
+    expect((await request(app).post('/api/recover/options').send({ email: 'lin@example.com' }).expect(200)).body.userId).toBe(lin);
+  });
+
+  it('stores no passkey for the account unless the bank starts its re-KYC with it', async () => {
+    const store = new MemoryApiStore();
+    const app = createApiApp({
+      store, sessionSecret: 's'.repeat(64), rpId: RP, origin: ORIGIN, accountFor: async () => ({ address: ACCOUNT }),
+      recovery: { start: async () => { throw Object.assign(new Error('no issued PersonKYC from the provider for this user'), { status: 409 }); }, status: async () => ({ state: 'none' }), execute: async () => ({}) },
+    });
+    const { userId } = await onboard(app, new Set());
+    const { body: o } = await request(app).post('/api/recover/options').send({ email: 'lin@example.com' }).expect(200);
+    await request(app).post('/api/recover/verify').send({ userId, response: softPasskey('stranger', RP, ORIGIN).registration(o.options.challenge) }).expect(409);
+    expect((await store.passkeysOf(userId)).map((p) => p.credIdHash)).toEqual([softPasskey('lin', RP, ORIGIN).credIdHash]);
+  });
+
+  it('counts only the passkeys Base holds toward the device limit: recovery attempts by strangers do not fill it', async () => {
+    const { app, onChain } = setup();
+    const { cookie } = await onboard(app, onChain);
+    for (const label of ['s1', 's2', 's3']) {
+      const { body: o } = await request(app).post('/api/recover/options').send({ email: 'lin@example.com' }).expect(200);
+      await request(app).post('/api/recover/verify').send({ userId: o.userId, response: softPasskey(label, RP, ORIGIN).registration(o.options.challenge) }).expect(200);
+    }
+    await request(app).post('/api/passkeys/options').set('cookie', cookie).set('x-csrf-token', csrfOf(cookie)).send({}).expect(200);
+  });
+
+  it('stores at most five recovery passkeys for a user an hour, from however many clients', async () => {
+    const { app, onChain, store } = setup();
+    const { userId } = await onboard(app, onChain);
+    const attempt = async (label: string) => {
+      const { body: o } = await request(app).post('/api/recover/options').send({ email: 'lin@example.com' }).expect(200);
+      return request(app).post('/api/recover/verify').send({ userId, response: softPasskey(label, RP, ORIGIN).registration(o.options.challenge) });
+    };
+    for (const label of ['r1', 'r2', 'r3', 'r4', 'r5']) expect((await attempt(label)).status).toBe(200);
+    expect((await attempt('r6')).status).toBe(429);
+    expect(await store.passkeysOf(userId)).toHaveLength(6);
+  });
+
+  it('a second recovery request for the same email (anyone can make one) leaves the first one\'s registration pending', async () => {
+    const { app, onChain } = setup();
+    const { userId } = await onboard(app, onChain);
+    const { body: mine } = await request(app).post('/api/recover/options').send({ email: 'lin@example.com' }).expect(200);
+    await request(app).post('/api/recover/options').send({ email: 'lin@example.com' }).expect(200);
+    await request(app).post('/api/recover/verify').send({ userId, response: softPasskey('lin-new', RP, ORIGIN).registration(mine.options.challenge) }).expect(200);
+  });
+
   it('knows no account for an unknown email', async () => {
     const { app } = setup();
     await request(app).post('/api/recover/options').send({ email: 'nobody@example.com' }).expect(404);
+  });
+});
+
+describe('MySqlApiStore passkeys', () => {
+  it('lists a user\'s passkeys in registration order: the account\'s first passkey (its address and first op) comes first', async () => {
+    const calls: string[] = [];
+    const store = new MySqlApiStore({ query: async (sql: string) => { calls.push(sql); return []; } });
+    await store.passkeysOf('u1');
+    expect(calls[0]).toBe('SELECT * FROM passkeys WHERE user_id = ? ORDER BY created_at, credential_id');
   });
 });

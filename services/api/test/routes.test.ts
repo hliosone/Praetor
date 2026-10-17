@@ -76,19 +76,42 @@ describe('sandbox faucet route (interim, D48)', () => {
 });
 
 describe('web push subscriptions (spec 07 PWA)', () => {
-  const sub = { endpoint: 'https://push.example/abc', keys: { p256dh: 'BPx', auth: 'au' } };
+  // A browser's own push service: the notifier posts only to those (isPushEndpoint).
+  const sub = { endpoint: 'https://fcm.googleapis.com/fcm/send/abc', keys: { p256dh: 'BPx', auth: 'au' } };
+  const store = (saved: unknown[], existing: string[] = []) => ({
+    subscribe: async (account: Address, s: unknown) => { saved.push({ account, s }); },
+    list: async () => existing.map((endpoint) => ({ endpoint, keys: { p256dh: 'p', auth: 'a' } })),
+  });
 
   it('stores the browser\'s push subscription for the signed-in account', async () => {
     const saved: unknown[] = [];
-    const { a } = app({ push: { subscribe: async (account: Address, s: unknown) => { saved.push({ account, s }); } } });
+    const { a } = app({ push: store(saved) });
     await request(a).post('/api/push/subscribe').send(sub).expect(204);
     expect(saved).toEqual([{ account: ACCOUNT, s: sub }]);
   });
 
   it('refuses a subscription whose endpoint is not https', async () => {
     const saved: unknown[] = [];
-    const { a } = app({ push: { subscribe: async (_a: Address, s: unknown) => { saved.push(s); } } });
-    expect((await request(a).post('/api/push/subscribe').send({ ...sub, endpoint: 'http://push.example/abc' })).status).toBeGreaterThanOrEqual(400);
+    const { a } = app({ push: store(saved) });
+    expect((await request(a).post('/api/push/subscribe').send({ ...sub, endpoint: 'http://fcm.googleapis.com/fcm/send/abc' })).status).toBeGreaterThanOrEqual(400);
     expect(saved).toEqual([]);
+  });
+
+  it('refuses an endpoint that is not a browser push service: the notifier would post to it (SSRF)', async () => {
+    const saved: unknown[] = [];
+    const { a } = app({ push: store(saved) });
+    for (const endpoint of ['https://api:3200/internal/push-subscriptions', 'https://10.88.0.4/', 'https://evil.example/collect', 'https://fcm.googleapis.com:8443/x']) {
+      expect((await request(a).post('/api/push/subscribe').send({ ...sub, endpoint })).status, endpoint).toBeGreaterThanOrEqual(400);
+    }
+    expect(saved).toEqual([]);
+  });
+
+  it('keeps at most ten subscriptions per account; a browser that subscribes again still updates its own', async () => {
+    const saved: unknown[] = [];
+    const ten = Array.from({ length: 10 }, (_, i) => `https://fcm.googleapis.com/fcm/send/${i}`);
+    const { a } = app({ push: store(saved, ten) });
+    await request(a).post('/api/push/subscribe').send(sub).expect(409);
+    await request(a).post('/api/push/subscribe').send({ ...sub, endpoint: ten[3] }).expect(204);
+    expect(saved).toEqual([{ account: ACCOUNT, s: { ...sub, endpoint: ten[3] } }]);
   });
 });

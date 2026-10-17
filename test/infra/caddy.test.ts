@@ -14,6 +14,11 @@ describe('infra/Caddyfile', () => {
     expect(csp).not.toMatch(/script-src[^;]*unsafe/);
   });
 
+  it('lets no page of the public entry be framed, the KYC provider\'s camera page included', () => {
+    const shared = /\(app\) \{\s*#[^\n]*\n\s*header \{([^}]+)\}/.exec(caddy)?.[1] ?? '';
+    expect(shared).toContain('X-Frame-Options "DENY"');
+  });
+
   it('sends HSTS, nosniff and no referrer on every response', () => {
     for (const h of ['Strict-Transport-Security', 'X-Content-Type-Options "nosniff"', 'Referrer-Policy "no-referrer"']) expect(caddy).toContain(h);
   });

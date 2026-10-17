@@ -79,6 +79,24 @@ describe('mini program sessions (spec 05)', () => {
     expect((await s.login('new')).account).toBe(ACCOUNT);
   });
 
+  it('a binding Base drops without the api (recovery executed, an unlink sent elsewhere) ends an open session at its next request', async () => {
+    const { s, setOnchain } = setup();
+    await s.linked(oh('openid-of-lin'), ACCOUNT, BINDING);
+    const r = await s.login('lin');
+    setOnchain(ZERO);
+    expect(await s.current(r.token)).toBeNull();
+  });
+
+  it('a request while Base disagrees keeps the link record: a lagging RPC read right after the link must not unlink the user', async () => {
+    const { s, setOnchain } = setup();
+    await s.linked(oh('openid-of-lin'), ACCOUNT, BINDING);
+    const r = await s.login('lin');
+    setOnchain(ZERO);
+    expect(await s.current(r.token)).toBeNull();
+    setOnchain(BINDING);
+    expect((await s.current(r.token))?.account).toBe(ACCOUNT);
+  });
+
   it('unlinked(account) ends its sessions at once', async () => {
     const { s } = setup();
     await s.linked(oh('openid-of-lin'), ACCOUNT, BINDING);

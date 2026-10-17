@@ -1,12 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
-import { decisionText, refusalText, createNotifierApp } from '../src/app.js';
+import { decisionText, recoveryText, refusalText, createNotifierApp } from '../src/app.js';
 import { Reason, Tier } from '@praetor/protocol';
 
 describe('messages (spec 05 notifier wording)', () => {
   it('a refusal says what was blocked and why, with the links', () => {
     expect(refusalText({ reason: Reason.SANCTIONED, tier: Tier.T0_NEVER, target: '0x0000000000000000000000000000000000000bad', txHash: '0xaa', explorer: 'https://x' }))
       .toBe('Blocked: payee on the sanctions list. https://x/tx/0xaa');
+  });
+  it('a recovery scheduled on Base tells the owner when the keys go and how to stop it (F10, 48 h to cancel)', () => {
+    expect(recoveryText({ executableAt: 1_800_172_800n, txHash: '0xdd', explorer: 'https://x' }))
+      .toBe('Recovery of your account scheduled: your passkeys will be replaced after 2027-01-17 08:00 UTC. Not you? Cancel it now in Settings with one of your passkeys. https://x/tx/0xdd');
   });
   it('a T1 rebalance or payment is reported once', () => {
     expect(decisionText({ kind: 'rebalance', usd: '650.00', asset: 'gold', txHash: '0xbb', explorer: 'https://x' })).toBe('Agent sold 650.00 USD of gold. https://x/tx/0xbb');

@@ -1,8 +1,8 @@
 // Mini program sessions (spec 05): a wx.login code, resolved to an openid by code2Session, gives a bearer token for the
 // account linked with that WeChat user. The link is recorded only after LINK_WECHAT succeeded on Base and is checked
-// against bindingOf(account) at every sign-in, so an unlink or a recovery ends it. The session reads, and approves only
-// with a fresh SOTER result that the attester and the hook verify; it can sign no owner action. Only keccak256(openid)
-// is kept, never the openid.
+// against bindingOf(account) at every sign-in and every request, so an unlink or a recovery ends it. The session reads,
+// and approves only with a fresh SOTER result that the attester and the hook verify; it can sign no owner action. Only
+// keccak256(openid) is kept, never the openid.
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 import { encodeAbiParameters, keccak256, toHex, type Address, type Hex } from 'viem';
@@ -92,6 +92,10 @@ export class MpSessions {
     if (account === NONE) return { openidHash: openidHash as Hex, account: null, bindingHash: null };
     const b = await this.d.bindings.get(openidHash as Hex);
     if (!b || b.account.toLowerCase() !== account) return null;
+    // Base may have dropped the binding without the api (executeRecovery, an unlink sent by another client). Refused
+    // while Base disagrees; the record stays (a lagging RPC node right after LINK_WECHAT must not unlink the user):
+    // sign-in and the api's own unlink remove it.
+    if ((await this.d.bindingOf(b.account)).toLowerCase() !== b.bindingHash.toLowerCase()) return null;
     return { openidHash: openidHash as Hex, account: b.account, bindingHash: b.bindingHash };
   }
 

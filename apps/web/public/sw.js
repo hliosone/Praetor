@@ -15,7 +15,17 @@ self.addEventListener('push', (e) => {
   const d = e.data ? e.data.json() : { title: 'Praetor', body: '' };
   e.waitUntil(self.registration.showNotification(d.title || 'Praetor', { body: d.body, icon: '/icon.svg', data: { url: d.url || '/home' } }));
 });
+// A notification opens a page of this app only: its link comes from the notifier's callers, never another site.
+const appPage = (url) => {
+  try {
+    const u = new URL(url || '/home', self.location.origin);
+    if (u.origin === self.location.origin) return u.href;
+  } catch {
+    // not a URL: the home page
+  }
+  return new URL('/home', self.location.origin).href;
+};
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
-  e.waitUntil(self.clients.openWindow(e.notification.data.url));
+  e.waitUntil(self.clients.openWindow(appPage(e.notification.data && e.notification.data.url)));
 });

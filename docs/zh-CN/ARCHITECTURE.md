@@ -323,7 +323,7 @@ flowchart LR
 - **停止我的智能体。** `REVOKE_AGENT_KEY` 是仅需所有者的操作（T3-）：密钥立即失效。随后 api 请银行撤销 AgentKeyValidator 已不再持有的每一把智能体密钥的 AgentMandate 存证；银行在撤销前自行读取 Base。
 - **轮换。** 新的智能体密钥是 agent-signer 的下一个密钥版本（`praetor/agent/<account>/v<n+1>`）。`POST /api/agent/rotate` 找到地址与 Base 上持有者一致的版本（`kyaOf`，最多 16 个版本），并为下一个版本走一遍开户路径：由银行检查 quote、智能体 DID、用 passkey 签署的 AgentMandate、由银行在 FISCO 上链接到前任的 KYA（`MandateRegistry.linkSuccessor`），最后是 `SET_AGENT_KEY`（所有者与银行）。旧密钥失效，其授权按上述方式撤销。
 - **设备。** 设置页登记另一个 passkey（每个账户最多四个），并通过 `SET_OWNER_KEY` 将其加到 Base 上，由当前的某个 passkey 签名、银行联署。登录只接受 PasskeyValidator 持有的 passkey，因此新设备在 Base 持有它之后才能登录；所有者操作、审批或授权以断言 id 所指明的凭证签署。
-- **恢复**（丢失全部 passkey 时）：用户打开 `/recover`，输入邮箱并创建新的 passkey；银行向 KYC 提供方自行重新进行 KYC，只有结果与密封的 PersonKYC 记录（姓名、出生日期、国籍、证件号码）一致时，银行才单独签署 `SET_OWNER_KEY`，并从其 desk 账户发送 `scheduleRecovery`。账户在 48 小时内处于 RESTRICTED，任何剩余的 passkey 都可单独取消（`CANCEL_RECOVERY`），48 小时后任何人都可执行（由 api 经 bundler 发送）。恢复需要由 KYC 提供方签发的 PersonKYC（不适用于 EUDI 路径）。恢复状态来自 hook 的 Recovery 事件；设置页显示待执行的恢复，银行的通知发往其自身的日志接收端（D13）。
+- **恢复**（丢失全部 passkey 时）：用户打开 `/recover`，输入邮箱并创建新的 passkey；银行向 KYC 提供方自行重新进行 KYC，只有结果与密封的 PersonKYC 记录（姓名、出生日期、国籍、证件号码）一致时，银行才单独签署 `SET_OWNER_KEY`，并从其 desk 账户发送 `scheduleRecovery`。账户在 48 小时内处于 RESTRICTED，任何剩余的 passkey 都可单独取消（`CANCEL_RECOVERY`），48 小时后任何人都可执行（由 api 经 bundler 发送）。恢复需要由 KYC 提供方签发的 PersonKYC（不适用于 EUDI 路径）。恢复状态来自 hook 的 Recovery 事件；设置页显示待执行的恢复，notifier 把每个 `RecoveryScheduled` 推送到所有者的设备（D81），银行自己的通知发往其日志接收端（D13）。邮箱解析为其第一个账户；新的 passkey 只在银行开始重新 KYC 之后才保存，每个用户每小时至多五个，恢复选项不会列出账户的任何 passkey（D80）。
 
 ```mermaid
 sequenceDiagram
@@ -361,14 +361,14 @@ sequenceDiagram
 
 `apps/miniprogram` 是所有者在微信中的日常界面：投资组合、状态、决策、智能体对话，以及通过 SOTER 用 Face ID 或指纹完成的 T2 审批（原生 WXML、WXSS 和 JS，英文与中文）。
 
-- **登录**（D50）。`wx.login` 给出一个 code；`POST /mp/session` 让 api 自行调用 code2Session，并只保留 `keccak256(openid)`。bearer 令牌有效期 2 小时，绝不等同于 Web 会话，并且只有在 LINK_WECHAT 之后记录的绑定仍与 Base 上的 `bindingOf(account)` 一致时才指向该账户，每次登录都会检查；从 Web 应用解绑会立即结束其会话，恢复（会清除 Base 上的绑定）则在下次登录时结束。
+- **登录**（D50）。`wx.login` 给出一个 code；`POST /mp/session` 让 api 自行调用 code2Session，并只保留 `keccak256(openid)`。bearer 令牌有效期 2 小时，绝不等同于 Web 会话，并且只有在 LINK_WECHAT 之后记录的绑定仍与 Base 上的 `bindingOf(account)` 一致时才指向该账户，每次登录和每次请求都会检查（D81），因此解绑或恢复（会清除 Base 上的绑定）都会立即结束其会话。
 - **路由**（D51、D53）。`/mp` 为已绑定的用户提供所有者的读取接口、智能体对话、拒绝、SOTER 审批和 F2 绑定，不提供任何所有者操作：解绑、新增定期付款和修改策略会复制 Web 应用的链接，由 passkey 在那里签名。任何响应都不包含所有者的邮箱或 KYC 数据。
 - **手机端的检查**（D52、D54）。在 SOTER 签署审批之前，手机解码每笔调用，重新计算 call hash 和 Tier2Approval 摘要，并签署它自己计算的摘要；对于绑定，它要求操作为 LINK_WECHAT 且 `payloadHash = keccak256(abi.encode(linkNonce))`。摘要代码是由 `src/protocol.mjs` 生成的 `lib/protocol.js`，并用黄金向量校验。
 - **状态。** 逻辑测试在 `make test` 中（替代 DevTools 构建）；在手机上，它以调试模式运行在微信测试账号下（[MANUAL.md](../MANUAL.md) 第 5 节，[TESTER.md](../TESTER.md)）。
 
 ### 4.16 通知与 Web 推送
 
-notifier 把每条消息分发到账户的每个渠道，并保留一个发件箱：微信公众号渠道（在公众号测试账号可用之前是一个日志接收端，BLOCKERS B2）和 Web 推送。Web 应用在设置页中，用 api 公开配置里的 VAPID 公钥为其 service worker 订阅推送；api 保存订阅（`POST /api/push/subscribe`，仅接受 https 端点），notifier 通过内部路由读取订阅，为每个浏览器单独加密消息（RFC 8291），并用 Praetor 的 VAPID 密钥为请求签名（RFC 8292）。service worker 显示通知并打开其链接。某个推送服务不可用时，绝不会阻塞其他渠道。
+notifier 把每条消息分发到账户的每个渠道，并保留一个发件箱：微信公众号渠道（在公众号测试账号可用之前是一个日志接收端，BLOCKERS B2）和 Web 推送。Web 应用在设置页中，用 api 公开配置里的 VAPID 公钥为其 service worker 订阅推送；api 保存订阅（`POST /api/push/subscribe`，只接受浏览器的推送服务，每个账户至多十个，D82），notifier 通过内部路由读取订阅，为每个浏览器单独加密消息（RFC 8291），并用 Praetor 的 VAPID 密钥为请求签名（RFC 8292）。service worker 显示通知，并且只在链接属于本应用页面时打开它（D82）。某个推送服务不可用时，绝不会阻塞其他渠道。
 
 ### 4.17 临时评委沙盒
 

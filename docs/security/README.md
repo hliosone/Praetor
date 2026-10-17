@@ -4,7 +4,7 @@ Security and compliance are 30 % of the score; this folder holds the evidence (s
 
 | Document | Content | Status on 2026-10-18 |
 |---|---|---|
-| [SELF_ASSESSMENT.md](SELF_ASSESSMENT.md) | Permission tiers T0 to T4 and recovery with their verifying functions, signers and tests; invariants I1 to I19 with their tests; threat model; 31 known risks; coverage, Slither, dependency audit, GPL boundary | Written (M17), refreshed after D44 to D75 (F10, web app, mini program, prod refusals); Chinese: [../zh-CN/SELF_ASSESSMENT.md](../zh-CN/SELF_ASSESSMENT.md) |
+| [SELF_ASSESSMENT.md](SELF_ASSESSMENT.md) | Permission tiers T0 to T4 and recovery with their verifying functions, signers and tests; invariants I1 to I19 with their tests; threat model; 34 known risks; coverage, Slither, dependency audit, GPL boundary | Written (M17), refreshed after D44 to D75 (F10, web app, mini program, prod refusals) and after the 2026-10-18 security review (D80 to D83); Chinese: [../zh-CN/SELF_ASSESSMENT.md](../zh-CN/SELF_ASSESSMENT.md) |
 | [slither.md](slither.md) | Every Slither finding of the Base contracts explained; the vendored WeCross proxy triaged; the FISCO contracts analysed | `make slither` passes since D49 (the vendored proxy is filtered like `lib/` and triaged one by one; the FISCO contracts are in the gate) |
 | [deps.md](deps.md) | `pnpm audit --prod` with a reachability assessment per advisory, pinning, gitleaks | Written (M17), audit re-run on 2026-10-18 (unchanged); upgrades pending |
 | [tee-checklist.md](tee-checklist.md) | The TEE deployment checklist for agent-signer and soter-attester, with what the code enforces today | Results after the Phala deployment (Phase C) |

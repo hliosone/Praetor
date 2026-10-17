@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { parseAbiItem, type Address } from 'viem';
 import { baseClients, loadDeployments } from '@praetor/chain';
 import { Tier } from '@praetor/protocol';
-import { createNotifierApp, refusalText, type Channel } from './app.js';
+import { createNotifierApp, recoveryText, refusalText, type Channel } from './app.js';
 import { webPushChannel, type PushSubscription } from './webpush.js';
 
 const env = z.object({
@@ -36,25 +36,34 @@ const push = env.VAPID_PUBLIC && env.VAPID_PRIVATE ? webPushChannel({
 const app = createNotifierApp({ token: env.INTERNAL_TOKEN_API, channels: push ? [oaSink, push] : [oaSink] });
 app.listen(env.PORT, () => log.info({ port: env.PORT, oa: !!env.OA_APPID }, 'notifier listening'));
 
-// Refusals recorded on-chain (RefusalLog) become "Blocked: ..." messages (spec 06 F5 step 6).
+// Refusals recorded on-chain (RefusalLog) become "Blocked: ..." messages (spec 06 F5 step 6). A recovery the bank
+// scheduled on the hook (F10) reaches the owner's devices at once: the 48 h to cancel it are only worth something if
+// the owner knows (the bank's own notice is a log sink, D13).
 const d = loadDeployments(env.DEPLOYMENTS_FILE);
 const { publicClient: pub } = baseClients(env.BASE_RPC_URL);
 const REFUSED = parseAbiItem('event Refused(bytes32 indexed userOpHash, address indexed account, bytes32 indexed callHash, uint8 reason, uint8 tier, address target, address reporter)');
+const RECOVERY = parseAbiItem('event RecoveryScheduled(address indexed account, bytes32 payloadHash, uint64 executableAt)');
 let from = await pub.getBlockNumber();
 const self = `http://127.0.0.1:${env.PORT}`;
+const notify = (account: Address, kind: string, text: string) => fetch(`${self}/notify`, {
+  method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${env.INTERNAL_TOKEN_API}` },
+  body: JSON.stringify({ account, kind, text }),
+});
 setInterval(() => {
   (async () => {
     const head = await pub.getBlockNumber();
     if (head <= from) return;
-    const logs = await pub.getLogs({ address: d.refusalLog, event: REFUSED, fromBlock: from + 1n, toBlock: head });
+    const range = { fromBlock: from + 1n, toBlock: head };
+    const [logs, recoveries] = await Promise.all([
+      pub.getLogs({ address: d.refusalLog, event: REFUSED, ...range }),
+      pub.getLogs({ address: d.mandateHook, event: RECOVERY, ...range }),
+    ]);
     from = head;
     for (const l of logs) {
       const tier = Number(l.args.tier);
       if (tier === Tier.T2_HUMAN) continue; // approvals are notified by the api with their request
-      await fetch(`${self}/notify`, {
-        method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${env.INTERNAL_TOKEN_API}` },
-        body: JSON.stringify({ account: l.args.account as Address, kind: 'refusal', text: refusalText({ reason: Number(l.args.reason), tier, target: String(l.args.target), txHash: l.transactionHash, explorer: env.EXPLORER_URL }) }),
-      });
+      await notify(l.args.account as Address, 'refusal', refusalText({ reason: Number(l.args.reason), tier, target: String(l.args.target), txHash: l.transactionHash, explorer: env.EXPLORER_URL }));
     }
+    for (const l of recoveries) await notify(l.args.account as Address, 'recovery', recoveryText({ executableAt: l.args.executableAt!, txHash: l.transactionHash, explorer: env.EXPLORER_URL }));
   })().catch((e) => log.error({ error: (e as Error).message.split('\n')[0] }, 'watch failed'));
 }, 3000);

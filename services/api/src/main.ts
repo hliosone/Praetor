@@ -77,6 +77,7 @@ const now = () => baseNow(pub);
 const userOf = async (account: Address) => {
   const u = await store.userByAccount(account);
   if (!u?.account) throw new Error('unknown account');
+  // The account's first passkey (registration order): the one its address and first userOp were derived from.
   const [p] = await store.passkeysOf(u.id);
   if (!p) throw new Error('no passkey');
   return { u, p };

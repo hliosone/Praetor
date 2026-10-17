@@ -99,22 +99,34 @@ export function createApiApp(d: ApiDeps) {
       rpName: 'Praetor', rpID: d.rpId, userName: u.email, attestationType: 'none',
       authenticatorSelection: { residentKey: 'required', userVerification: 'required' }, supportedAlgorithmIDs: [-7],
     });
-    challenges.set(`reg:${userId}`, { challenge: options.challenge, at: Date.now() });
+    challenges.set(`reg:${userId}:${options.challenge}`, { challenge: options.challenge, at: Date.now() });
     res.json(options);
   }));
 
-  const registrationOptions = async (userId: string, key: string, userName: string) => {
+  // `exclude`: the user's passkeys, so a device does not register twice. Only for a signed-in owner: a recovery is asked
+  // for by email alone, and a credential id leads to the account on Base (keccak256 is the OwnerKeySet topic).
+  const registrationOptions = async (userId: string, key: string, userName: string, exclude: boolean) => {
     const options = await generateRegistrationOptions({
       rpName: 'Praetor', rpID: d.rpId, userName, attestationType: 'none',
       authenticatorSelection: { residentKey: 'required', userVerification: 'required' }, supportedAlgorithmIDs: [-7],
-      excludeCredentials: (await d.store.passkeysOf(userId)).map((p) => ({ id: p.credentialId })),
+      excludeCredentials: exclude ? (await d.store.passkeysOf(userId)).map((p) => ({ id: p.credentialId })) : [],
     });
-    challenges.set(key, { challenge: options.challenge, at: Date.now() });
+    challenges.set(`${key}:${options.challenge}`, { challenge: options.challenge, at: Date.now() });
     return options;
   };
-  /** Verifies a registration against the pending challenge and stores the passkey for the user. */
-  const register = async (userId: string, key: string, response: unknown) => {
-    const expectedChallenge = takeChallenge(key);
+  // Pending registrations are keyed by their challenge too: a second request (anyone can ask for a recovery by email)
+  // never cancels the first one.
+  const challengeOf = (response: unknown) => {
+    try {
+      const cd = (response as { response?: { clientDataJSON?: unknown } } | undefined)?.response?.clientDataJSON;
+      return String((JSON.parse(Buffer.from(String(cd), 'base64url').toString('utf8')) as { challenge?: unknown }).challenge ?? '');
+    } catch {
+      return '';
+    }
+  };
+  /** Verifies a registration against the pending challenge: the passkey to store for the user. */
+  const verifyRegistration = async (userId: string, key: string, response: unknown) => {
+    const expectedChallenge = takeChallenge(`${key}:${challengeOf(response)}`);
     if (!expectedChallenge) throw new HttpError(400, 'no pending registration');
     let info;
     try {
@@ -126,9 +138,14 @@ export function createApiApp(d: ApiDeps) {
     }
     const { x, y } = coseP256(info.credential.publicKey);
     const credIdHash = keccak256(toHex(Buffer.from(info.credential.id, 'base64url')));
-    await d.store.addPasskey({ credentialId: info.credential.id, userId, publicKey: Buffer.from(info.credential.publicKey).toString('base64url'), counter: info.credential.counter, credIdHash, x: x.toString(), y: y.toString() });
-    return { credIdHash, x, y };
+    return { credentialId: info.credential.id, userId, publicKey: Buffer.from(info.credential.publicKey).toString('base64url'), counter: info.credential.counter, credIdHash, x, y };
   };
+  const savePasskey = async (p: Awaited<ReturnType<typeof verifyRegistration>>) => {
+    await d.store.addPasskey({ ...p, x: p.x.toString(), y: p.y.toString() });
+    return { credIdHash: p.credIdHash, x: p.x, y: p.y };
+  };
+  /** Verifies a registration against the pending challenge and stores the passkey for the user. */
+  const register = async (userId: string, key: string, response: unknown) => savePasskey(await verifyRegistration(userId, key, response));
   const keyJson = (k: { credIdHash: Hex; x: bigint; y: bigint }) => ({ credIdHash: k.credIdHash, x: `0x${k.x.toString(16)}` as Hex, y: `0x${k.y.toString(16)}` as Hex });
 
   r.post('/onboarding/passkey/verify', h(async (req, res) => {
@@ -185,8 +202,11 @@ export function createApiApp(d: ApiDeps) {
   }));
   r.post('/passkeys/options', session, h(async (_req, res) => {
     const u = await me(res);
-    if ((await d.store.passkeysOf(u.id)).length >= MAX_PASSKEYS) throw new HttpError(409, `at most ${MAX_PASSKEYS} passkeys`);
-    res.json(await registrationOptions(u.id, `device:${u.id}`, u.email));
+    // The limit is Base's: stored passkeys that never became owner keys (a stranger's recovery attempt) do not count.
+    const list = await d.store.passkeysOf(u.id);
+    const held = d.isOwnerKey ? (await Promise.all(list.map((p) => d.isOwnerKey!(u.account as Address, p.credIdHash as Hex)))).filter(Boolean).length : list.length;
+    if (held >= MAX_PASSKEYS) throw new HttpError(409, `at most ${MAX_PASSKEYS} passkeys`);
+    res.json(await registrationOptions(u.id, `device:${u.id}`, u.email, true));
   }));
   r.post('/passkeys/verify', session, h(async (req, res) => {
     const u = await me(res);
@@ -195,7 +215,7 @@ export function createApiApp(d: ApiDeps) {
 
   // Recovery (F10 step 6) for a user who lost every passkey: a new passkey for the email's account, then the bank's
   // own re-KYC; the hook replaces the keys 48 h later unless a remaining passkey cancels. No session: nothing here
-  // grants access before Base holds the new key.
+  // grants access before Base holds the new key, and the passkey is stored only once the bank started its re-KYC.
   const recovering = async (userId: string) => {
     const u = await d.store.getUser(userId);
     if (!u?.account || !d.recovery) throw new HttpError(404, 'no account to recover');
@@ -205,13 +225,22 @@ export function createApiApp(d: ApiDeps) {
     const { email } = z.object({ email: z.string().email().max(200) }).parse(req.body);
     const u = await d.store.userByEmail(email);
     if (!u?.account || !d.recovery) throw new HttpError(404, 'no account for this email');
-    res.json({ userId: u.id, options: await registrationOptions(u.id, `recover:${u.id}`, u.email) });
+    res.json({ userId: u.id, options: await registrationOptions(u.id, `recover:${u.id}`, u.email, false) });
   }));
+  // Anyone with the email can start one: at most a few recovery passkeys per user an hour, whatever the client address.
+  const RECOVERIES_PER_HOUR = 5;
+  const recoveries = new Map<string, number[]>();
   r.post('/recover/verify', h(async (req, res) => {
     const b = z.object({ userId: z.string().uuid(), response: z.any() }).parse(req.body);
     const u = await recovering(b.userId);
-    const key = keyJson(await register(u.id, `recover:${u.id}`, b.response));
-    res.json(await d.recovery!.start(u.id, u.account, key));
+    const now = Date.now();
+    const recent = (recoveries.get(u.id) ?? []).filter((t) => now - t < 3_600_000);
+    if (recent.length >= RECOVERIES_PER_HOUR) throw new HttpError(429, 'too many recovery attempts for this account: try again in an hour');
+    const p = await verifyRegistration(u.id, `recover:${u.id}`, b.response);
+    const started = await d.recovery!.start(u.id, u.account, keyJson(p));
+    await savePasskey(p);
+    recoveries.set(u.id, [...recent, now]);
+    res.json(started);
   }));
   r.get('/recover/:userId', h(async (req, res) => res.json(await d.recovery!.status((await recovering(z.string().uuid().parse(req.params.userId))).account))));
   r.post('/recover/:userId/execute', h(async (req, res) => res.json(await d.recovery!.execute((await recovering(z.string().uuid().parse(req.params.userId))).account))));
