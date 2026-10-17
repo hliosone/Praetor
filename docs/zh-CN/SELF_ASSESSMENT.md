@@ -2,7 +2,7 @@
 
 Praetor 让 AI 智能体动用用户的资金，因此设计上要回答的问题不是“智能体是否可信”（它不可信），而是“智能体或其周围的任何组件，最坏能做什么”。本文以已构建代码的证据回答这个问题：分级授权以及执行每一级的合约函数，十九个不变量及证明它们的测试，威胁模型，已知风险，以及各工具的结果。英文版：[docs/security/SELF_ASSESSMENT.md](../security/SELF_ASSESSMENT.md)。架构：[docs/zh-CN/ARCHITECTURE.md](ARCHITECTURE.md)。
 
-快照：2026-10-17，M17 结束时。里程碑 M12（WeCross 关卡）、M13（Web 应用）、M14（小程序）、M15（F10、国密冒烟测试）、M16（实链运行、红队）和 M18（部署演练）仍在并行构建中；依赖它们的章节会注明。
+快照：2026-10-17，M17 结束时；2026-10-18 针对 F10、Web 推送和沙盒的安全审查后更新（D80 至 D83）。里程碑 M12（WeCross 关卡）、M13（Web 应用）、M14（小程序）、M15（F10、国密冒烟测试）、M16（实链运行、红队）和 M18（部署演练）仍在并行构建中；依赖它们的章节会注明。
 
 ## 1. 证据一览
 
@@ -74,7 +74,7 @@ Praetor 账户的每一次执行都经过 `MandateHook.preCheck`（I1），无�
 | 攻击者 | 能做什么 | 已构建的控制措施 | 已构建代码中的缺口 |
 |---|---|---|---|
 | 提示注入（商户文本、聊天、收款人名称、工具结果） | 让 LLM 以错误参数调用工具 | 没有任何 MCP 工具接收账户参数（账户来自 bearer）；hook 的默认拒绝、制裁、上限和收款人列表；任何异常都属于 T2；OpenCode 的内置工具被拒绝（D15）。测试：e2e F5（"I9"、"the built-in tools are locked"），`services/agent-runner/test/runner.test.ts` | 红队测试套件**在 M16 中构建** |
-| 被攻陷的后端（api、scheduler、bundler） | 扣留、延迟、刷量、向用户展示错误信息 | 每项权限都是在链上验证的签名；被拒绝的操作有速率限制（每账户每天 20 次，`BUNDLER_MAX_REFUSED_PER_DAY`）；bundler 只向五个白名单合约发送普通交易；成员服务自行验证员工 passkey 断言（D24）；心跳故障安全机制 | Web 应用只为 Tier2 审批重新计算摘要（`apps/web/src/pages/Approve.tsx`）；所有者操作、微信绑定和控制台提案按 api 返回的内容签名（风险 22）。持有 `INTERNAL_TOKEN_API` 者可让 mcp 用智能体密钥提交调用（风险 19） |
+| 被攻陷的后端（api、scheduler、bundler） | 扣留、延迟、刷量、向用户展示错误信息 | 每项权限都是在链上验证的签名；被拒绝的操作有速率限制（每账户每天 20 次，`BUNDLER_MAX_REFUSED_PER_DAY`）；bundler 只向五个白名单合约发送普通交易；成员服务自行验证员工 passkey 断言（D24）；心跳故障安全机制 | Web 应用重新计算每个 Tier2 审批和所有者操作的摘要，从浏览器自身的注册结果读取新设备的密钥，并核对授权委托草稿中的智能体密钥（D46、D83）；微信绑定、部署 userOp 和控制台提案仍按 api 返回的内容签名（风险 22）。恢复用的通行密钥由 api 转交银行，恢复状态也由 api 转发（风险 31）。持有 `INTERNAL_TOKEN_API` 者只能让 mcp 重新提交所有者已批准的调用（风险 19） |
 | 被攻陷的 mcp（`sign-userop` 的唯一调用方） | 在 T1 授权委托内行事，如同泄露的智能体密钥 | hook 的边界和银行上限；agent-signer 将 `sign-userop` 限制为每账户每小时 120 次，并拒绝除发往其他目标、链 84532 上的 `execute` 之外的一切；所有者撤销（T3-）；联盟冻结 | 签名器的速率限制保存在内存中（重启后重置） |
 | 被攻陷的 WeCross 路由器或中继 | 丢弃或延迟联盟消息 | 由 hook 验证的成员签名、nonce 和截止时间；静默使智能体变为 RESTRICTED（STALE_STATUS）；中继的看门狗会在 `BRIDGE_WATCHDOG_S` 内投递 WeCross 未投递的消息（D42） | WeCross 1.4.0 的说明见 [wecross.md](../security/wecross.md)（风险 18） |
 | 泄露的智能体密钥或被攻陷的智能体 TEE | 在授权委托内行事 | hook 边界和银行上限；所有者可单独撤销；联盟可冻结 | 风险 1 |
@@ -84,12 +84,12 @@ Praetor 账户的每一次执行都经过 `MandateHook.preCheck`（I1），无�
 | 一个恶意的成员密钥 | 冻结或限制（安全方向），列入制裁，暂停资产 | 放宽需要两个成员；每项决定都是一个 FISCO 提案，其签名者记录在审计轨迹中 | |
 | 重放旧消息或旧审批 | 重新应用旧状态或旧审批 | nonce（stored + 1）、截止时间、一次性摘要（`usedDigest`）、SOTER 计数器、恢复时重置的 epoch | |
 | 被攻陷的预言机喂价方 | 推送错误价格 | 每次更新至多 25 %（`MAX_DEVIATION_BPS`），过期检查（`maxPriceAge`，4 天），滑点界限，银行的最大权重（T0），DEMO 价格带有标记 | 风险 6 |
-| Web 攻击者 | XSS、CSRF、会话窃取、对 MCP 的 OAuth 滥用 | `HttpOnly`、`SameSite=Lax` 会话 cookie（https 下带 `Secure`）；每个改变状态的 api 请求都需要 CSRF token；OAuth 2.1 仅允许 PKCE S256，精确匹配的重定向 URI，一次性授权码，刷新令牌轮换并按族撤销，令牌仅以哈希存储（`services/mcp/test/oauth.test.ts`，28 个用例） | 自 D71 起：Caddy 提供严格的 CSP（脚本仅限本站、禁止嵌入、禁止 object）、HSTS、nosniff 与 no-referrer；api 拒绝来自其他 Origin 的写请求；登录、开户、恢复和小程序登录按客户端限流（`services/api/test/hardening.test.ts`、`test/infra/caddy.test.ts`）。剩余：见风险 21 |
+| Web 攻击者 | XSS、CSRF、会话窃取、对 MCP 的 OAuth 滥用 | `HttpOnly`、`SameSite=Lax` 会话 cookie（https 下带 `Secure`）；每个改变状态的 api 请求都需要 CSRF token；OAuth 2.1 仅允许 PKCE S256，精确匹配的重定向 URI，一次性授权码，刷新令牌轮换并按族撤销，令牌仅以哈希存储（`services/mcp/test/oauth.test.ts`，28 个用例） | 自 D71 起：Caddy 提供严格的 CSP（脚本仅限本站、禁止嵌入、禁止 object）、HSTS、nosniff 与 no-referrer；api 拒绝来自其他 Origin 的写请求；登录、开户、恢复和小程序登录按客户端限流（`services/api/test/hardening.test.ts`、`test/infra/caddy.test.ts`）。自 D82 起：Web 推送只发往浏览器的推送服务（无法借存储的端点进行 SSRF），通知链接只打开本站页面，任何路由都不能被嵌入框架。剩余：见风险 21 |
 | 读取日志的内部人员 | 获取个人信息 | KYC 数据密封在银行数据库中；状态响应不含个人信息；bundler 和成员服务在日志中隐去 authorization 头；集成测试套件中的 I9 日志扫描 | api 保存注册邮箱（不是 KYC 数据） |
 
 ## 5. 已知风险
 
-第 1 至 17 项是 spec 08 的列表，已按构建结果更新；第 18 项及之后是构建过程中新增或在 M17 中发现的。
+第 1 至 17 项是 spec 08 的列表，已按构建结果更新；第 18 至 30 项是构建过程中新增或在 M17 中发现的，第 31 至 34 项来自 2026-10-18 的安全审查。
 
 1. **智能体密钥。** 被攻陷的智能体 TEE 或泄露的智能体密钥可以在授权委托内行事，直到所有者撤销它或联盟冻结账户。受 hook 和银行上限约束。
 2. **对 SOTER 的信任。** SOTER 审批信任腾讯未签名的 `is_ok` 以及 attester 的代码。受绑定、计数器、一小时过期、硬上限和银行上限约束。
@@ -111,16 +111,20 @@ Praetor 账户的每一次执行都经过 `MandateHook.preCheck`（I1），无�
 18. **WeCross 传输说明**（[wecross.md](../security/wecross.md)）：一个无法投递的请求可能阻塞 hub 队列（看门狗不依赖它）；两个 hub setter 没有访问控制；路由器在失败时会把链账户的私钥写入日志（只保存在主机或 CVM 上）；路由器 RPC 在 Docker 网络上是明文 HTTP；在 `BRIDGE=wecross` 模式下，bridge-relayer 持有 WeCross 路由器的 FISCO 密钥（D42）。
 19. **`INTERNAL_TOKEN_API` 可触达智能体密钥。** mcp 的 `POST /internal/resubmit`（在人工审批之后使用）可以用智能体密钥为任意账户提交至多八个调用，其保护是 `INTERNAL_TOKEN_API`，而 api、notifier 和 mcp 共享该令牌。因此，被攻陷的 api 或 notifier 可以在每个账户的 T1 授权委托内行事，如同被攻陷的 mcp。同样，agent-runner 持有 `INTERNAL_TOKEN_MCP`，可为任意账户签发智能体 bearer。hook 仍约束每一个调用。 自 D72 起，resubmit 接口只为在钩子上存在有效且未被消耗的审批的单笔调用签名（`services/mcp/test/app.test.ts`），api 令牌不再能在已批准的调用之外使用智能体密钥；agent-runner 的 `INTERNAL_TOKEN_MCP` 仍可为任意账户签发智能体凭证。
 20. **共享的内部令牌。** `INTERNAL_TOKEN_MEMBERS` 由 api 和三个成员服务共享，`INTERNAL_TOKEN_BUNDLER` 由每个 bundler 调用方共享，`SESSION_SECRET` 由 api 和 mcp 共享。联盟签名仍需要员工针对确切摘要的 passkey 断言，但有四个自动的、经规则检查的签名例外：运营方的心跳，银行在自身检查后的 KYA，银行在规则检查后的所有者操作联署，以及银行在重新计算链后的锚定联署（D24、D26、D41）。
-21. **已构建代码中的 Web 加固情况。** 自 D70 和 D71 起已完成：Caddy 提供 CSP 与安全响应头，api 对状态变更请求检查 Origin，公开的认证接口按客户端限流，控制台的账户列表需要工作人员会话。剩余：成员服务与 KYC 模拟服务没有限流（仅在内部网络），限流计数保存在进程内存中。
-22. **所见即所签。** Web 应用在 passkey 签名前根据请求的原像重新计算 Tier2Approval 摘要；自 D46 起，它还会重新计算每个所有者操作的摘要，核对其类型、账户与载荷哈希，并对策略、智能体密钥、新通行密钥、撤销和取消恢复，根据页面所显示的内容重建载荷。仍按 api 返回内容签名的有：微信绑定确认、账户的部署 userOp 以及控制台提案（成员服务会自行从 FISCO 读取提案摘要并验证工作人员的断言）。
+21. **已构建代码中的 Web 加固情况。** 自 D70 和 D71 起已完成：Caddy 提供 CSP 与安全响应头，api 对状态变更请求检查 Origin，公开的认证接口按客户端限流，控制台的账户列表需要工作人员会话。自 D82 起：推送订阅仅限浏览器推送服务且每个账户最多十个，notifier 不跟随重定向，点击通知只打开本站页面，每个路由都发送 `X-Frame-Options: DENY`（`packages/protocol/test/push.test.ts`、`services/notifier/test/webpush.test.ts`、`apps/web/src/lib/sw.test.ts`）。剩余：成员服务与 KYC 模拟服务没有限流（仅在内部网络）；限流计数保存在进程内存中，并以 Caddy 看到的地址为键，在 `make tunnel` 或 TLS 直通网关之后所有人共用一个网关地址（沙盒水龙头的按客户端限制也是如此）；api 中待用的 WebAuthn 挑战从不清理，只受限流约束。
+22. **所见即所签。** Web 应用在 passkey 签名前根据请求的原像重新计算 Tier2Approval 摘要；自 D46 起，它还会重新计算每个所有者操作的摘要，核对其类型、账户与载荷哈希，并对策略、智能体密钥、新通行密钥、撤销和取消恢复，根据页面所显示的内容重建载荷。在 D83 之前，页面显示的新通行密钥来自 api 的应答，被攻陷的 api 可以让所有者为 api 自己的密钥签署 SET_OWNER_KEY（银行联署该操作时不检查密钥）；现在页面从浏览器自身的注册结果读取密钥并拒绝其他密钥（`apps/web/src/lib/devices.test.ts`），并且只为页面显示的智能体密钥签署授权委托草稿（`apps/web/src/lib/agent.test.ts`）。仍按 api 返回内容签名的有：微信绑定确认、账户的部署 userOp 以及控制台提案（成员服务会自行从 FISCO 读取提案摘要并验证工作人员的断言）。
 23. **员工 WebAuthn 细节。** 成员服务接受 high-s 的 P-256 员工签名，且不检查签名计数器。可塑性不等于伪造，且挑战只能使用一次；影响较低。
-24. **内存中的状态。** 员工会话和挑战、银行的报价 nonce、微信绑定会话以及 agent-signer 的速率限制都保存在内存中，重启后重置。
-25. **生产环境的拒绝按服务分别实现。** `packages/config` 拒绝模拟器证明、伪造的腾讯接口、fork、默认密码以及无节流的沙盒，但只有 bundler、bridge-relayer 和成员服务加载它；agent-signer、soter-attester、银行和 agent-runner 各自实现检查（模拟器、伪造的腾讯接口、微信 API 地址、伪 LLM）；oracle-feeder 的 DEMO 模式不会被拒绝；生产环境要求设置 `SANDBOX_RATE_LIMIT_PER_HOUR`，但目前没有任何代码执行它（沙盒尚未构建）。
-26. **KYC 路径。** EUDI 路径信任欧盟验证器后端对凭证签名的验证，结果为 kycLevel 1 且不做姓名筛查（D30）；供应商 HMAC 覆盖请求体但不含时间戳（重放由会话状态机阻止）；KYC 供应商是已标注的模拟服务，其决定总是 "approved"（银行仍会检查活体、年龄、制裁和司法辖区）。
+24. **内存中的状态。** 员工会话和挑战、银行的报价 nonce、微信绑定会话、agent-signer 的速率限制、api 在 `/agent/rotate` 与授权委托草稿之间保存的新智能体密钥，以及沙盒水龙头已注资的账户和按客户端的计数都保存在内存中，重启后重置。
+25. **生产环境的拒绝按服务分别实现。** `packages/config` 拒绝模拟器证明、伪造的腾讯接口、fork、默认密码以及无节流的沙盒，但只有 bundler、bridge-relayer 和成员服务加载它；agent-signer、soter-attester、银行和 agent-runner 各自实现检查（模拟器、伪造的腾讯接口、微信 API 地址、伪 LLM）；oracle-feeder 的 DEMO 模式不会被拒绝；沙盒水龙头（D48、D73）在 fork 之外拒绝服务，每个客户端每小时允许 `SANDBOX_RATE_LIMIT_PER_HOUR` 次注资（默认 3 次），每个账户一次；但任何人都能创建账户（每个客户端每分钟 60 次注册），耐心的访客仍可铸造 fork 上的 USDC 并买空 fork 柜台的 tXAU 和 tXAG。
+26. **KYC 路径。** EUDI 路径信任欧盟验证器后端对凭证签名的验证，结果为 kycLevel 1 且不做姓名筛查（D30）；供应商 HMAC 覆盖请求体但不含时间戳（重放由会话状态机阻止）；KYC 供应商是已标注的模拟服务，其决定总是 "approved"（银行仍会检查活体、年龄、制裁和司法辖区）。恢复时的重新 KYC 只比较输入的姓名、出生日期、国籍和证件号码与密封记录（不比较照片），因此在模拟服务下，知道这四个字段的任何人都能安排一次恢复：所有者会立即收到通知（D81），任何剩余的通行密钥都可在 48 小时内取消；每次取消后再次安排会使账户保持 RESTRICTED。仅通过 EUDI 验证的用户无法恢复（重新 KYC 使用供应商流程）。
 27. **Base 上的假名属性。** KYA 证明把每个账户的 kycLevel、riskProfile 和两个字母的司法辖区放到 Base 上，ERC-3643 身份注册表还保存国家代码（D69）。
 28. **USDC 被隐式批准**（D21）：联盟无法下架 USDC 本身；适用 Circle 自身的控制。
 29. **流程。** 由于内置的 WeCross proxy，`make slither` 为红色（所有发现均已判定，D66）；在 git worktree 中运行的 gitleaks 即使 git 扫描失败也会报告 "no leaks"；[deps.md](../security/deps.md) 中的依赖公告尚未升级。
 30. **默认 profile 中的仅测试服务。** 脚本化的伪 LLM 随 `agent` profile 启动；当 `PRAETOR_ENV=prod` 时 agent-runner 拒绝 `FAKE_LLM_URL`，因此生产部署必须保持其为空。
+31. **经被攻陷的 api 进行恢复。** 恢复用的通行密钥只能经 api 送达银行，恢复状态也只能经 api 送达 Web 应用。被攻陷的 api 可以在用户进行重新 KYC 时把自己的密钥交给银行，并在设置页面隐藏待处理的恢复；丢失全部通行密钥的用户无法取消。约束：48 小时延迟、notifier 对每个 `RecoveryScheduled` 的推送（独立服务，D81）、银行自己的通知，以及任一成员发起的冻结。
+32. **以邮箱作为恢复入口。** 注册邮箱未经验证。恢复把邮箱解析为其第一个账户（D80），因此谁抢先用他人的邮箱注册，谁就占据了该恢复入口。`/api/recover/options` 会暴露某邮箱是否有账户（404 或 200）并返回其用户 id，凭此 `/api/recover/:userId` 可显示恢复状态。
+33. **会话比密钥活得久。** Web 会话是无状态的 12 小时 cookie：恢复或丢失、替换通行密钥后，它在过期前仍然有效。任何权限仍需要通行密钥断言或智能体的授权委托，而恢复会撤销智能体密钥。自 D81 起小程序会话会立即结束。
+34. **`make tunnel`。** 快速隧道把本地栈（fork、伪造的腾讯接口、KYC 模拟服务）暴露给任何拿到其 trycloudflare 地址的人：手机测试结束后请停止它（`make tunnel-stop`）。在生产环境中，Caddyfile 的明文 HTTP 隧道站点会响应发送其占位主机名的客户端；它通过 HTTP 提供同一个应用，在那里 Secure cookie 和通行密钥都不起作用。
 
 ## 6. 静态分析
 
