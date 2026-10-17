@@ -1,0 +1,94 @@
+# Production overrides (spec 11, M18): docker compose -f infra/compose.yml -f infra/compose.prod.yml. Same images and
+# the same base file; only .env and this file change. The rehearsal (PRAETOR_ENV=rehearsal, `make rehearsal`) runs it
+# on this machine; prod runs it on the server with the TEEs on Phala (no tee-sim profile) and a real certificate
+# (CADDY_TLS = the ACME account email instead of `internal`).
+
+x-prod: &prod
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: '5'
+
+services:
+  caddy:
+    <<: *prod
+    environment:
+      CADDY_TLS: ${CADDY_TLS:-internal}
+  mysql:
+    <<: *prod
+  bundler:
+    <<: *prod
+  bank:
+    <<: *prod
+  regulator:
+    <<: *prod
+  operator:
+    <<: *prod
+  bridge-relayer:
+    <<: *prod
+  kyc-vendor-mock:
+    <<: *prod
+  alipayplus-mock:
+    <<: *prod
+  wechatpay-mock:
+    <<: *prod
+  payout-partner:
+    <<: *prod
+  api:
+    <<: *prod
+  notifier:
+    <<: *prod
+  oracle-feeder:
+    <<: *prod
+  mcp:
+    <<: *prod
+  agent-runner:
+    <<: *prod
+  # The scripted model exists only for the automated suites: never started with this file (agent-runner refuses
+  # FAKE_LLM_URL in prod).
+  fake-llm:
+    profiles: !override [test]
+  scheduler:
+    <<: *prod
+  wecross-setup:
+    # A one-shot job: it exits once done.
+    restart: 'no'
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '5'
+  wecross-account-manager:
+    <<: *prod
+  wecross-router:
+    <<: *prod
+  dstack-sim:
+    <<: *prod
+  agent-signer:
+    <<: *prod
+  soter-attester:
+    <<: *prod
+  weid-deploy:
+    # A one-shot job: it exits once done.
+    restart: 'no'
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '5'
+  weid-rest:
+    <<: *prod
+  weid-helper:
+    <<: *prod
+  fisco-node0:
+    <<: *prod
+  fisco-node1:
+    <<: *prod
+  fisco-node2:
+    <<: *prod
+  fisco-node3:
+    <<: *prod
+  anvil:
+    <<: *prod

@@ -5,7 +5,8 @@
 }
 
 {$PUBLIC_HOST} {
-	tls internal
+	# Locally Caddy's internal CA; in prod the ACME account email (compose.prod.yml sets CADDY_TLS).
+	tls {$CADDY_TLS:internal}
 
 	# Browser hardening for every response (spec 08, web attacker).
 	header {

@@ -4,12 +4,13 @@ SHELL := /bin/bash
 
 ENV_FILES = --env-file infra/.env.example $(if $(wildcard .env),--env-file .env) $(if $(wildcard .run/compose.env),--env-file .run/compose.env)
 GRADLE_IMAGE = gradle@sha256:213476fe3598a433b19077b5b85ae95656cc0cba6fbc707d598c5a7ee865c52f
-COMPOSE = docker compose -f infra/compose.yml $(ENV_FILES)
+# PROD=1 adds the production overrides (M18 rehearsal, prod server).
+COMPOSE = docker compose -f infra/compose.yml $(if $(PROD),-f infra/compose.prod.yml) $(ENV_FILES)
 # Profiles that exist so far; later milestones add chain, wecross, agent, tee-sim, mocks.
 PROFILES ?= core chain mocks tee-sim agent dev wecross
 PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 
-.PHONY: help setup install up down ps logs smoke-sm test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-web e2e-live redteam slither deploy-contracts deploy-fisco tunnel reset-fork up-base
+.PHONY: help setup install up down ps logs smoke-sm test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-web e2e-smoke rehearsal e2e-live redteam slither deploy-contracts deploy-fisco tunnel reset-fork up-base
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -100,6 +101,14 @@ e2e: ## Flows F1 to F10 against BASE_URL (default: local stack), through the api
 	$(MAKE) --no-print-directory e2e-web
 	@# Last: F10's recovery moves the fork's clock forward 48 h.
 	pnpm -s --filter @praetor/test test:warp
+
+e2e-smoke: ## Smoke subset of the flows (onboarding, agent payment, audit) against the running stack
+	pnpm -s --filter @praetor/test exec vitest run --config vitest.e2e.config.ts e2e/F1-onboarding.test.ts e2e/F5-agent-payment.test.ts e2e/F8-audit.test.ts
+
+rehearsal: ## M18: the stack with compose.prod.yml (PRAETOR_ENV=rehearsal), the smoke suite, then the prod refusals
+	PRAETOR_ENV=rehearsal $(MAKE) --no-print-directory up PROD=1
+	$(MAKE) --no-print-directory e2e-smoke
+	bash scripts/deploy/prod-refusals.sh
 
 e2e-web: ## The web app's journey F1 to F9 in Playwright (virtual authenticator), screenshots and axe (needs make up)
 	pnpm -s --filter @praetor/web build
