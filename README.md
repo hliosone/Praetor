@@ -40,7 +40,7 @@ make up           # the whole stack: anvil fork of Base Sepolia, 4 FISCO nodes, 
                   # member services, agent, mocks; deploys the contracts on a fresh fork; builds the web app
 make test         # guards (em dash, links, attribution), gitleaks, type-check, every unit test, Foundry (needs Docker)
 make test-int     # integration tests, one per link of the architecture (needs make up)
-make e2e          # flows F1 to F9 against the local stack (needs make up)
+make e2e          # flows F1 to F10 through the api and the web app (Playwright), then the 48 h recovery (needs make up)
 pnpm seed         # optional: the demo persona Lin, onboarded and funded
 ```
 
@@ -59,10 +59,13 @@ services/           api, mcp, agent-runner, scheduler, bundler, oracle-feeder, n
                     bank, regulator, operator, agent-signer and soter-attester (TEEs), identity (WeIdentity),
                     payout-partner and the labelled mocks (Alipay+, WeChat Pay, KYC vendor), fake-llm (tests)
 wecross/evm-stub    Praetor's WeCross stub for Base (Java 8)
-apps/web            the web app: landing with the 3D phone, onboarding, dashboard, approvals, console (EN, 中文)
-infra/              compose.yml, Caddyfile, FISCO, WeIdentity, WeCross and TEE simulator images, deployments
-test/               integration (one file per link), e2e (flows F1 to F9), infra checks
-scripts/            keys, demo (seed, price shock), deploy, checks (em dash, links, gitleaks, slither)
+apps/web            the web app: landing with the 3D phone, onboarding, dashboard, approvals, console, sandbox (EN, 中文)
+apps/miniprogram    the WeChat mini program: home, chat, SOTER approvals, WeChat link (EN, 中文)
+infra/              compose.yml, compose.prod.yml, live.env, Caddyfile, FISCO, WeIdentity, WeCross and TEE simulator
+                    images, deployments
+test/               integration (one file per link), e2e (flows F1 to F10), warp (the 48 h recovery), infra checks
+scripts/            keys, demo (seed, price shock), deploy (contracts, live funding, prod refusals), evidence (live run),
+                    checks (em dash, links, gitleaks, slither)
 spec/               the build specification (start with spec/README.md)
 docs/               architecture, security pack, deployment, progress, decisions, manual, evidence
 spikes/             Phase 0 verification spikes
@@ -86,7 +89,7 @@ spikes/             Phase 0 verification spikes
 
 ## Status
 
-Built and tested on the local fork: the Base and FISCO contracts, the protocol, the bundler and paymaster, the consortium services, WeIdentity identity and KYC, both TEEs on the dstack simulator, the agent with its MCP server, the api, standing orders and payouts, the audit chain with anchors and camt.053, the WeCross transport, the web app with the consortium console and an interim judges' sandbox (D48), the WeChat mini program (logic and api; phones in Phase C), agent key rotation and owner recovery (F10), the Guomi profile smoke, the production compose override and its refusal checks. Flows F1 to F10 run through the api and through the web app (Playwright, virtual authenticator). Still to come: the live evidence run on Base Sepolia and the red-team results (M16), the deployment rehearsal (M18), then Phase C (phones, Phala Cloud, the server). Details: [docs/PROGRESS.md](docs/PROGRESS.md).
+Built and tested on the local fork: the Base and FISCO contracts, the protocol, the bundler and paymaster, the consortium services, WeIdentity identity and KYC, both TEEs on the dstack simulator, the agent with its MCP server, the api, standing orders and payouts, the audit chain with anchors and camt.053, the WeCross transport, the web app with the consortium console and an interim judges' sandbox (D48), the WeChat mini program (logic and api; phones in Phase C), agent key rotation and owner recovery (F10), the Guomi profile smoke, the production compose override and its refusal checks. Flows F1 to F10 are written through the api and through the web app (Playwright, virtual authenticator); the milestone gates of M12, M13 and M15 that run them are pending. The contracts are deployed on Base Sepolia (MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`). Still to come: the live evidence run on Base Sepolia and the red-team suite (M16), the deployment rehearsal (M18), then Phase C (phones, Phala Cloud, the server). Details: [docs/PROGRESS.md](docs/PROGRESS.md).
 
 ## Licence
 

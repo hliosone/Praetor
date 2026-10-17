@@ -40,7 +40,7 @@ make up           # 完整环境：Base Sepolia 的 anvil 分叉、4 个 FISCO �
                   # 成员服务、智能体、模拟服务；在新分叉上部署合约；构建 Web 应用
 make test         # 守卫检查（长破折号、链接、署名）、gitleaks、类型检查、全部单元测试、Foundry（需要 Docker）
 make test-int     # 集成测试，架构中每条链路一个（需要 make up）
-make e2e          # 针对本地环境运行流程 F1 至 F9（需要 make up）
+make e2e          # 通过 api 和 Web 应用（Playwright）运行流程 F1 至 F10，最后运行 48 小时恢复（需要 make up）
 pnpm seed         # 可选：演示用户 Lin，完成开户并注资
 ```
 
@@ -59,10 +59,13 @@ services/           api、mcp、agent-runner、scheduler、bundler、oracle-feed
                     bank、regulator、operator、agent-signer 与 soter-attester（TEE）、identity（WeIdentity）、
                     payout-partner 及标注为模拟的服务（Alipay+、WeChat Pay、KYC 供应商）、fake-llm（测试用）
 wecross/evm-stub    Praetor 为 Base 编写的 WeCross 插件（Java 8）
-apps/web            Web 应用：带 3D 手机的首页、开户、仪表盘、审批、控制台（EN、中文）
-infra/              compose.yml、Caddyfile、FISCO、WeIdentity、WeCross 与 TEE 模拟器镜像、部署记录
-test/               集成测试（每条链路一个文件）、e2e（流程 F1 至 F9）、基础设施检查
-scripts/            密钥、演示（seed、价格冲击）、部署、检查（长破折号、链接、gitleaks、slither）
+apps/web            Web 应用：带 3D 手机的首页、开户、仪表盘、审批、控制台、沙盒（EN、中文）
+apps/miniprogram    微信小程序：首页、对话、SOTER 审批、微信绑定（EN、中文）
+infra/              compose.yml、compose.prod.yml、live.env、Caddyfile、FISCO、WeIdentity、WeCross 与 TEE 模拟器
+                    镜像、部署记录
+test/               集成测试（每条链路一个文件）、e2e（流程 F1 至 F10）、warp（48 小时恢复）、基础设施检查
+scripts/            密钥、演示（seed、价格冲击）、部署（合约、实链充值、生产拒绝检查）、证据（实链运行）、
+                    检查（长破折号、链接、gitleaks、slither）
 spec/               构建规范（从 spec/README.md 开始）
 docs/               架构、安全材料、部署、进度、决策、手册、证据
 spikes/             第 0 阶段的验证实验
@@ -79,13 +82,14 @@ spikes/             第 0 阶段的验证实验
 | [spec/README.md](spec/README.md) | 构建所遵循的规范 |
 | [docs/PROGRESS.md](docs/PROGRESS.md)、[docs/DECISIONS.md](docs/DECISIONS.md) | 构建进度；规范之后所做的决策 |
 | [docs/MANUAL.md](docs/MANUAL.md) | 需要人工参与的引导式验收步骤（手机、微信、云） |
+| [docs/TESTER.md](docs/TESTER.md) | 供在真机上测试的队友使用：自己的环境、微信测试账号、隧道、需要报告的内容 |
 | [docs/EVIDENCE.md](docs/EVIDENCE.md) | 每个流程的交易哈希，包括已执行与被拒绝的（M16 填写） |
 | [docs/PREEXISTING.md](docs/PREEXISTING.md) | 复用自团队早期项目的代码 |
 | 中文 | [README.zh-CN.md](README.zh-CN.md)、[docs/zh-CN/](docs/zh-CN/README.md) |
 
 ## 状态
 
-已在本地分叉上构建并测试：Base 与 FISCO 合约、协议、bundler 与 paymaster、联盟成员服务、WeIdentity 身份与 KYC、dstack 模拟器上的两个 TEE、智能体及其 MCP 服务器、api、定期付款与出款、带锚定和 camt.053 的审计链、WeCross 传输、网页应用（含联盟控制台与临时评委沙盒，D48）、微信小程序（逻辑与 api；真机测试在 Phase C）、智能体密钥轮换与所有者恢复（F10）、国密配置冒烟测试、生产 compose 覆盖文件及其拒绝检查。流程 F1 至 F10 既通过 api 运行，也通过网页应用运行（Playwright，虚拟认证器）。待完成：Base Sepolia 上的实链证据运行与红队结果（M16）、部署演练（M18），以及 Phase C（真机、Phala Cloud、服务器）。详见 [docs/PROGRESS.md](docs/PROGRESS.md)。
+已在本地分叉上构建并测试：Base 与 FISCO 合约、协议、bundler 与 paymaster、联盟成员服务、WeIdentity 身份与 KYC、dstack 模拟器上的两个 TEE、智能体及其 MCP 服务器、api、定期付款与出款、带锚定和 camt.053 的审计链、WeCross 传输、网页应用（含联盟控制台与临时评委沙盒，D48）、微信小程序（逻辑与 api；真机测试在 Phase C）、智能体密钥轮换与所有者恢复（F10）、国密配置冒烟测试、生产 compose 覆盖文件及其拒绝检查。流程 F1 至 F10 已编写为通过 api 和通过网页应用运行的测试（Playwright，虚拟认证器）；运行它们的 M12、M13 和 M15 里程碑关卡尚待完成。合约已部署到 Base Sepolia（MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`）。待完成：Base Sepolia 上的实链证据运行与红队测试套件（M16）、部署演练（M18），以及 Phase C（真机、Phala Cloud、服务器）。详见 [docs/PROGRESS.md](docs/PROGRESS.md)。
 
 ## 许可
 
