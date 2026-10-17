@@ -48,3 +48,5 @@ infra/deployments/*-it.json
 # The coding assistant's local instructions and settings stay on the build machine
 CLAUDE.md
 .claude/
+apps/web/test-results/
+apps/web/playwright-report/

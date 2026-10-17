@@ -185,7 +185,8 @@ export async function bootstrapConsortium(s: Stack): Promise<void> {
   }
   if (!(await read<boolean>(s, 'isPayoutBlocked', ['0x434e']))) await openAndSign(s, 'regulator', '/jurisdictions', { jurisdiction: 'CN', blocked: true }, ['regulator']);
   if (!(await read<boolean>(s, 'isSanctioned', [DEMO_SANCTIONED]))) await openAndSign(s, 'regulator', '/sanctions', { target: DEMO_SANCTIONED, listed: true }, ['regulator']);
-  await ok(member(s, 'operator', '/heartbeat/beat', {}), 'heartbeat');
+  // A beat can collide with the operator's own (it restarts in some flows): ask until one goes through.
+  await waitFor('a heartbeat Ready', async () => (await member(s, 'operator', '/heartbeat/beat', {})).status === 200, 120_000);
   await waitFor('consortium bootstrap on Base', async () => {
     const [p] = await read<readonly [bigint, bigint, bigint]>(s, 'capsOf', [3]);
     const [, partner] = await read<readonly [number, number, number, bigint]>(s, 'assetOf', [PARTNER(s)]);

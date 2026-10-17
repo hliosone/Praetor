@@ -104,11 +104,12 @@ test-scripts:
 test-int: ## Integration tests, one per architecture link (needs make up)
 	pnpm -s --filter @praetor/test test:int
 
-e2e: ## Flows F1 to F10 against BASE_URL (default: local stack), through the api and through the web app
+e2e: ## Flows F1 to F10 on the local stack, through the api and through the web app, then the 48 h recovery and a fresh fork
 	pnpm -s --filter @praetor/test test:e2e
 	$(MAKE) --no-print-directory e2e-web
-	@# Last: F10's recovery moves the fork's clock forward 48 h.
-	pnpm -s --filter @praetor/test test:warp
+	@# Last: F10's recovery moves the fork's clock forward 48 h, beyond what FISCO accepts for a heartbeat (one day):
+	@# a fresh fork follows, whatever the result, so the stack stays usable.
+	pnpm -s --filter @praetor/test test:warp; status=$$?; $(MAKE) --no-print-directory reset-fork; exit $$status
 
 e2e-smoke: ## Smoke subset of the flows (onboarding, agent payment, audit) against the running stack
 	pnpm -s --filter @praetor/test exec vitest run --config vitest.e2e.config.ts e2e/F1-onboarding.test.ts e2e/F5-agent-payment.test.ts e2e/F8-audit.test.ts
@@ -118,7 +119,7 @@ rehearsal: ## M18: the stack with compose.prod.yml (PRAETOR_ENV=rehearsal), the 
 	$(MAKE) --no-print-directory e2e-smoke
 	bash scripts/deploy/prod-refusals.sh
 
-e2e-web: ## The web app's journey F1 to F9 in Playwright (virtual authenticator), screenshots and axe (needs make up)
+e2e-web: ## The web app's journey F1 to F10 and the sandbox in Playwright (virtual authenticator), screenshots and axe (needs make up)
 	pnpm -s --filter @praetor/web build
 	pnpm -s --filter @praetor/web e2e
 

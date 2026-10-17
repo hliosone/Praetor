@@ -84,8 +84,9 @@ describe('F9 consortium governance (BRIDGE=relayer)', () => {
     } finally {
       compose('start', 'operator');
     }
-    await fetch(`${s.members.operator}/heartbeat/beat`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${s.env.INTERNAL_TOKEN_MEMBERS}` }, body: '{}' }).catch(() => undefined);
-    await waitFor('fresh heartbeat on Base', async () => (await read<readonly [number, number, number, bigint]>('statusOf', [acc.address]))[3] > (await baseNow(pub(s))), 120_000);
+    // The restarted operator needs a moment before it beats: ask until one goes through, then wait for Base.
+    await waitFor('a heartbeat Ready after the restart', async () => (await fetch(`${s.members.operator}/heartbeat/beat`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${s.env.INTERNAL_TOKEN_MEMBERS}` }, body: '{}' }).catch(() => null))?.ok, 120_000);
+    await waitFor('fresh heartbeat on Base', async () => (await read<readonly [number, number, number, bigint]>('statusOf', [acc.address]))[3] > (await baseNow(pub(s))), 180_000);
   });
 
   it('7a: sanctions: one member lists, two delist', async () => {

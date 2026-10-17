@@ -21,8 +21,9 @@ const env = z.object({
 }).parse(process.env);
 
 const log = pino();
-// WeChat OA template messages need the OA test account and the user's OA openid (Phase C, B2): until then a sink.
-const oaSink: Channel = { name: env.OA_APPID ? 'wechat-oa' : 'wechat-oa-sink', send: async (n) => { log.info({ account: n.account, kind: n.kind }, 'oa message'); } };
+// WeChat OA template messages need the OA test account and the user's OA openid (Phase C, B2): until they are sent for
+// real, this channel only logs and says so in its name, whether OA_APPID is set or not.
+const oaSink: Channel = { name: 'wechat-oa-sink', send: async (n) => { log.info({ account: n.account, kind: n.kind }, 'oa message'); } };
 // Web push to the owner's devices: subscriptions are the api's (internal route); without VAPID keys the channel is off.
 const push = env.VAPID_PUBLIC && env.VAPID_PRIVATE ? webPushChannel({
   vapid: { subject: env.VAPID_SUBJECT, publicKey: env.VAPID_PUBLIC, privateKey: env.VAPID_PRIVATE },
