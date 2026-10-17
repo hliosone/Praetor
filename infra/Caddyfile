@@ -4,10 +4,8 @@
 	admin 127.0.0.1:2019
 }
 
-{$PUBLIC_HOST} {
-	# Locally Caddy's internal CA; in prod the ACME account email (compose.prod.yml sets CADDY_TLS).
-	tls {$CADDY_TLS:internal}
-
+# Every route of the public entry, shared by the site and the phone tunnel below.
+(app) {
 	# Browser hardening for every response (spec 08, web attacker).
 	header {
 		Strict-Transport-Security "max-age=31536000"
@@ -51,4 +49,16 @@
 		try_files {path} /index.html
 		file_server
 	}
+}
+
+{$PUBLIC_HOST} {
+	# Locally Caddy's internal CA; in prod the ACME account email (compose.prod.yml sets CADDY_TLS).
+	tls {$CADDY_TLS:internal}
+	import app
+}
+
+# `make tunnel` (phones against a local stack, spec 11): cloudflared terminates TLS on its public address and reaches
+# Caddy over plain HTTP on this machine. compose.prod.yml sets TUNNEL_HOSTS to a name that never resolves: local only.
+http://{$TUNNEL_HOSTS:*.trycloudflare.com} {
+	import app
 }

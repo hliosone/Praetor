@@ -27,7 +27,15 @@ You run your **own copy of the stack** on your machine. It uses a local fork of 
 3. Follow `docs/MANUAL.md` section 5, steps 5.3 to 5.8: preview on the phones in debug mode, the SOTER support probe, link WeChat from the web app's QR code, approve a payment with Face ID and compare the digest shown on the phone with the web app, the fingerprint on Android, unlink.
 4. If time allows: section 11 (web push on a phone) and section 8 (the judges' sandbox).
 
-Passkeys belong to a host name: the ones created on `praetor.localhost` work only in that machine's browser. That does not affect the mini program, which signs with SOTER.
+### Passkeys on the phone
+
+Passkeys belong to a host name, so for Face ID in the phone's browser the stack must answer on the tunnel's address:
+
+1. With the tunnel running, put `PUBLIC_HOST=<the tunnel host, without https://>` and `PUBLIC_URL=<the tunnel URL>` in `.env`, then `make up` (services restart with the new host; the tunnel keeps its address).
+2. On the phone, open the tunnel URL in Safari or Chrome and follow `docs/MANUAL.md` section 4: create the account with Face ID, the demo identity check (the provider's page asks for the camera), the agent, the mandate; then approve a payment with Face ID.
+3. In this mode the automated suites (`make e2e`) do not apply (they expect `praetor.localhost`). To go back: restore `PUBLIC_HOST=praetor.localhost` and `PUBLIC_URL=https://praetor.localhost`, then `make up`.
+
+A quick tunnel gets a new address each time it starts: if it restarts, repeat step 1 and re-create the phone's account.
 
 ## What to report
 
@@ -49,3 +57,10 @@ Never paste keys, `.env` values or personal data in an issue.
 - SOTER's counter may not increase on iOS; Praetor records it but every approval digest is single-use anyway (self-assessment, risk 16).
 - Without `MP_APPID` and `MP_SECRET` the stack uses a fake Tencent: the screens and the flow work, real SOTER verification does not.
 - WeChat Official Account notifications need the OA test account; until then they go to a log.
+
+## For an AI coding assistant helping the tester
+
+Paste this to the assistant (for example Claude Code opened in the repository):
+
+> You are helping me test Praetor on real phones tonight. Read `docs/TESTER.md` first, then `docs/MANUAL.md` sections 4, 5 and 11. Your job is to run the terminal side (prerequisites check, `make setup`, `pnpm keys`, `make up`, `make tunnel`, switching `PUBLIC_HOST` for phone passkeys, reading logs with `docker logs` when a step fails) and to tell me exactly what to do in WeChat DevTools and on the phones, one MANUAL step at a time. Do not change application code, do not commit or push, do not print or paste values from `.env`. After each step, write the result into a table (step, phone, result, evidence) and at the end draft one GitHub issue per finding in the format of `docs/TESTER.md`.
+

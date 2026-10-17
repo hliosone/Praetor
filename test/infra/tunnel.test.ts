@@ -12,8 +12,13 @@ describe('make tunnel', () => {
     expect(mk).toMatch(/^tunnel-stop:/m);
   });
 
-  it('tunnels to Caddy with the Phase 0 flags and the public host, writes the URL and sets the mini program base', () => {
+  it('tunnels to Caddy over plain HTTP on the machine with the Phase 0 flags, writes the URL and sets the mini program base', () => {
     const sh = read('scripts/dev/tunnel.sh');
-    for (const f of ['--protocol http2', '--edge-ip-version 4', '--http-host-header', '.run/tunnel-url', '@praetor/miniprogram tunnel']) expect(sh).toContain(f);
+    for (const f of ['--protocol http2', '--edge-ip-version 4', '--url http://localhost:80', '.run/tunnel-url', '@praetor/miniprogram tunnel']) expect(sh).toContain(f);
+  });
+
+  it('has a plain-HTTP tunnel site locally and none on the server', () => {
+    expect(read('infra/Caddyfile')).toContain('http://{$TUNNEL_HOSTS:*.trycloudflare.com} {');
+    expect(read('infra/compose.prod.yml')).toContain('TUNNEL_HOSTS: tunnel.invalid');
   });
 });

@@ -16,6 +16,8 @@ services:
     <<: *prod
     environment:
       CADDY_TLS: ${CADDY_TLS:-internal}
+      # No plain-HTTP tunnel site on the server (the Caddyfile serves one for make tunnel locally).
+      TUNNEL_HOSTS: tunnel.invalid
   mysql:
     <<: *prod
   bundler:
