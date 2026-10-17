@@ -30,4 +30,10 @@ contract AttesterRegistry is Board {
         P.AttesterAttestation memory a = abi.decode(fields, (P.AttesterAttestation));
         attesterOf[a.attester] = Attester(a.measurement, a.active);
     }
+
+    function _reissueFields(uint8, bytes memory fields, uint64 deadline, bytes32 fiscoRef) internal pure override returns (bytes memory) {
+        P.AttesterAttestation memory a = abi.decode(fields, (P.AttesterAttestation));
+        (a.deadline, a.fiscoRef) = (deadline, fiscoRef);
+        return abi.encode(a);
+    }
 }

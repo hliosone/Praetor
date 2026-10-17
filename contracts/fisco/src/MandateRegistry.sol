@@ -110,4 +110,15 @@ contract MandateRegistry is Board {
             kyas[k.account] = k;
         }
     }
+
+    function _reissueFields(uint8 kind, bytes memory fields, uint64 deadline, bytes32 fiscoRef) internal pure override returns (bytes memory) {
+        if (kind == CAPS) {
+            P.CapsAttestation memory c = abi.decode(fields, (P.CapsAttestation));
+            (c.deadline, c.fiscoRef) = (deadline, fiscoRef);
+            return abi.encode(c);
+        }
+        P.KYAAttestation memory k = abi.decode(fields, (P.KYAAttestation));
+        (k.deadline, k.fiscoRef) = (deadline, fiscoRef);
+        return abi.encode(k);
+    }
 }

@@ -55,4 +55,10 @@ contract AssetRegistry is Board {
         if (status == uint8(P.AssetStatus.SUSPENDED)) return 1;
         return 2;
     }
+
+    function _reissueFields(uint8, bytes memory fields, uint64 deadline, bytes32 fiscoRef) internal pure override returns (bytes memory) {
+        P.AssetAttestation memory a = abi.decode(fields, (P.AssetAttestation));
+        (a.deadline, a.fiscoRef) = (deadline, fiscoRef);
+        return abi.encode(a);
+    }
 }

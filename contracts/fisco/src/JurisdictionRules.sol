@@ -25,4 +25,10 @@ contract JurisdictionRules is Board {
         P.JurisdictionAttestation memory a = abi.decode(fields, (P.JurisdictionAttestation));
         isPayoutBlocked[a.jurisdiction] = a.payoutBlocked;
     }
+
+    function _reissueFields(uint8, bytes memory fields, uint64 deadline, bytes32 fiscoRef) internal pure override returns (bytes memory) {
+        P.JurisdictionAttestation memory a = abi.decode(fields, (P.JurisdictionAttestation));
+        (a.deadline, a.fiscoRef) = (deadline, fiscoRef);
+        return abi.encode(a);
+    }
 }

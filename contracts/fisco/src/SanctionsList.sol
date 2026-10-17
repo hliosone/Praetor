@@ -38,4 +38,10 @@ contract SanctionsList is Board {
             entries.push(a.target);
         }
     }
+
+    function _reissueFields(uint8, bytes memory fields, uint64 deadline, bytes32 fiscoRef) internal pure override returns (bytes memory) {
+        P.SanctionsAttestation memory a = abi.decode(fields, (P.SanctionsAttestation));
+        (a.deadline, a.fiscoRef) = (deadline, fiscoRef);
+        return abi.encode(a);
+    }
 }

@@ -41,4 +41,15 @@ contract AgentStatus is Board {
             heartbeatValidUntil = abi.decode(fields, (P.HeartbeatAttestation)).validUntil;
         }
     }
+
+    function _reissueFields(uint8 kind, bytes memory fields, uint64 deadline, bytes32 fiscoRef) internal pure override returns (bytes memory) {
+        if (kind == STATUS) {
+            P.StatusAttestation memory a = abi.decode(fields, (P.StatusAttestation));
+            (a.deadline, a.fiscoRef) = (deadline, fiscoRef);
+            return abi.encode(a);
+        }
+        P.HeartbeatAttestation memory h = abi.decode(fields, (P.HeartbeatAttestation));
+        h.deadline = deadline;
+        return abi.encode(h);
+    }
 }

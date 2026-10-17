@@ -23,6 +23,7 @@ contract BaseOutbox {
     bool public sealed_;
     mapping(address => bool) public isBoard;
     Message[] internal messages;
+    mapping(address => mapping(uint256 => uint256)) internal idPlusOne;
 
     error OnlyDeployer();
     error Sealed();
@@ -60,6 +61,7 @@ contract BaseOutbox {
         m.proposalId = proposalId;
         m.payload = payload;
         for (uint256 i; i < sigs.length; ++i) m.sigs.push(sigs[i]);
+        idPlusOne[msg.sender][proposalId] = id + 1;
         emit Enqueued(id, kind, msg.sender, proposalId);
     }
 
@@ -72,6 +74,12 @@ contract BaseOutbox {
         m.baseTx = baseTx;
         m.transport = transport;
         emit Delivered(id, baseTx, transport, msg.sender);
+    }
+
+    /// Whether a board's Ready proposal reached Base (false when it was never enqueued).
+    function isDelivered(address board, uint256 proposalId) external view returns (bool) {
+        uint256 i = idPlusOne[board][proposalId];
+        return i != 0 && messages[i - 1].delivered;
     }
 
     function count() external view returns (uint256) {

@@ -43,4 +43,10 @@ contract AuditLog is Board {
     }
 
     function _onReady(uint8, bytes memory) internal override {}
+
+    function _reissueFields(uint8, bytes memory fields, uint64 deadline, bytes32) internal pure override returns (bytes memory) {
+        P.AnchorAttestation memory a = abi.decode(fields, (P.AnchorAttestation));
+        a.deadline = deadline;
+        return abi.encode(a);
+    }
 }

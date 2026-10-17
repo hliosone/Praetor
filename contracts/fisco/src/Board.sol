@@ -56,6 +56,9 @@ abstract contract Board {
     error BadSignature();
     error AlreadySigned();
     error InvalidValue();
+    error NotReady();
+    error AlreadyDelivered();
+    error Superseded();
 
     event ProposalOpened(uint8 indexed kind, uint256 indexed id, bytes32 indexed key, uint64 nonce, uint64 deadline, address opener);
     event Signed(uint8 indexed kind, uint256 indexed id, address signer, uint8 count);
@@ -109,6 +112,25 @@ abstract contract Board {
         p.status = Status.CLOSED;
         delete openProposalOf[p.key];
         emit Closed(id);
+    }
+
+    /// A Ready message that missed its Base deadline without being delivered is issued again with the same nonce and a
+    /// new deadline (members sign it again), as long as it is still the latest decision for its key. Otherwise FISCO's
+    /// stored nonce would stay one ahead of Base's and the key could never be updated again (I18).
+    function reissue(uint256 id, uint64 deadline) external onlyMember returns (uint256 newId) {
+        Proposal storage p = proposals[id];
+        if (p.status != Status.READY) revert NotReady();
+        if (_nowSeconds() <= p.deadline) revert NotExpired();
+        if (outbox.isDelivered(address(this), id)) revert AlreadyDelivered();
+        if (storedNonce[p.key] != p.nonce || openProposalOf[p.key] != 0) revert Superseded();
+        if (deadline <= _nowSeconds()) revert InvalidValue();
+        p.status = Status.CLOSED;
+        emit Closed(id);
+        storedNonce[p.key] = p.nonce - 1;
+        newId = ++proposalCount;
+        openProposalOf[p.key] = newId;
+        bytes memory f = _reissueFields(p.kind, p.fields, deadline, _fiscoRef(newId));
+        _store(newId, Draft(p.kind, p.key, p.nonce, deadline, f, p.required, p.bankRequired));
     }
 
     function chainTimeSeconds() external view returns (uint64) {
@@ -180,6 +202,9 @@ abstract contract Board {
     }
 
     function _structHash(uint8 kind, bytes memory fields) internal view virtual returns (bytes32);
+
+    /// The same attestation with a new deadline and fiscoRef (types without fiscoRef keep their fields).
+    function _reissueFields(uint8 kind, bytes memory fields, uint64 deadline, bytes32 fiscoRef) internal pure virtual returns (bytes memory);
 
     /// Local state the board keeps once a decision is Ready (used for the next tighten/loosen decision).
     function _onReady(uint8 kind, bytes memory fields) internal virtual;

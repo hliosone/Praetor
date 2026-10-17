@@ -140,3 +140,53 @@ contract BoardTest is BoardBase {
         assertEq(status.statusOf(address(0)), 2);
     }
 }
+
+contract BoardReissueTest is BoardBase {
+    function _freezeReady(address who) internal returns (uint256 id) {
+        vm.prank(regFisco);
+        id = status.openStatus(who, 2, _dl());
+        status.sign(id, _sig(regSignerPk, status.digestOf(status.proposal(id).fields, 0)));
+    }
+
+    /// A Ready message that missed its Base deadline is issued again with the same nonce, so the key never sticks.
+    function test_reissueAnUndeliveredExpiredMessageWithTheSameNonce() public {
+        address who = makeAddr("account");
+        uint256 id = _freezeReady(who);
+        vm.warp(block.timestamp + 3601 * 1000);
+        vm.prank(opFisco);
+        uint256 again = status.reissue(id, _dl());
+        P.StatusAttestation memory a = abi.decode(status.proposal(again).fields, (P.StatusAttestation));
+        assertEq(a.nonce, 1);
+        assertEq(a.deadline, _dl());
+        assertEq(uint8(status.proposal(id).status), uint8(Board.Status.CLOSED));
+        status.sign(again, _sig(regSignerPk, status.digestOf(status.proposal(again).fields, 0)));
+        assertEq(uint8(status.proposal(again).status), uint8(Board.Status.READY));
+    }
+
+    function test_reissueRefusedWhenDeliveredNotExpiredOrSuperseded() public {
+        address who = makeAddr("account");
+        uint256 id = _freezeReady(who);
+        vm.prank(opFisco);
+        vm.expectRevert(Board.NotExpired.selector);
+        status.reissue(id, _dl());
+        vm.prank(relayer);
+        outbox.markDelivered(0, keccak256("tx"), 0);
+        vm.warp(block.timestamp + 3601 * 1000);
+        vm.prank(opFisco);
+        vm.expectRevert(Board.AlreadyDelivered.selector);
+        status.reissue(id, _dl());
+
+        address other = makeAddr("other");
+        uint256 first = _freezeReady(other);
+        vm.prank(bankFisco);
+        uint256 second = status.openStatus(other, 0, _dl());
+        status.sign(second, _sig(bankSignerPk, status.digestOf(status.proposal(second).fields, 0)));
+        status.sign(second, _sig(regSignerPk, status.digestOf(status.proposal(second).fields, 0)));
+        vm.warp(block.timestamp + 3601 * 1000);
+        vm.prank(opFisco);
+        vm.expectRevert(Board.Superseded.selector);
+        status.reissue(first, _dl());
+        vm.expectRevert(Board.NotMember.selector);
+        status.reissue(second, _dl());
+    }
+}
