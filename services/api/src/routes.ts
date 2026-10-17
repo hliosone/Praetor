@@ -11,6 +11,7 @@ import type { Approvals } from './approvals.js';
 import type { WechatLink } from './wechat-link.js';
 import type { StandingOrders } from './standing-orders.js';
 import type { Audit } from './audit.js';
+import type { Views } from './views.js';
 import type { Clients } from './clients.js';
 import { HttpError, type handler } from './app.js';
 
@@ -39,6 +40,9 @@ export type RouteModules = {
   link: WechatLink;
   standingOrders: StandingOrders;
   audit: Audit;
+  views: Views;
+  /** Public deployment facts the web app needs (token addresses, EIP-712 domain) to build and check what it signs. */
+  config: Record<string, unknown>;
   /** camt.053.001.02 of the account over [fromMs, toMs], already validated against the XSD. */
   statement(account: Address, fromMs: number, toMs: number): Promise<string>;
   /** Base time in ms (block timestamps date the audit entries and the statement). */
@@ -124,6 +128,13 @@ export function apiRoutes(r: Router, h: typeof handler, session: express.Request
     send(res, { state: 'dismissed' });
   }));
   r.post('/standing-orders/:id/trigger', session, h(async (req, res) => send(res, await m.standingOrders.trigger(acct(res), z.coerce.number().int().min(1).max(2 ** 32 - 1).parse(req.params.id)))));
+
+  r.get('/config', (_req, res) => send(res, m.config));
+  r.get('/portfolio', session, h(async (_req, res) => send(res, await m.views.portfolio(acct(res)))));
+  r.get('/status', session, h(async (_req, res) => send(res, await m.views.status(acct(res)))));
+  r.get('/policy', session, h(async (_req, res) => send(res, await m.views.policy(acct(res)))));
+  r.get('/agent', session, h(async (_req, res) => send(res, await m.views.agent(acct(res)))));
+  r.get('/activity', session, h(async (req, res) => send(res, await m.views.activity(acct(res), z.coerce.number().int().min(1).max(100).default(20).parse(req.query.limit)))));
 
   // F8: the account's audit trail, the three-way verification, and the ISO 20022 statement.
   // Entries carry Base block times: the default end is "now" on Base, which a fork can run ahead of the wall clock.

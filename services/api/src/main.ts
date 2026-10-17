@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { readFileSync } from 'node:fs';
 import { erc20Abi, parseAbiItem, type Address, type Hex } from 'viem';
 import { AuditLogAbi, fiscoClients } from '@praetor/fisco-client';
-import { AnchorAbi, MandateHookAbi, StandingOrdersAbi, baseClients, baseNow, loadDeployments } from '@praetor/chain';
+import { AnchorAbi, MandateHookAbi, StandingOrdersAbi, accountReader, baseClients, baseNow, loadDeployments } from '@praetor/chain';
 import { connect, loadMigrations, migrate } from '@praetor/db';
 import { prepareAccount } from '@praetor/userop';
 import { createApiApp } from './app.js';
@@ -14,6 +14,8 @@ import { MySqlApiStore, MySqlApprovalStore, MySqlProposalStore } from './mysql.j
 import { StandingOrders, type Directory } from './standing-orders.js';
 import { Audit, type AuditRow } from './audit.js';
 import { balanceAt, camt053, camtErrors, statementEntries } from './statement.js';
+import { Views } from './views.js';
+import { consoleRoutes, type MemberCall } from './console.js';
 import { Onboarding } from './onboarding.js';
 import { OwnerActions } from './owner-actions.js';
 import { Approvals } from './approvals.js';
@@ -42,6 +44,7 @@ const env = z.object({
   NOTIFIER_URL: z.string().url().default('http://notifier:3210'),
   PAYOUT_PARTNER_URL: z.string().url().default('http://payout-partner:3310'),
   OPERATOR_URL: z.string().url().default('http://operator:3020'),
+  REGULATOR_URL: z.string().url().default('http://regulator:3020'),
   FISCO_RPC_URL: z.string().url(),
   FISCO_DEPLOYMENTS_FILE: z.string(),
   INTERNAL_TOKEN_API: z.string().min(32),
@@ -161,11 +164,34 @@ const statement = async (account: Address, fromMs: number, toMs: number) => {
   return xml;
 };
 
+// The owner's views (chain reads) and the console's relay to the member services (staff sessions required for writes).
+const reader = accountReader(pub as never, d);
+const views = new Views({ reader, tokens: { usdc: d.usdc, txau: d.txau, txag: d.txag } });
+const config = { chainId: d.chainId, domainName: d.domainName, mandateHook: d.mandateHook, usdc: d.usdc, txau: d.txau, txag: d.txag, deskSpreadBps: 30 };
+const MEMBERS = { bank: env.BANK_URL, regulator: env.REGULATOR_URL, operator: env.OPERATOR_URL } as const;
+const member: MemberCall = async (role, method, path, body, session) => {
+  const r = await fetch(`${MEMBERS[role]}${path}`, {
+    method, signal: AbortSignal.timeout(60_000), body: body === undefined ? undefined : JSON.stringify(body),
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${env.INTERNAL_TOKEN_MEMBERS}`, ...(session ? { 'x-staff-session': session } : {}) },
+  });
+  return { status: r.status, body: await r.json().catch(() => null) };
+};
+const agents = async () => {
+  const r = await fetch(`${env.BUNDLER_URL}/accounts`, { headers: { authorization: `Bearer ${env.INTERNAL_TOKEN_BUNDLER}` } });
+  const { accounts } = (await r.json()) as { accounts: Address[] };
+  // Onboarded accounts (a KYA on Base), newest first.
+  const rows = await Promise.all(accounts.slice(-200).reverse().map(async (account) => {
+    const [s, a] = await Promise.all([views.status(account), views.agent(account)]);
+    return { account, status: s.effective, heartbeatValidUntil: s.heartbeatValidUntil, ...a };
+  }));
+  return rows.filter((r) => r.agentKey !== '0x0000000000000000000000000000000000000000').slice(0, 50);
+};
+
 const app = createApiApp({
   store, sessionSecret: env.SESSION_SECRET, rpId: env.PUBLIC_HOST, origin: env.PUBLIC_URL,
   accountFor: async (p, salt) => ({ address: (await prepareAccount(pub as never, accountModules(p), salt)).address }),
   extend: (r, h, session) => apiRoutes(r, h, session, {
-    onboarding, ownerActions, approvals, link, standingOrders, audit, statement, bank: c.bank, runner: c.runner,
+    onboarding, ownerActions, approvals, link, standingOrders, audit, statement, views, config, bank: c.bank, runner: c.runner,
     chainNowMs: async () => Number(await now()) * 1000,
     agentKeyOf: async (account) => (await pub.readContract({ address: d.mandateHook, abi: MandateHookAbi, functionName: 'kyaOf', args: [account] }))[0] as Address,
   }),
@@ -177,6 +203,10 @@ const app = createApiApp({
     internal.use(express.json());
     internalRoutes(internal, h, env.INTERNAL_TOKEN_API, approvals, standingOrders);
     a.use('/internal', internal);
+    const consoleRouter = express.Router();
+    consoleRouter.use(express.json({ limit: '64kb' }));
+    consoleRoutes(consoleRouter, { member, agents });
+    a.use('/api/console', consoleRouter);
   },
 });
 app.listen(env.PORT, () => log.info({ port: env.PORT }, 'api listening'));
