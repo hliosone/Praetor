@@ -8,11 +8,11 @@ import { useI18n } from '../i18n/index.js';
 import { Topbar } from '../components/Layout.js';
 import { api, type Prepared } from '../lib/api.js';
 import { assertDigest, signAndSubmit, signUp } from '../lib/passkey.js';
+import { installAgent, type MandateDraft, type NewAgent as Agent } from '../lib/agent.js';
 import { defaultPolicy, policyFromJson, type Config } from '../lib/policy.js';
 
 const STEPS = ['passkey', 'account', 'kyc', 'suitability', 'agent', 'mandate', 'policy'] as const;
 type Step = (typeof STEPS)[number] | 'done';
-type Agent = { agentKey: string; measurement: string; simulator: boolean; agentWeId: string; agentDidHash: string };
 const QUESTIONS = ['q1', 'q2', 'q3', 'q4', 'q5'];
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -28,7 +28,7 @@ export function Onboarding() {
   const [answers, setAnswers] = useState([1, 1, 1, 1, 1]);
   const [profile, setProfile] = useState<string>();
   const [agent, setAgent] = useState<Agent>();
-  const [draft, setDraft] = useState<{ draftId: string; challenge: `0x${string}`; claim: Record<string, unknown> }>();
+  const [draft, setDraft] = useState<MandateDraft>();
 
   const run = (fn: () => Promise<void>) => async () => {
     setBusy(true);
@@ -130,15 +130,7 @@ export function Onboarding() {
               </dl>
               <p className="muted small">{t('onb.review')}: <span className="mono">{draft.challenge}</span></p>
               <button className="primary" disabled={busy} onClick={run(async () => {
-                await api('POST', '/onboarding/kya/sign', { draftId: draft.draftId, challenge: draft.challenge, agentDidHash: agent.agentDidHash, assertion: await assertDigest(draft.challenge) });
-                // The KYA reaches Base through the consortium; then the agent key is installed (owner + bank).
-                for (let i = 0; i < 60; i++) {
-                  const a = await api<{ agentKey: string }>('GET', '/agent').catch(() => null);
-                  if (a?.agentKey?.toLowerCase() === agent.agentKey.toLowerCase()) break;
-                  await sleep(2000);
-                }
-                const p = await api<Prepared>('POST', '/owner-actions/prepare', { kind: K.SET_AGENT_KEY, validUntil: Math.floor(Date.now() / 1000) + 90 * 86_400 });
-                if (!(await signAndSubmit(p, K.SET_AGENT_KEY)).success) throw new Error('the agent key was not installed');
+                await installAgent(agent, draft);
                 setStep('policy');
               })}>{t('onb.sign')}</button>
             </>

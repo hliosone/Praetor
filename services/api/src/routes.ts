@@ -50,6 +50,10 @@ export type RouteModules = {
   bank: Pick<Clients['bank'], 'policyCheck'>;
   runner: Pick<Clients['runner'], 'chat'>;
   agentKeyOf(account: Address): Promise<Address>;
+  /** F10: the next agent key version, through the onboarding's agent steps. */
+  rotation: { rotate(account: Address): Promise<unknown> };
+  /** F10 step 2: the bank revokes the AgentMandates of agent keys Base no longer holds (it reads the chain itself). */
+  revokeMandates(account: Address): Promise<unknown>;
   /** The owner's names for its payees, kept by mcp so the agent resolves "the café" to an address. */
   labels(account: Address, labels: { address: Address; label: string }[]): Promise<void>;
 };
@@ -97,8 +101,12 @@ export function apiRoutes(r: Router, h: typeof handler, session: express.Request
 
   r.post('/owner-actions/submit', session, h(async (req, res) => {
     const b = z.object({ ownerAction, payload: hex, assertion }).parse(req.body);
-    send(res, await m.ownerActions.submit(acct(res), { ownerAction: b.ownerAction as OwnerAction, payload: b.payload, assertion: b.assertion as never }));
+    const out = await m.ownerActions.submit(acct(res), { ownerAction: b.ownerAction as OwnerAction, payload: b.payload, assertion: b.assertion as never });
+    if (out.success && (b.ownerAction.action === K.REVOKE_AGENT_KEY || b.ownerAction.action === K.SET_AGENT_KEY)) await m.revokeMandates(acct(res));
+    send(res, out);
   }));
+
+  r.post('/agent/rotate', session, h(async (_req, res) => send(res, await m.rotation.rotate(acct(res)))));
 
   r.get('/approvals', session, h(async (req, res) => {
     const state = z.enum(['pending', 'executed', 'failed', 'rejected', 'expired']).optional().parse(req.query.state);

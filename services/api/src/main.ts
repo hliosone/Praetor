@@ -10,6 +10,7 @@ import { connect, loadMigrations, migrate } from '@praetor/db';
 import { prepareAccount } from '@praetor/userop';
 import { createApiApp } from './app.js';
 import { clients, UpstreamError } from './clients.js';
+import { Rotation } from './rotation.js';
 import { MySqlApiStore, MySqlApprovalStore, MySqlProposalStore } from './mysql.js';
 import { StandingOrders, type Directory } from './standing-orders.js';
 import { Audit, type AuditRow } from './audit.js';
@@ -187,17 +188,26 @@ const agents = async () => {
   return rows.filter((r) => r.agentKey !== '0x0000000000000000000000000000000000000000').slice(0, 50);
 };
 
+const agentKeyOf = async (account: Address) => (await pub.readContract({ address: d.mandateHook, abi: MandateHookAbi, functionName: 'kyaOf', args: [account] }))[0] as Address;
+
 const app = createApiApp({
   store, sessionSecret: env.SESSION_SECRET, rpId: env.PUBLIC_HOST, origin: env.PUBLIC_URL,
   accountFor: async (p, salt) => ({ address: (await prepareAccount(pub as never, accountModules(p), salt)).address }),
   extend: (r, h, session) => apiRoutes(r, h, session, {
     onboarding, ownerActions, approvals, link, standingOrders, audit, statement, views, config, bank: c.bank, runner: c.runner,
     chainNowMs: async () => Number(await now()) * 1000,
+    rotation: new Rotation({
+      agentKeyOf,
+      signerAddress: async (account, v) => (await c.signer.address(account, v)).address,
+      agentCreate: (account, v) => onboarding.agentCreate(account, v),
+    }),
+    // The owner action already applied on Base: a failed revocation is retried by the next one, not shown as a failure.
+    revokeMandates: (account) => c.bank.revokeMandates(account).catch((err) => log.warn({ err: String(err) }, 'mandate revocation failed')),
     labels: async (account, labels) => {
       const r = await c.mcp.setLabels(account, labels);
       if (r.status !== 204) throw new UpstreamError('mcp', r.status, await r.text());
     },
-    agentKeyOf: async (account) => (await pub.readContract({ address: d.mandateHook, abi: MandateHookAbi, functionName: 'kyaOf', args: [account] }))[0] as Address,
+    agentKeyOf,
   }),
   mount: (a, h) => {
     const mp = express.Router();

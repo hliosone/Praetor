@@ -15,6 +15,15 @@ export type ApiDeps = {
   origin: string;
   /** The counterfactual Safe7579 account of a passkey (packages/userop prepareAccount). */
   accountFor(p: { credIdHash: Hex; x: bigint; y: bigint }, saltNonce: bigint): Promise<{ address: Address }>;
+  /** Whether Base holds this passkey as an owner key of the account: only those sign in (a new device after its
+   *  SET_OWNER_KEY, a recovered one after executeRecovery). */
+  isOwnerKey?(account: Address, credIdHash: Hex): Promise<boolean>;
+  /** F10 recovery: the bank's re-KYC with the new passkey, the hook's recovery state, executeRecovery after 48 h. */
+  recovery?: {
+    start(userRef: string, account: Address, key: { credIdHash: Hex; x: Hex; y: Hex }): Promise<{ redirectUrl: string }>;
+    status(account: Address): Promise<unknown>;
+    execute(account: Address): Promise<unknown>;
+  };
   extend?: (r: express.Router, h: typeof handler, session: ReturnType<typeof requireSession>) => void;
   /** Routers outside /api (the mini program's /mp, the internal routes for mcp). */
   mount?: (app: express.Express, h: typeof handler) => void;
@@ -68,13 +77,22 @@ export function createApiApp(d: ApiDeps) {
     res.json(options);
   }));
 
-  r.post('/onboarding/passkey/verify', h(async (req, res) => {
-    const b = z.object({ userId: z.string().uuid(), response: z.any() }).parse(req.body);
-    const expectedChallenge = takeChallenge(`reg:${b.userId}`);
+  const registrationOptions = async (userId: string, key: string, userName: string) => {
+    const options = await generateRegistrationOptions({
+      rpName: 'Praetor', rpID: d.rpId, userName, attestationType: 'none',
+      authenticatorSelection: { residentKey: 'required', userVerification: 'required' }, supportedAlgorithmIDs: [-7],
+      excludeCredentials: (await d.store.passkeysOf(userId)).map((p) => ({ id: p.credentialId })),
+    });
+    challenges.set(key, { challenge: options.challenge, at: Date.now() });
+    return options;
+  };
+  /** Verifies a registration against the pending challenge and stores the passkey for the user. */
+  const register = async (userId: string, key: string, response: unknown) => {
+    const expectedChallenge = takeChallenge(key);
     if (!expectedChallenge) throw new HttpError(400, 'no pending registration');
     let info;
     try {
-      const v = await verifyRegistrationResponse({ response: b.response, expectedChallenge, expectedOrigin: d.origin, expectedRPID: d.rpId, requireUserVerification: true });
+      const v = await verifyRegistrationResponse({ response: response as never, expectedChallenge, expectedOrigin: d.origin, expectedRPID: d.rpId, requireUserVerification: true });
       if (!v.verified || !v.registrationInfo) throw new Error('not verified');
       info = v.registrationInfo;
     } catch {
@@ -82,9 +100,16 @@ export function createApiApp(d: ApiDeps) {
     }
     const { x, y } = coseP256(info.credential.publicKey);
     const credIdHash = keccak256(toHex(Buffer.from(info.credential.id, 'base64url')));
+    await d.store.addPasskey({ credentialId: info.credential.id, userId, publicKey: Buffer.from(info.credential.publicKey).toString('base64url'), counter: info.credential.counter, credIdHash, x: x.toString(), y: y.toString() });
+    return { credIdHash, x, y };
+  };
+  const keyJson = (k: { credIdHash: Hex; x: bigint; y: bigint }) => ({ credIdHash: k.credIdHash, x: `0x${k.x.toString(16)}` as Hex, y: `0x${k.y.toString(16)}` as Hex });
+
+  r.post('/onboarding/passkey/verify', h(async (req, res) => {
+    const b = z.object({ userId: z.string().uuid(), response: z.any() }).parse(req.body);
+    const { credIdHash, x, y } = await register(b.userId, `reg:${b.userId}`, b.response);
     const saltNonce = BigInt(keccak256(toHex(`praetor-account:${b.userId}`))) % 2n ** 64n;
     const { address } = await d.accountFor({ credIdHash, x, y }, saltNonce);
-    await d.store.addPasskey({ credentialId: info.credential.id, userId: b.userId, publicKey: Buffer.from(info.credential.publicKey).toString('base64url'), counter: info.credential.counter, credIdHash, x: x.toString(), y: y.toString() });
     await d.store.setAccount(b.userId, address, saltNonce);
     setSession(res, address, d.sessionSecret, secure);
     res.json({ account: address, credIdHash });
@@ -107,9 +132,10 @@ export function createApiApp(d: ApiDeps) {
       credential: { id: pk.credentialId, publicKey: Buffer.from(pk.publicKey, 'base64url'), counter: pk.counter },
     }).catch(() => ({ verified: false, authenticationInfo: undefined }));
     if (!v.verified) throw new HttpError(401, 'sign-in refused');
-    if (v.authenticationInfo) await d.store.setCounter(pk.credentialId, v.authenticationInfo.newCounter);
     const u = await d.store.getUser(pk.userId);
     if (!u?.account) throw new HttpError(401, 'no account');
+    if (d.isOwnerKey && !(await d.isOwnerKey(u.account as Address, pk.credIdHash as Hex))) throw new HttpError(401, 'this passkey is not an owner key of the account yet');
+    if (v.authenticationInfo) await d.store.setCounter(pk.credentialId, v.authenticationInfo.newCounter);
     setSession(res, u.account, d.sessionSecret, secure);
     res.json({ account: u.account });
   }));
@@ -118,6 +144,52 @@ export function createApiApp(d: ApiDeps) {
     clearSession(res);
     res.json({ ok: true });
   });
+
+  // Devices (spec 07 settings, up to 4 passkeys): registered here, added on Base by SET_OWNER_KEY signed by a current one.
+  const MAX_PASSKEYS = 4;
+  const me = async (res: Response) => {
+    const u = await d.store.userByAccount(res.locals.account);
+    if (!u) throw new HttpError(401, 'unknown account');
+    return u;
+  };
+  r.get('/passkeys', session, h(async (_req, res) => {
+    const u = await me(res);
+    const list = await d.store.passkeysOf(u.id);
+    res.json({ passkeys: await Promise.all(list.map(async (p) => ({ credIdHash: p.credIdHash, active: d.isOwnerKey ? await d.isOwnerKey(u.account as Address, p.credIdHash as Hex) : true }))) });
+  }));
+  r.post('/passkeys/options', session, h(async (_req, res) => {
+    const u = await me(res);
+    if ((await d.store.passkeysOf(u.id)).length >= MAX_PASSKEYS) throw new HttpError(409, `at most ${MAX_PASSKEYS} passkeys`);
+    res.json(await registrationOptions(u.id, `device:${u.id}`, u.email));
+  }));
+  r.post('/passkeys/verify', session, h(async (req, res) => {
+    const u = await me(res);
+    res.json(keyJson(await register(u.id, `device:${u.id}`, z.object({ response: z.any() }).parse(req.body).response)));
+  }));
+
+  // Recovery (F10 step 6) for a user who lost every passkey: a new passkey for the email's account, then the bank's
+  // own re-KYC; the hook replaces the keys 48 h later unless a remaining passkey cancels. No session: nothing here
+  // grants access before Base holds the new key.
+  const recovering = async (userId: string) => {
+    const u = await d.store.getUser(userId);
+    if (!u?.account || !d.recovery) throw new HttpError(404, 'no account to recover');
+    return u as typeof u & { account: Address };
+  };
+  r.post('/recover/options', h(async (req, res) => {
+    const { email } = z.object({ email: z.string().email().max(200) }).parse(req.body);
+    const u = await d.store.userByEmail(email);
+    if (!u?.account || !d.recovery) throw new HttpError(404, 'no account for this email');
+    res.json({ userId: u.id, options: await registrationOptions(u.id, `recover:${u.id}`, u.email) });
+  }));
+  r.post('/recover/verify', h(async (req, res) => {
+    const b = z.object({ userId: z.string().uuid(), response: z.any() }).parse(req.body);
+    const u = await recovering(b.userId);
+    const key = keyJson(await register(u.id, `recover:${u.id}`, b.response));
+    res.json(await d.recovery!.start(u.id, u.account, key));
+  }));
+  r.get('/recover/:userId', h(async (req, res) => res.json(await d.recovery!.status((await recovering(z.string().uuid().parse(req.params.userId))).account))));
+  r.post('/recover/:userId/execute', h(async (req, res) => res.json(await d.recovery!.execute((await recovering(z.string().uuid().parse(req.params.userId))).account))));
+  r.get('/recovery', session, h(async (_req, res) => res.json(d.recovery ? await d.recovery.status(res.locals.account) : { state: 'none' })));
 
   r.get('/me', session, h(async (_req, res) => {
     const u = await d.store.userByAccount(res.locals.account);

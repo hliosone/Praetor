@@ -8,6 +8,8 @@ export interface ApiStore {
   createUser(email: string): Promise<User>;
   getUser(id: string): Promise<User | undefined>;
   userByAccount(account: string): Promise<User | undefined>;
+  /** The most recent user of this email that has an account (recovery). */
+  userByEmail(email: string): Promise<User | undefined>;
   setAccount(userId: string, account: string, saltNonce: bigint): Promise<void>;
   addPasskey(p: Passkey): Promise<void>;
   passkey(credentialId: string): Promise<Passkey | undefined>;
@@ -21,6 +23,7 @@ export class MemoryApiStore implements ApiStore {
   async createUser(email: string) { const u = { id: randomUUID(), email }; this.users.set(u.id, u); return { ...u }; }
   async getUser(id: string) { const u = this.users.get(id); return u ? { ...u } : undefined; }
   async userByAccount(account: string) { return [...this.users.values()].find((u) => u.account?.toLowerCase() === account.toLowerCase()); }
+  async userByEmail(email: string) { return [...this.users.values()].reverse().find((u) => u.email.toLowerCase() === email.toLowerCase() && u.account); }
   async setAccount(userId: string, account: string, saltNonce: bigint) { const u = this.users.get(userId); if (u) { u.account = account.toLowerCase(); u.saltNonce = saltNonce.toString(); } }
   async addPasskey(p: Passkey) { this.passkeys.set(p.credentialId, { ...p }); }
   async passkey(id: string) { return this.passkeys.get(id); }

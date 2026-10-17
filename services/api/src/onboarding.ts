@@ -55,11 +55,12 @@ export class Onboarding {
     return this.d.c.bank.suitability((await this.d.user(account)).userId, answers);
   }
 
-  async agentCreate(account: Address) {
+  /** keyVersion > 1 is a rotation (F10): same steps for the next key of the account. */
+  async agentCreate(account: Address, keyVersion = 1) {
     const { nonce } = await this.d.c.bank.kyaNonce(account);
-    const { address: agentKey, quote } = await this.d.c.signer.attest(account, nonce);
+    const { address: agentKey, quote } = await this.d.c.signer.attest(account, nonce, keyVersion);
     const v = await this.d.c.bank.kyaVerify({ account, agentKey, quote, nonce });
-    const did = await this.d.c.bank.agentDid(account);
+    const did = await this.d.c.bank.agentDid(account, keyVersion);
     this.agents.set(account.toLowerCase(), agentKey);
     const info = await this.d.c.signer.info();
     return { agentKey, measurement: v.measurement, agentWeId: did.agentWeId, agentDidHash: did.agentDidHash, simulator: info.simulator };

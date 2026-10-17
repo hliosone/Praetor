@@ -14,7 +14,7 @@
   "approve.title": "Approve this payment?", "approve.why": "Why it asks you", "approve.details": "What you sign", "approve.passkey": "Approve with Face ID", "approve.reject": "Reject", "approve.expires": "expires in {s} s", "approve.done": "Approved and executed.",
   "mandate.title": "Your mandate", "mandate.propose": "Propose changes", "mandate.caps": "Bank caps for your profile",
   "payments.title": "Standing orders", "payments.add": "Add a standing order", "payments.trigger": "Pay now if due", "payments.cancel": "Cancel", "payments.payees": "Payees", "payments.addPayee": "Add a payee", "payments.payeeName": "Name", "payments.payeeAddress": "Address",
-  "agent.title": "Chat with your agent", "agent.send": "Send", "agent.placeholder": "Ask how you are doing, or ask it to pay or rebalance",
+  "agent.title": "Chat with your agent", "agent.send": "Send", "agent.placeholder": "Ask how you are doing, or ask it to pay or rebalance", "agent.identity": "Your agent", "agent.stop": "Stop my agent", "agent.rotate": "Rotate key", "agent.stopped": "Agent stopped: its key is revoked on Base.", "agent.rotated": "New agent key installed.", "agent.review": "Review the new key, then sign its mandate.",
   "audit.title": "Audit trail", "audit.verify": "Verify", "audit.verified": "Verified: the entries match FISCO and the Base anchor", "audit.mismatch": "Mismatch at #{n}", "audit.export": "Export camt.053",
   "settings.title": "Settings", "settings.wechat": "Link WeChat", "settings.language": "Language",
   "onb.title": "Create your Praetor account", "onb.passkey": "Passkey", "onb.account": "Wallet", "onb.kyc": "Identity", "onb.suitability": "Profile", "onb.agent": "Agent", "onb.mandate": "Mandate", "onb.policy": "Policy",

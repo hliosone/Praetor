@@ -55,7 +55,8 @@ export function clients(c: ClientConfig) {
       suitability: (userRef: string, answers: number[]) => bankPost('/suitability', { userRef, answers }),
       kyaNonce: (account: Address) => bankPost('/kya/nonce', { account }) as Promise<{ nonce: Hex }>,
       kyaVerify: (b: { account: Address; agentKey: Address; quote: string; nonce: Hex }) => bankPost('/kya/verify', b) as Promise<{ agentKey: Address; measurement: Hex }>,
-      agentDid: (account: Address) => bankPost('/kya/agent-did', { account }) as Promise<{ agentWeId: string; agentDidHash: Hex }>,
+      agentDid: (account: Address, keyVersion = 1) => bankPost('/kya/agent-did', { account, keyVersion }) as Promise<{ agentWeId: string; agentDidHash: Hex }>,
+      revokeMandates: (account: Address) => bankPost('/kya/mandate/revoke', { account }) as Promise<{ revoked: string[] }>,
       mandatePrepare: (b: { userRef: string; account: Address; agentKey: Address; scopes: string[]; mandateHash: Hex }) => bankPost('/kya/mandate/prepare', b) as Promise<{ draftId: string; challenge: Hex; claim: Record<string, unknown> }>,
       mandateSign: (draftId: string, assertion: unknown) => bankPost('/kya/mandate/sign', { draftId, assertion }) as Promise<{ mandateCredentialHash: Hex }>,
       kya: (b: { account: Address; agentDidHash: Hex; validUntil: bigint }) => bankPost('/kya', b),
@@ -63,8 +64,8 @@ export function clients(c: ClientConfig) {
       cosign: (ownerAction: unknown, payload: Hex) => bankPost('/owner-actions/cosign', { ownerAction, payload }) as Promise<{ bankSig: Hex; digest: Hex }>,
     },
     signer: {
-      address: (account: Address) => signer('GET', `/v1/agents/${account}/address?v=1`) as Promise<{ address: Address }>,
-      attest: (account: Address, nonce: Hex) => signer('POST', `/v1/agents/${account}/attest`, { nonce, keyVersion: 1 }) as Promise<{ address: Address; quote: string }>,
+      address: (account: Address, keyVersion = 1) => signer('GET', `/v1/agents/${account}/address?v=${keyVersion}`) as Promise<{ address: Address }>,
+      attest: (account: Address, nonce: Hex, keyVersion = 1) => signer('POST', `/v1/agents/${account}/attest`, { nonce, keyVersion }) as Promise<{ address: Address; quote: string }>,
       info: () => signer('GET', '/v1/info') as Promise<{ simulator: boolean; composeHash: string }>,
     },
     attester: {
