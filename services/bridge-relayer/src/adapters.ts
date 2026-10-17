@@ -1,5 +1,5 @@
 import { decodeErrorResult, type Address, type Hex, type PublicClient, type WalletClient } from 'viem';
-import { AnchorAbi, MandateHookAbi, baseNow, type Deployment } from '@praetor/chain';
+import { AnchorAbi, MandateHookAbi, type Deployment } from '@praetor/chain';
 import { BaseOutboxAbi, sendFisco } from '@praetor/fisco-client';
 import type { BasePort, OutboxMessage, OutboxPort, WeCrossPort } from './relayer.js';
 
@@ -14,6 +14,11 @@ export class FiscoOutbox implements OutboxPort {
   async markDelivered(id: bigint, baseTx: Hex, transport: number): Promise<Hex> {
     const r = await sendFisco(this.pub, this.wallet, { address: this.outbox, abi: BaseOutboxAbi as never, functionName: 'markDelivered', args: [id, baseTx, transport] });
     return r.transactionHash;
+  }
+
+  /** FISCO block time is in milliseconds; enqueuedAt is written in seconds. */
+  async now(): Promise<bigint> {
+    return (await this.pub.getBlock()).timestamp / 1000n;
   }
 }
 
@@ -60,10 +65,6 @@ export class BaseAdapter implements BasePort {
     const key = kind === 0 || kind === 3 ? pad(m.account as string) : kind === 2 ? pad(m.riskProfile as number) : kind === 4 ? pad(m.asset as string)
       : kind === 5 ? pad(m.target as string) : kind === 6 ? (`${(m.jurisdiction as string).padEnd(66, '0')}` as Hex) : kind === 7 ? pad(m.attester as string) : pad(0);
     return BigInt(await this.pub.readContract({ address: this.d.mandateHook, abi: MandateHookAbi, functionName: 'nonces', args: [HOOK_NONCE_KIND[kind]!, key] }));
-  }
-
-  now(): Promise<bigint> {
-    return baseNow(this.pub);
   }
 }
 

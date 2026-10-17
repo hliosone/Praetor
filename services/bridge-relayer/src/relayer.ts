@@ -10,6 +10,8 @@ export type OutboxMessage = { id: bigint; kind: number; payload: Hex; sigs: Hex[
 export interface OutboxPort {
   pending(from: bigint, max: number): Promise<OutboxMessage[]>;
   markDelivered(id: bigint, baseTx: Hex, transport: number): Promise<Hex>;
+  /** FISCO time in seconds: the clock enqueuedAt is written in (the watchdog compares like with like). */
+  now(): Promise<bigint>;
 }
 
 export interface BasePort {
@@ -18,7 +20,6 @@ export interface BasePort {
   send(to: Address, data: Hex): Promise<{ txHash: Hex; success: boolean }>;
   /** The nonce (or epoch, or anchor seq) Base has applied for this message's key. */
   appliedNonce(kind: number, message: Record<string, unknown>): Promise<bigint>;
-  now(): Promise<bigint>;
 }
 
 /** BRIDGE=wecross: BaseOutbox.requestWeCross, sent with the WeCross router's own FISCO key (D42). */
@@ -50,7 +51,7 @@ export class Relayer {
 
   async tick(): Promise<TickResult[]> {
     const out: TickResult[] = [];
-    const now = await this.base.now();
+    const now = await this.outbox.now();
     for (const m of await this.outbox.pending(0n, this.cfg.batch ?? 50)) out.push(await this.deliver(m, now));
     return out;
   }

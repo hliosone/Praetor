@@ -23,6 +23,8 @@ class FakeOutbox implements OutboxPort {
   marked: { id: bigint; baseTx: Hex; transport: number }[] = [];
   async pending() { return this.msgs.filter((m) => !this.marked.some((x) => x.id === m.id)); }
   async markDelivered(id: bigint, baseTx: Hex, transport: number) { this.marked.push({ id, baseTx, transport }); return keccak256(toHex(`mark${id}`)); }
+  clock = 2_000n;
+  async now() { return this.clock; }
 }
 
 class FakeBase implements BasePort {
@@ -30,11 +32,9 @@ class FakeBase implements BasePort {
   sent: { to: Address; data: Hex }[] = [];
   error: string | null = null;
   applied = 0n;
-  clock = 2_000n;
   async simulate(to: Address, data: Hex) { this.sims.push({ to, data }); return this.error ? { ok: false as const, error: this.error } : { ok: true as const }; }
   async send(to: Address, data: Hex) { this.sent.push({ to, data }); return { txHash: keccak256(toHex(`tx${this.sent.length}`)), success: true }; }
   async appliedNonce() { return this.applied; }
-  async now() { return this.clock; }
 }
 
 class FakeWeCross implements WeCrossPort {
@@ -93,8 +93,15 @@ describe('bridge-relayer (spec 05)', () => {
     outbox.msgs = [statusMsg(0n, 1n, 1_950n)];
     wecross.asked = [0n];
     expect((await relayer('wecross').tick())[0]!.outcome).toBe('waiting');
-    base.clock = 2_100n;
+    outbox.clock = 2_100n;
     expect((await relayer('wecross').tick())[0]!.outcome).toBe('delivered');
+  });
+
+  it('measures the watchdog on FISCO\'s clock, where the message was enqueued, whatever the Base clock says', async () => {
+    // A fork moved forward (F10's 48 h) must not make every message look overdue and bypass WeCross.
+    outbox.msgs = [statusMsg(0n, 1n, 1_990n)];
+    expect((await relayer('wecross').tick())[0]!.outcome).toBe('requested');
+    expect(base.sent).toHaveLength(0);
   });
 
   it('with BRIDGE=wecross, asks WeCross once to deliver a new message (as the router account), then waits for it', async () => {
