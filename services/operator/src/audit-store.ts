@@ -12,10 +12,9 @@ export class MySqlAuditStore implements AuditStore {
     const [x] = (await this.r.query("SELECT value FROM audit_meta WHERE name = 'auditLog'")) as { value: string }[];
     const want = auditLog.toLowerCase();
     if (x?.value === want) return;
-    if (x) {
-      await this.r.query('DELETE FROM audit_entries');
-      await this.r.query('DELETE FROM audit_cursors');
-    }
+    // Another log, or entries kept before any binding: they do not belong to this AuditLog.
+    await this.r.query('DELETE FROM audit_entries');
+    await this.r.query('DELETE FROM audit_cursors');
     await this.r.query("INSERT INTO audit_meta (name, value) VALUES ('auditLog', ?) ON DUPLICATE KEY UPDATE value = VALUES(value)", [want]);
   }
   private async rows(sql: string, p: unknown[]) { return ((await this.r.query(sql, p)) as Row[]).map(row); }

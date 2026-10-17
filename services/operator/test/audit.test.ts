@@ -125,4 +125,11 @@ describe('audit store bound to its AuditLog', () => {
     await store.bindTo('0x00000000000000000000000000000000000000b2');
     expect(await store.list(1, 10)).toHaveLength(0);
   });
+
+  it('entries kept before any binding belong to an unknown log: the first binding starts over', async () => {
+    const store = new MemoryAuditStore();
+    await new AuditWriter(store, fakeChain().chain).record([ev(1)]);
+    await store.bindTo('0x00000000000000000000000000000000000000a1');
+    expect(await store.list(1, 10)).toHaveLength(0);
+  });
 });
