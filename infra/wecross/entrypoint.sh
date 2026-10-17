@@ -9,8 +9,8 @@
 #   router           run the router in the foreground
 # /data holds TLS keys and passwords: it is git-ignored (infra/wecross/generated) and never logged.
 set -euo pipefail
-ROUTER_IP="${WECROSS_ROUTER_IP:-10.88.0.50}"
-AM_IP="${WECROSS_AM_IP:-10.88.0.51}"
+ROUTER_IP="${WECROSS_ROUTER_IP:-10.88.0.30}"
+AM_IP="${WECROSS_AM_IP:-10.88.0.31}"
 R="/data/router"
 AM="/data/account-manager"
 
@@ -29,7 +29,8 @@ setup() {
   WECROSS_FISCO_ADDRESS="$(address_of_hex "$WECROSS_FISCO_KEY")"
   if [ -f /data/.ready ]; then echo "wecross: configuration present"; base_chain; deploy_system; return; fi
   rm -rf /data/routers "$R" "$AM"
-  cd /opt/WeCross
+  # The build tool writes next to itself: run it from a copy the container user owns.
+  rm -rf /tmp/wecross-pkg && cp -r /opt/WeCross /tmp/wecross-pkg && cd /tmp/wecross-pkg
   bash build_wecross.sh -n payment -l "${ROUTER_IP}:8250:25500" -o /data/routers >/dev/null
   mv "/data/routers/${ROUTER_IP}-8250-25500" "$R"
   cd "$R"
@@ -80,6 +81,16 @@ PY
 # Base (Praetor's EVM stub): rewritten on every setup run, since a reset fork has new addresses.
 base_chain() {
   cd "$R"
+  # The stub jar comes from the image: a rebuilt image brings its new version.
+  cp /opt/WeCross/plugin/praetor-evm-stub-*.jar plugin/
+  # RPC on the container's interface (the Docker network only, never published), not its loopback.
+  python3 - <<'PY'
+import re
+p = 'conf/wecross.toml'
+s = open(p).read()
+s = re.sub(r"(\[rpc\][^\[]*?address\s*=\s*)'[^']*'", lambda m: m.group(1) + "'0.0.0.0'", s, flags=re.S)
+open(p, 'w').write(s)
+PY
   # The proxy routes "inbox" to WeCrossInbox.
   mkdir -p conf/chains/base
   python3 - "${DEPLOYMENTS_FILE:?}" "${BASE_RPC_URL:?}" > conf/chains/base/stub.toml <<'PY'
@@ -92,6 +103,7 @@ print(f"""[common]
 [chain]
     rpcUrl = '{sys.argv[2]}'
     chainId = {d['chainId']}
+    genesisBlock = {d['deployBlock']}
 
 [proxy]
     address = '{d['wecrossProxy']}'

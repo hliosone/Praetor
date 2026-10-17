@@ -592,9 +592,11 @@ services:
       dockerfile: infra/wecross/Dockerfile
     image: praetor/wecross:1.4.0
     profiles: [wecross]
+    user: ${UID_GID:-1000:1000}
     labels: { praetor.job: oneshot }
     command: ['setup']
     environment:
+      HOME: /tmp
       WECROSS_FISCO_KEY: ${WECROSS_FISCO_KEY}
       WECROSS_ADMIN_PASSWORD: ${WECROSS_ADMIN_PASSWORD}
       WECROSS_AM_ENCRYPT_KEY: ${WECROSS_AM_ENCRYPT_KEY}
@@ -602,6 +604,8 @@ services:
       BASE_RPC_URL: ${BASE_RPC_URL}
       DEPLOYMENTS_FILE: /app/${DEPLOYMENTS_FILE}
       FISCO_CHANNEL: 10.88.1.10:20200
+      WECROSS_ROUTER_IP: 10.88.0.30
+      WECROSS_AM_IP: 10.88.0.31
     volumes:
       - ./wecross/generated:/data
       - ./fisco/nodes/10.88.1.10/sdk:/fisco-sdk:ro
@@ -611,14 +615,17 @@ services:
         condition: service_healthy
     networks:
       praetor:
-        ipv4_address: 10.88.0.52
+        ipv4_address: 10.88.0.32
 
   wecross-account-manager:
     image: praetor/wecross:1.4.0
     pull_policy: never
     profiles: [wecross]
+    user: ${UID_GID:-1000:1000}
     restart: unless-stopped
     command: ['account-manager']
+    environment:
+      HOME: /tmp
     volumes:
       - ./wecross/generated:/data
     depends_on:
@@ -628,7 +635,7 @@ services:
         condition: service_healthy
     networks:
       praetor:
-        ipv4_address: 10.88.0.51
+        ipv4_address: 10.88.0.31
     healthcheck:
       <<: *health
       start_period: 60s
@@ -638,8 +645,11 @@ services:
     image: praetor/wecross:1.4.0
     pull_policy: never
     profiles: [wecross]
+    user: ${UID_GID:-1000:1000}
     restart: unless-stopped
     command: ['router']
+    environment:
+      HOME: /tmp
     volumes:
       - ./wecross/generated:/data
     depends_on:
@@ -647,7 +657,7 @@ services:
         condition: service_healthy
     networks:
       praetor:
-        ipv4_address: 10.88.0.50
+        ipv4_address: 10.88.0.30
     healthcheck:
       <<: *health
       start_period: 90s
