@@ -227,12 +227,19 @@ export function createApiApp(d: ApiDeps) {
     if (!u?.account || !d.recovery) throw new HttpError(404, 'no account for this email');
     res.json({ userId: u.id, options: await registrationOptions(u.id, `recover:${u.id}`, u.email, false) });
   }));
+  // Anyone with the email can start one: at most a few recovery passkeys per user an hour, whatever the client address.
+  const RECOVERIES_PER_HOUR = 5;
+  const recoveries = new Map<string, number[]>();
   r.post('/recover/verify', h(async (req, res) => {
     const b = z.object({ userId: z.string().uuid(), response: z.any() }).parse(req.body);
     const u = await recovering(b.userId);
+    const now = Date.now();
+    const recent = (recoveries.get(u.id) ?? []).filter((t) => now - t < 3_600_000);
+    if (recent.length >= RECOVERIES_PER_HOUR) throw new HttpError(429, 'too many recovery attempts for this account: try again in an hour');
     const p = await verifyRegistration(u.id, `recover:${u.id}`, b.response);
     const started = await d.recovery!.start(u.id, u.account, keyJson(p));
     await savePasskey(p);
+    recoveries.set(u.id, [...recent, now]);
     res.json(started);
   }));
   r.get('/recover/:userId', h(async (req, res) => res.json(await d.recovery!.status((await recovering(z.string().uuid().parse(req.params.userId))).account))));

@@ -123,6 +123,18 @@ describe('recovery when every passkey is lost', () => {
     await request(app).post('/api/passkeys/options').set('cookie', cookie).set('x-csrf-token', csrfOf(cookie)).send({}).expect(200);
   });
 
+  it('stores at most five recovery passkeys for a user an hour, from however many clients', async () => {
+    const { app, onChain, store } = setup();
+    const { userId } = await onboard(app, onChain);
+    const attempt = async (label: string) => {
+      const { body: o } = await request(app).post('/api/recover/options').send({ email: 'lin@example.com' }).expect(200);
+      return request(app).post('/api/recover/verify').send({ userId, response: softPasskey(label, RP, ORIGIN).registration(o.options.challenge) });
+    };
+    for (const label of ['r1', 'r2', 'r3', 'r4', 'r5']) expect((await attempt(label)).status).toBe(200);
+    expect((await attempt('r6')).status).toBe(429);
+    expect(await store.passkeysOf(userId)).toHaveLength(6);
+  });
+
   it('a second recovery request for the same email (anyone can make one) leaves the first one\'s registration pending', async () => {
     const { app, onChain } = setup();
     const { userId } = await onboard(app, onChain);
