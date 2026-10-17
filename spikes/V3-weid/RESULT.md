@@ -1,6 +1,6 @@
 # V3: WeIdentity bundle on the Dockerised FISCO 3.17.1 chain (auth mode, deploy whitelist on), both profiles
 
-Run 2026-10-17 03:56 to 04:45 UTC.
+Run 2026-10-17 03:56 to 04:27 UTC.
 
 ## What was run
 
