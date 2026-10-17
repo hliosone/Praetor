@@ -1,0 +1,12 @@
+{
+  "name": "Praetor",
+  "short_name": "Praetor",
+  "description": "Self-driving money. The regulator holds the brakes.",
+  "start_url": "/home",
+  "display": "standalone",
+  "background_color": "#050506",
+  "theme_color": "#050506",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

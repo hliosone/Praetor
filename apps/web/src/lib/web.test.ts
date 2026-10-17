@@ -1,0 +1,51 @@
+import { describe, it, expect } from 'vitest';
+import { translate } from '../i18n/index.js';
+import en from '../i18n/en.json';
+import zh from '../i18n/zh-CN.json';
+import { derToRs } from './staffKey.js';
+import { defaultPolicy } from './policy.js';
+import { usd } from './api.js';
+
+const N = BigInt('0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551');
+
+/** A DER ECDSA signature of (r, s), as WebAuthn returns it. */
+function der(r: bigint, s: bigint) {
+  const int = (v: bigint) => {
+    let b = Array.from(Buffer.from(v.toString(16).padStart(64, '0'), 'hex'));
+    while (b.length > 1 && b[0] === 0) b = b.slice(1);
+    if (b[0]! & 0x80) b = [0, ...b];
+    return [0x02, b.length, ...b];
+  };
+  const body = [...int(r), ...int(s)];
+  return Uint8Array.from([0x30, body.length, ...body]);
+}
+
+describe('web app logic', () => {
+  it('translates with placeholders, falls back to English, then to the key', () => {
+    expect(translate('en', 'phone.approve', { amount: '300' })).toBe('Approve 300 USDC');
+    expect(translate('zh-CN', 'phone.approve', { amount: '300' })).toBe('批准 300 USDC');
+    expect(translate('zh-CN', 'no.such.key')).toBe('no.such.key');
+  });
+
+  it('has every English string in Chinese', () => {
+    expect(Object.keys(zh).sort()).toEqual(Object.keys(en).sort());
+  });
+
+  it('turns a DER signature into (r, s) with a low s, as the member services require', () => {
+    const r = 0x1234n;
+    const low = 0x5678n;
+    expect(derToRs(der(r, low))).toEqual({ r: `0x${r.toString(16).padStart(64, '0')}`, s: `0x${low.toString(16).padStart(64, '0')}` });
+    expect(derToRs(der(r, N - low)).s).toBe(`0x${low.toString(16).padStart(64, '0')}`);
+  });
+
+  it('proposes the mandate of the Lin persona as a first policy, valid for a year', () => {
+    const c = { chainId: 84532, domainName: 'Praetor-local', mandateHook: '0x01', usdc: '0x02', txau: '0x03', txag: '0x04', deskSpreadBps: 30 } as never;
+    const p = defaultPolicy(c, 1_800_000_000);
+    expect(p).toMatchObject({ autoCap: '200000000', hardCap: '2000000000', validUntil: String(1_800_000_000 + 365 * 86_400) });
+    expect(p.bands.map((b) => [b.minBps, b.targetBps, b.maxBps])).toEqual([[4000, 5500, 6000], [2000, 3000, 3500], [0, 1500, 1500]]);
+  });
+
+  it('formats USD amounts of 6 decimals', () => {
+    expect(usd('1234560000')).toMatch(/1.?234\.56/);
+  });
+});
