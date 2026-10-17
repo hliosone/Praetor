@@ -30,5 +30,10 @@ else
 fi
 
 cd contracts/base
+# DRY_RUN=1 simulates against the chain (gas and cost estimates) without sending anything.
+if [ -n "${DRY_RUN:-}" ]; then
+  forge script script/Deploy.s.sol --rpc-url "$RPC" | grep -E "Estimated|Chain|gas|ETH|Error|revert" || true
+  exit 0
+fi
 forge script script/Deploy.s.sol --rpc-url "$RPC" --broadcast --slow -q
 echo "deployed $ENV_NAME -> infra/deployments/${DEPLOY_OUT:-$ENV_NAME}.json"

@@ -1,0 +1,14 @@
+{
+  "env": "live",
+  "chainId": 20200,
+  "baseDeployment": "base-sepolia",
+  "memberRegistry": "0x1777B2f50343156a758344e5906d922a2425190e",
+  "baseOutbox": "0x14430Dd782E4fbD5fc0C1eb542b129499404Bf0e",
+  "agentStatus": "0x5DE88135dE7bF70c31442d59e425D7986EEc390d",
+  "assetRegistry": "0xd71b867363FeC36805d973a1FcF96A83872431B3",
+  "sanctionsList": "0xEA9D735F247e22Bb7065C479b00e2FE1937a921d",
+  "jurisdictionRules": "0xe761B9ee87393C42310285Ef85D4091FcD25e06A",
+  "attesterRegistry": "0xA21432e04fBcd32Ee179287e39Ff202475edc9C9",
+  "mandateRegistry": "0x4390971B5Aa88F12F56561d880A0D8B0df821cA6",
+  "auditLog": "0x766a83f2f21F055B6cEB0769D82109F60C57bD33"
+}
