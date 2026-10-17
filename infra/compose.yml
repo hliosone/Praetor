@@ -308,6 +308,66 @@ services:
       <<: *health
       test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3040/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
 
+  api:
+    build:
+      context: ..
+      dockerfile: infra/node-service.Dockerfile
+      args:
+        SERVICE: api
+    image: praetor/api:local
+    profiles: [core]
+    restart: unless-stopped
+    environment:
+      BASE_RPC_URL: ${BASE_RPC_URL}
+      DEPLOYMENTS_FILE: /app/${DEPLOYMENTS_FILE}
+      MYSQL_HOST: mysql
+      MYSQL_PASSWORD_API: ${MYSQL_PASSWORD_API}
+      SESSION_SECRET: ${SESSION_SECRET}
+      PUBLIC_HOST: ${PUBLIC_HOST}
+      PUBLIC_URL: ${PUBLIC_URL}
+      INTERNAL_TOKEN_BUNDLER: ${INTERNAL_TOKEN_BUNDLER}
+      INTERNAL_TOKEN_MEMBERS: ${INTERNAL_TOKEN_MEMBERS}
+      SIGNER_HMAC_API: ${SIGNER_HMAC_API}
+      ATTESTER_HMAC_API: ${ATTESTER_HMAC_API}
+      INTERNAL_TOKEN_AGENT: ${INTERNAL_TOKEN_AGENT}
+      INTERNAL_TOKEN_API: ${INTERNAL_TOKEN_API}
+    volumes:
+      - ./deployments:/app/infra/deployments:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      praetor:
+        ipv4_address: 10.88.0.80
+      agent:
+        ipv4_address: 10.90.0.80
+    healthcheck:
+      <<: *health
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3200/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+
+  notifier:
+    build:
+      context: ..
+      dockerfile: infra/node-service.Dockerfile
+      args:
+        SERVICE: notifier
+    image: praetor/notifier:local
+    profiles: [core]
+    restart: unless-stopped
+    environment:
+      BASE_RPC_URL: ${BASE_RPC_URL}
+      DEPLOYMENTS_FILE: /app/${DEPLOYMENTS_FILE}
+      INTERNAL_TOKEN_API: ${INTERNAL_TOKEN_API}
+      OA_APPID: ${OA_APPID}
+    volumes:
+      - ./deployments:/app/infra/deployments:ro
+    networks:
+      praetor:
+        ipv4_address: 10.88.0.81
+    healthcheck:
+      <<: *health
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3210/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+
   oracle-feeder:
     build:
       context: ..
@@ -356,6 +416,7 @@ services:
       AGENT_SUBNET: 10.90.0.0/24
       PUBLIC_URL: ${PUBLIC_URL}
       SESSION_SECRET: ${SESSION_SECRET}
+      API_URL: http://api:3200
     volumes:
       - ./deployments:/app/infra/deployments:ro
     depends_on:

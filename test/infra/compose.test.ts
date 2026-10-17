@@ -75,7 +75,7 @@ describe('infra/compose.yml', () => {
     expect(Object.keys(runner.environment ?? {}).filter((k) => forbidden.test(k) && k !== 'OPENCODE_API_KEY')).toEqual([]);
     expect(Object.keys(compose.services['fake-llm']!.networks as Record<string, unknown>)).toEqual(['agent']);
     const members = services.filter(([, s]) => on(s, 'agent')).map(([n]) => n).sort();
-    expect(members).toEqual(['agent-runner', 'fake-llm', 'mcp', 'scheduler']);
+    expect(members).toEqual(['agent-runner', 'api', 'fake-llm', 'mcp', 'scheduler']);
   });
 
   it('keeps the custodial WeIdentity services on their own network, joined only by bank, MySQL and one FISCO node', () => {

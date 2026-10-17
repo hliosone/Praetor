@@ -35,6 +35,13 @@ describe('Tier-2 approvals (F6)', () => {
     expect(r.calls[0]).toMatchObject({ to: CALL.to, value: '0', data: CALL.data });
   });
 
+  it('notifies the owner when a request opens (F6 step 4), with the approval link', async () => {
+    const notes: unknown[] = [];
+    const { a } = setup({ notify: async (n) => { notes.push(n); }, publicUrl: 'https://praetor.localhost' });
+    const { id } = await a.request({ account: ACCOUNT, calls: [CALL], callHash: CALLHASH, reason: 'UNKNOWN_PAYEE', summary: 'Pay 300.00 USDC to Café Lumen' });
+    expect(notes).toEqual([{ account: ACCOUNT, kind: 'approval', text: 'Approve? Pay 300.00 USDC to Café Lumen', link: `https://praetor.localhost/approve/${id}` }]);
+  });
+
   it('passkey: registerApproval with the owner auth, then the same call is resubmitted by the agent', async () => {
     const { a, tx, resubmitted } = setup();
     const { id } = await a.request({ account: ACCOUNT, calls: [CALL], callHash: CALLHASH, reason: 'UNKNOWN_PAYEE', summary: 's' });

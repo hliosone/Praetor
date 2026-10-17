@@ -39,6 +39,9 @@ export type ApprovalDeps = {
   /** mcp resubmits the call with the agent key (the only holder of a sign-userop right). */
   resubmit(account: Address, calls: Call[]): Promise<{ success: boolean; txHash: Hex | null }>;
   attester: { approve(b: Record<string, unknown>): Promise<{ soterApproval: Record<string, string>; attesterSig: Hex }> };
+  /** The owner's channels (notifier): never blocks the request. */
+  notify?(n: { account: Address; kind: string; text: string; link?: string }): Promise<void>;
+  publicUrl?: string;
 };
 
 const TTL_S = 900n;
@@ -59,6 +62,7 @@ export class Approvals {
       state: 'pending', channel: null, registerTx: null, executeTx: null,
     };
     await this.d.store.put(row);
+    await this.d.notify?.({ account: b.account, kind: 'approval', text: `Approve? ${b.summary}`, link: `${(this.d.publicUrl ?? '').replace(/\/$/, '')}/approve/${row.id}` }).catch(() => undefined);
     return { id: row.id };
   }
 

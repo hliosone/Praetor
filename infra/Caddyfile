@@ -11,6 +11,14 @@
 		respond "ok" 200
 	}
 
+	handle /api/* {
+		reverse_proxy api:3200
+	}
+
+	handle /mp/* {
+		reverse_proxy api:3200
+	}
+
 	handle /kyc-mock/* {
 		reverse_proxy kyc-vendor-mock:3040
 	}

@@ -34,6 +34,7 @@ const env = z.object({
   AGENT_RUNNER_URL: z.string().url().default('http://agent-runner:3100'),
   INTERNAL_TOKEN_AGENT: z.string().min(32),
   MCP_URL: z.string().url().default('http://mcp:3080'),
+  NOTIFIER_URL: z.string().url().default('http://notifier:3210'),
   INTERNAL_TOKEN_API: z.string().min(32),
   PORT: z.coerce.number().int().default(3200),
 }).parse(process.env);
@@ -76,6 +77,10 @@ const onboarding = new Onboarding({
   now, c,
 });
 const approvals = new Approvals({
+  publicUrl: env.PUBLIC_URL,
+  notify: async (n) => {
+    await fetch(`${env.NOTIFIER_URL}/notify`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${env.INTERNAL_TOKEN_API}` }, body: JSON.stringify(n), signal: AbortSignal.timeout(5000) });
+  },
   store: new MySqlApprovalStore(conn.runner), domain: { name: d.domainName, hook: d.mandateHook }, now, credIdHashOf, bundler: c.bundler, attester: c.attester,
   resubmit: async (account, calls) => {
     const r = await fetch(`${env.MCP_URL}/internal/resubmit`, {
