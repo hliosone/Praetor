@@ -15,7 +15,7 @@ Praetor itself is all rights reserved (see `NOTICE`). Each entry below keeps its
 | ant-intl-alipayplus-mcp | MIT | container (M10) |
 | @phala/dstack-sdk | Apache-2.0 | dependency (M7) |
 | FISCO BCOS, WeIdentity, WeBASE, WeCross, BCOS3 stub | Apache-2.0 | containers and builds (M4 to M12) |
-| web3j | Apache-2.0 | WeCross EVM stub (M12) |
+| WeCross router, account manager, BCOS3 stub, proxy (vendored) | Apache-2.0 | `praetor/wecross` image, `contracts/base/src/vendor/wecross`, one patched account manager class |
 | Safe | LGPL-3.0 | deployed contracts only, unmodified |
 | Safe7579 adapter and launchpad, Rhinestone registry | GPL-3.0 | deployed contracts only, own interfaces |
 | xmllint-wasm (libxml2) | MIT | npm dependency of the api (camt.053 schema check) |
