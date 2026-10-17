@@ -352,6 +352,11 @@ contract MandateHook is IERC7579Hook, IMandateHookEvents {
         return (a.measurement, a.active);
     }
 
+    function spentOf(address account) external view returns (uint256 day, uint256 month, uint256 count, uint256 rebalances) {
+        uint256 d = block.timestamp / 1 days;
+        return (s.spentDay[account][d], s.spentMonth[account][block.timestamp / 30 days], s.countDay[account][d], s.rebalancesDay[account][d]);
+    }
+
     function policyOf(address account) external view returns (P.Policy memory) {
         return s.policy[account];
     }
