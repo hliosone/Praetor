@@ -7,6 +7,14 @@
 {$PUBLIC_HOST} {
 	tls internal
 
+	# Browser hardening for every response (spec 08, web attacker).
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
 	handle /health {
 		respond "ok" 200
 	}
@@ -29,8 +37,15 @@
 		reverse_proxy mcp:3080
 	}
 
-	# The web app: static files, every other path is the single-page app (routes are client-side).
+	# The web app: static files, every other path is the single-page app (routes are client-side). Scripts only
+	# from this origin, no framing; inline styles stay allowed for the 3D phone's libraries. The KYC provider's page
+	# keeps its own policy (it needs the camera).
 	handle {
+		header {
+			Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+			X-Frame-Options "DENY"
+			Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		}
 		root * /srv/web
 		try_files {path} /index.html
 		file_server
