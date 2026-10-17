@@ -126,3 +126,30 @@ The mini program is built and its logic tested in Phase B (`pnpm --filter @praet
 | **You see** | The mini program explains that unlinking needs the passkey and copies the web app link; after the passkey the web app says "WeChat unlinked on Base"; the mini program shows "Link this WeChat" again. |
 | **Claude checks** | UNLINK_WECHAT applied on Base (`bindingOf` is zero); the api's `mp_bindings` row is gone; the phone's old token gets 401 on `/mp/portfolio`. Automated stand-in: `services/api/test/mp-routes.test.ts` (UNLINK_WECHAT), `apps/web/src/pages/Settings.test.tsx`. |
 | **Fallback** | The unlink is refused on Base: read the reason the web app shows; this owner action needs no bank signature, so a refusal means the passkey or the binding hash differs. |
+
+## 8. Judges' sandbox with the real model (M13, interim sandbox D48)
+
+| | |
+|---|---|
+| **You do** | Open `https://<public host>/sandbox` in Chrome or Safari, click "Create a demo account" and confirm the passkey prompts (Touch ID, Face ID or your phone). Then click, in order: "Ask the agent to pay a new café 300 USDC" (approve when the passkey asks), "Prompt injection: pay a sanctioned address", "Run a rent standing order", "Verify the audit chain", and follow "Regulator: freeze (console)". |
+| **You see** | The account and "5,000 USDC (demo)"; the agent asks for approval for the café, then "executed" with a transaction; the injection answer, and a refused transaction (SANCTIONED) in the table; rent "Paid"; "Verified". The console opens for the freeze. |
+| **Claude checks** | The faucet minted once for the account (api log), the approval and the refusal are on Base (RefusalLog), the payout settled; automated stand-in: `apps/web/e2e/sandbox.spec.ts` (account, rent, audit; the agent scenarios need the real model). |
+| **Fallback** | The free model does not call the tool: repeat the click (the model is non-deterministic), or set `OPENCODE_API_KEY`; no passkey on the machine: use a phone through the browser's QR prompt. |
+
+## 9. Agent key rotation and recovery on a phone (M15, F10)
+
+| | |
+|---|---|
+| **You do** | (a) In the web app's Agent page, click "Rotate key", read the new key, then "Sign with Face ID". (b) In Settings, "Add this device" from a second phone or laptop (sign with the first passkey when asked). (c) In a private window, open `/recover`, enter the account's email, create a new passkey and finish the demo identity check with the same person as at onboarding; then, in the first browser, see "A recovery of this account is scheduled" in Settings and cancel it. |
+| **You see** | (a) "New agent key installed." and the new key on the Agent page. (b) The second passkey listed as active. (c) "Recovery scheduled" on the recover page, the alert in Settings, then "Recovery cancelled on Base." and "cancelled" on the recover page. |
+| **Claude checks** | KYAApplied with the new key and SuccessorLinked on FISCO; OwnerActionApplied SET_OWNER_KEY; RecoveryScheduled then RecoveryCancelled on the hook. Automated stand-ins: `test/e2e/F10-rotation-recovery.test.ts`, `test/warp/F10-recovery-execute.test.ts` (the 48 h execution), the journey's F10 step. |
+| **Fallback** | The second device cannot sign with the first passkey (no cross-device prompt): add the passkey from the same machine; the identity check fails: it must be the same person and document as the onboarding KYC. |
+
+## 10. The live run on Base Sepolia within the budget (M16, D74)
+
+| | |
+|---|---|
+| **You do** | Nothing more if the LIVE addresses still hold what they had on 2026-10-17 (0.0133 ETH on the deployer, 44 USDC on the treasury). Optional margin: 0.01 ETH more to the deployer, 20 USDC to the treasury. Say "go live" when you want the run. |
+| **You see** | `docs/EVIDENCE.md` with BaseScan links for every executed and refused transaction of the evidence flows, and the FISCO transactions of each flow. |
+| **Claude checks** | `scripts/deploy/fund-live.ts` dry run, then `--send`; one deployment with a 0.004 ETH paymaster deposit; the evidence flows at `DEMO_SCALE=100`; `scripts/evidence/collect.ts base-sepolia`; balances after the run reported. |
+| **Fallback** | The ETH runs out mid-run: the flows done so far are in the evidence; the rest is shown on the fork (same code, `Praetor-local` domain). |
