@@ -31,7 +31,7 @@ export async function startBundler(env: Record<string, string | undefined> = pro
     const db = await conn.runner.query('SELECT 1').then(() => true, () => false);
     return { rpc, db };
   };
-  const app = createApp({ bundler, token: cfg.INTERNAL_TOKEN_BUNDLER, health, version: process.env.npm_package_version ?? '0.0.0' });
+  const app = createApp({ bundler, token: cfg.INTERNAL_TOKEN_BUNDLER, health, version: process.env.npm_package_version ?? '0.0.0', log });
   const server = await new Promise<Server>((resolve) => {
     const s = app.listen(cfg.PORT, () => resolve(s));
   });

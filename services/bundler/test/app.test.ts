@@ -12,7 +12,7 @@ const op: UserOp = {
   maxFeePerGas: 1n, maxPriorityFeePerGas: 1n, signature: '0x01',
 };
 
-function app(overrides: Partial<Record<string, (...a: unknown[]) => Promise<unknown>>> = {}) {
+function app(overrides: Partial<Record<string, (...a: unknown[]) => Promise<unknown>>> = {}, log?: { error(o: object, msg: string): void }) {
   const bundler = {
     register: async () => undefined,
     accounts: async () => [A(1), A(2)],
@@ -22,7 +22,7 @@ function app(overrides: Partial<Record<string, (...a: unknown[]) => Promise<unkn
     getOp: async () => null,
     ...overrides,
   };
-  return createApp({ bundler: bundler as never, token: TOKEN, health: async () => ({ rpc: true, db: true }), version: 'test' });
+  return createApp({ bundler: bundler as never, token: TOKEN, health: async () => ({ rpc: true, db: true }), version: 'test', log });
 }
 const auth = { authorization: `Bearer ${TOKEN}` };
 
@@ -30,6 +30,16 @@ describe('bundler HTTP API', () => {
   it('lists the registered accounts (scheduler) behind the token', async () => {
     await request(app()).get('/accounts').expect(401);
     expect((await request(app()).get('/accounts').set(auth).expect(200)).body).toEqual({ accounts: [A(1), A(2)] });
+  });
+
+  it('logs an unexpected error (the caller only sees Internal), so a failed send can be traced', async () => {
+    const seen: { o: object; msg: string }[] = [];
+    const a = app({ send: async () => { throw new Error('AA25 invalid account nonce'); } }, { error: (o, msg) => seen.push({ o, msg }) });
+    expect((await request(a).post('/userop/send').set(auth).send({ userOp: toJson(op) }).expect(500)).body).toEqual({ error: 'Internal' });
+    expect(seen).toHaveLength(1);
+    expect(seen[0]!.msg).toBe('request failed');
+    expect(JSON.stringify(seen[0]!.o)).toMatch(/AA25 invalid account nonce/);
+    expect(JSON.stringify(seen[0]!.o)).toMatch(/\/userop\/send/);
   });
 
   it('serves /health and /version without auth', async () => {

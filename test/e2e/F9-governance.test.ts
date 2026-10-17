@@ -6,7 +6,7 @@ import { encodeFunctionData, keccak256, parseAbi, toHex, type Address, type Hex 
 import { MandateHookAbi, baseNow } from '@praetor/chain';
 import { Reason, callHash, digest, passkeyAuth, praetorDomain } from '@praetor/protocol';
 import {
-  activateSoterAttester, agentOp, bootstrapConsortium, bundler, createAccount, fund, labelAddress, onboard, openAndSign, pub, setDemoPrices, stack, staffAssertion, waitFor,
+  activateSoterAttester, agentOp, bootstrapConsortium, bundler, createAccount, fund, labelAddress, onboard, openAndSign, pub, scriptAgent, setDemoPrices, stack, staffAssertion, waitFor,
   type Account, type Stack,
 } from '../../scripts/demo/lib.js';
 
@@ -24,6 +24,9 @@ beforeAll(async () => {
   await setDemoPrices(s);
   acc = await createAccount(s, `f9-${Date.now()}`);
   await onboard(s, acc);
+  // The test plays the agent (agentOp): the account's own agent stays on the scripted model with nothing queued, so a
+  // scheduler wake cannot have the real model spend this account's nonces in the middle of a step.
+  await scriptAgent(s, acc.address, []);
   await fund(s, acc, 2_000_000_000n, 0n, 0n);
 }, 900_000);
 
@@ -77,7 +80,7 @@ describe('F9 consortium governance (BRIDGE=relayer)', () => {
       const data = encodeFunctionData({ abi: MandateHookAbi, functionName: 'registerApproval', args: [a, passkeyAuth(acc.owner.credIdHash, acc.owner.sign(d))] });
       expect((await bundler(s, '/tx', { to: s.base.mandateHook, data })).body.success).toBe(true);
       const approved = await agentOp(s, acc, [call]);
-      expect(approved.body.success).toBe(true);
+      expect(approved.body).toMatchObject({ success: true });
     } finally {
       compose('start', 'operator');
     }

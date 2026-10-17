@@ -12,7 +12,8 @@ const sendBody = z.object({ userOp: z.unknown() });
 const txBody = z.object({ to: address, data: hex });
 const accountBody = z.object({ address });
 
-type Deps = { bundler: Pick<Bundler, 'register' | 'accounts' | 'prepare' | 'send' | 'tx' | 'getOp'>; token: string; health: () => Promise<Record<string, boolean>>; version: string };
+type Deps = { bundler: Pick<Bundler, 'register' | 'accounts' | 'prepare' | 'send' | 'tx' | 'getOp'>; token: string; health: () => Promise<Record<string, boolean>>; version: string;
+  log?: { error(o: object, msg: string): void } };
 
 const STATUS = new Map<Function, number>([[NotSponsorable, 403], [NotAllowed, 403], [RateLimited, 429], [ValidationFailed, 422]]);
 
@@ -72,10 +73,11 @@ export function createApp(d: Deps) {
     res.json(r);
   }));
 
-  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof z.ZodError) return res.status(400).json({ error: 'BadRequest', detail: err.issues.map((i) => i.path.join('.')).join(', ') });
     const status = err instanceof Error ? STATUS.get(err.constructor) : undefined;
     if (status && err instanceof Error) return res.status(status).json({ error: err.constructor.name, detail: err.message });
+    d.log?.error({ path: req.path, err: err instanceof Error ? err.message : String(err) }, 'request failed');
     res.status(500).json({ error: 'Internal' });
   });
   return app;
