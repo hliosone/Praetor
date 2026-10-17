@@ -11,7 +11,7 @@ import java.util.Map;
  * A Base chain's stub.toml:
  * <pre>
  * [common]   name = 'base'  type = 'EVM'
- * [chain]    rpcUrl = 'http://anvil:8545'  chainId = 84532
+ * [chain]    rpcUrl = 'http://anvil:8545'  chainId = 84532  genesisBlock = 48226008 (the deployment block)
  * [proxy]    address = '0x...'             (WeCrossProxyEVM)
  * [[resources]]  name = 'inbox'  address = '0x...'
  * </pre>
@@ -21,6 +21,8 @@ public final class EvmConfig {
     public final String rpcUrl;
     public final long chainId;
     public final String proxy;
+    /** The block the router reads as "genesis" (chain identity): pruned nodes have no block 0 (default 0). */
+    public final long genesisBlock;
     /** Resource name to address; the proxy routes by name (setPath on-chain). */
     public final Map<String, String> resources = new LinkedHashMap<>();
 
@@ -29,6 +31,7 @@ public final class EvmConfig {
         rpcUrl = required(t.getString("chain.rpcUrl"), "chain.rpcUrl");
         chainId = required(t.getLong("chain.chainId"), "chain.chainId");
         proxy = required(t.getString("proxy.address"), "proxy.address").toLowerCase();
+        genesisBlock = t.getLong("chain.genesisBlock", 0L);
         List<Toml> rs = t.getTables("resources");
         if (rs != null) for (Toml r : rs) resources.put(required(r.getString("name"), "resources.name"), required(r.getString("address"), "resources.address").toLowerCase());
     }

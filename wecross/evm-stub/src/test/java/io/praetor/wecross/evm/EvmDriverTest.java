@@ -39,6 +39,7 @@ public class EvmDriverTest {
     private final ObjectMapper json = new ObjectMapper();
     private final List<String> methods = new ArrayList<>();
     private final List<String> sentRaw = new ArrayList<>();
+    private final List<String> blockRequests = new ArrayList<>();
     private HttpServer server;
     private boolean revert;
     private EvmConfig config;
@@ -74,6 +75,7 @@ public class EvmDriverTest {
                 case "eth_getTransactionReceipt": out.putObject("result").put("status", "0x1").put("blockNumber", "0x2a"); break;
                 case "eth_blockNumber": out.put("result", "0x2a"); break;
                 case "eth_getBlockByNumber":
+                    blockRequests.add(req.get("params").get(0).asText());
                     ObjectNode b = out.putObject("result");
                     b.put("number", "0x2a").put("hash", "0xbb").put("parentHash", "0xaa").put("stateRoot", "0x01").put("transactionsRoot", "0x02").put("receiptsRoot", "0x03").put("timestamp", "0x10");
                     b.putArray("transactions").add("0xt1");
@@ -130,6 +132,28 @@ public class EvmDriverTest {
         assertTrue(xa.returnsString);
     }
 
+    @Test
+    public void baseHasNoHub_theRoutersPollGetsNoRequestsWithoutAnyCall() throws Exception {
+        TransactionResponse r = await((cb) -> {
+            try {
+                new EvmDriver().asyncCall(context(StubConstant.HUB_NAME), new TransactionRequest("getInterchainRequests", new String[] {"16"}), true, new EvmConnection(config), cb);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        });
+        assertArrayEquals(new String[] {"null"}, r.getResult());
+        assertTrue(methods.isEmpty());
+    }
+
+    @Test
+    public void aStringArrayParameterArrivesAsOneJsonArgument_asTheRouterSendsInterchainRequests() {
+        String[] items = {"Status", "0xabcd", "35"};
+        TransactionRequest fromRouter = new TransactionRequest("deliver", new String[] {"[\"Status\",\"0xabcd\",\"35\"]"});
+        assertArrayEquals(Abi.call("deliver(string[])", Abi.stringArray(items)), EvmDriver.plan(config, "inbox", fromRouter, false, true).data);
+        // Separate strings (a console call) stay the array's items.
+        assertArrayEquals(Abi.call("deliver(string[])", Abi.stringArray(items)), EvmDriver.plan(config, "inbox", new TransactionRequest("deliver", items), false, true).data);
+    }
+
     @Test(expected = IllegalArgumentException.class)
     public void refusesAnUnknownResource() {
         EvmDriver.plan(config, "nope", new TransactionRequest("f", new String[0]), false, false);
@@ -147,7 +171,8 @@ public class EvmDriverTest {
             }
         });
         assertEquals(0L, (long) r.getErrorCode());
-        assertArrayEquals(new String[] {"ok", "7"}, r.getResult());
+        // WeCross's convention: one result per output, an array as JSON (the router passes it to the FISCO callback).
+        assertArrayEquals(new String[] {"[\"ok\",\"7\"]"}, r.getResult());
         assertEquals(42L, r.getBlockNumber());
         assertEquals(1, sentRaw.size());
         assertEquals(Hex.encode(Keccak.hash(Hex.decode(sentRaw.get(0)))), r.getHash());
@@ -178,6 +203,15 @@ public class EvmDriverTest {
         assertEquals("0xaa", b.getBlockHeader().getPrevHash());
         assertEquals(16_000L, b.getBlockHeader().getTimestamp());
         assertEquals(java.util.Collections.singletonList("0xt1"), b.getTransactionsHashes());
+    }
+
+    @Test
+    public void answersTheGenesisRequestWithTheConfiguredReferenceBlock_prunedNodesHaveNoBlockZero() throws Exception {
+        EvmConfig pruned = EvmConfig.parse("[chain]\nrpcUrl = 'http://127.0.0.1:" + server.getAddress().getPort() + "'\nchainId = 84532\ngenesisBlock = 42\n[proxy]\naddress = '" + PROXY + "'\n");
+        CompletableFuture<Block> f = new CompletableFuture<>();
+        new EvmDriver().asyncGetBlock(0, true, new EvmConnection(pruned), (e, b) -> { if (e != null) f.completeExceptionally(e); else f.complete(b); });
+        assertEquals(42L, f.get(10, TimeUnit.SECONDS).getBlockHeader().getNumber());
+        assertEquals(java.util.Collections.singletonList("0x2a"), blockRequests);
     }
 
     @Test

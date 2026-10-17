@@ -115,15 +115,35 @@ public final class EvmDriver implements Driver {
             this.returnsString = returnsString;
         }
 
+        /** WeCross's convention: one result per output, an array as JSON (the router hands result[0] to callbacks). */
         String[] result(byte[] ret) {
             if (ret.length == 0) return new String[0];
             if (returnsString) return new String[] {Abi.decodeString(ret)};
-            return Abi.decodeStringArray(viaProxy ? Abi.decodeBytes(ret) : ret);
+            try {
+                return new String[] {JSON.writeValueAsString(Abi.decodeStringArray(viaProxy ? Abi.decodeBytes(ret) : ret))};
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                throw new IllegalStateException(e);
+            }
         }
     }
 
+    private static final ObjectMapper JSON = new ObjectMapper();
+
+    /** WeCross passes a string[] parameter as one JSON array argument (interchain requests); separate strings stay items. */
+    static String[] items(String[] args) {
+        if (args == null) return new String[0];
+        if (args.length == 1 && args[0].trim().startsWith("[")) {
+            try {
+                return JSON.readValue(args[0], String[].class);
+            } catch (java.io.IOException e) {
+                return args;
+            }
+        }
+        return args;
+    }
+
     static Plan plan(EvmConfig cfg, String resource, TransactionRequest request, boolean byProxy, boolean send) {
-        String[] args = request.getArgs() == null ? new String[0] : request.getArgs();
+        String[] args = items(request.getArgs());
         if (PROXY.equals(resource) && "getXATransactionState".equals(request.getMethod())) {
             return new Plan(cfg.proxy, Abi.call("getXATransactionState(string)", Abi.string(args.length > 0 ? args[0] : "")), false, true);
         }
@@ -159,6 +179,11 @@ public final class EvmDriver implements Driver {
 
     @Override
     public void asyncCall(TransactionContext context, TransactionRequest request, boolean byProxy, Connection connection, Callback callback) {
+        // Base only receives: it has no WeCrossHub, so the router's poll of every chain's hub finds no request here.
+        if (StubConstant.HUB_NAME.equals(context.getPath().getResource()) && !config(connection).resources.containsKey(StubConstant.HUB_NAME)) {
+            callback.onTransactionResponse(null, response(OK, "Success", new String[] {"null"}));
+            return;
+        }
         reader.submit(() -> {
             try {
                 Plan p = plan(config(connection), context.getPath().getResource(), request, byProxy, false);
@@ -248,7 +273,9 @@ public final class EvmDriver implements Driver {
     public void asyncGetBlock(long blockNumber, boolean onlyHeader, Connection connection, GetBlockCallback callback) {
         reader.submit(() -> {
             try {
-                JsonNode b = rpc(connection, "eth_getBlockByNumber", q(BigInteger.valueOf(blockNumber)), false);
+                // The router identifies a chain by its block 0; pruned Base nodes serve a configured reference block.
+                long n = blockNumber == 0 ? config(connection).genesisBlock : blockNumber;
+                JsonNode b = rpc(connection, "eth_getBlockByNumber", q(BigInteger.valueOf(n)), false);
                 if (b == null || b.isNull()) throw new IllegalStateException("no block " + blockNumber);
                 BlockHeader h = new BlockHeader();
                 h.setNumber(quantity(b.get("number")).longValue());
