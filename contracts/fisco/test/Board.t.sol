@@ -127,6 +127,11 @@ contract BoardTest is BoardBase {
         assertEq(abi.decode(status.proposal(id2).fields, (P.HeartbeatAttestation)).epoch, 2);
     }
 
+    /// FISCO stamps blocks in milliseconds; boards convert to the seconds attestations carry.
+    function test_chainTimeIsInSeconds() public view {
+        assertEq(status.chainTimeSeconds(), NOW_MS / 1000);
+    }
+
     function test_globalStatus() public {
         vm.prank(regFisco);
         uint256 id = status.openStatus(address(0), 2, _dl());

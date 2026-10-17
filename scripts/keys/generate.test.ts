@@ -28,6 +28,10 @@ describe('key plan', () => {
     expect(names).toContain('INTERNAL_TOKEN_BUNDLER');
   });
 
+  it('has a FISCO account for the bridge-relayer in every set (D23)', () => {
+    for (const set of KEY_SETS) expect(plannedNames()).toContain(`${set}_RELAYER_FISCO_KEY`);
+  });
+
   it('has fixed FISCO keys for the WeIdentity admin and the WeCross stub in every set (Q32, Q40)', () => {
     const names = plannedNames();
     for (const set of KEY_SETS) {

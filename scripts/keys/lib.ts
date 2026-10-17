@@ -33,6 +33,8 @@ export const WALLET_ROLES = [
   // FISCO key per run, and the committee must open each one in the deploy whitelist (Q32, Q40).
   'WEID_ADMIN_KEY',
   'WECROSS_FISCO_KEY',
+  // The bridge-relayer marks BaseOutbox messages delivered with its own FISCO account (D23).
+  'RELAYER_FISCO_KEY',
 ] as const;
 
 const hex32 = () => randomBytes(32).toString('hex');

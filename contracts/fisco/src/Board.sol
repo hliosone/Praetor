@@ -111,6 +111,10 @@ abstract contract Board {
         emit Closed(id);
     }
 
+    function chainTimeSeconds() external view returns (uint64) {
+        return _nowSeconds();
+    }
+
     function proposal(uint256 id) external view returns (Proposal memory) {
         return proposals[id];
     }
