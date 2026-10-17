@@ -16,5 +16,10 @@ regexTarget = "secret"
 regexes = ['''^0x[0-9a-fA-F]{40}$''']
 
 [[allowlists]]
+description = "Mini program string keys (a field named key holding e.g. 'tier.T0_NEVER'): a word, a dot and an upper-case identifier is never a credential"
+regexTarget = "secret"
+regexes = ['''^(tier|status|reason)\.[A-Z0-9_]+$''']
+
+[[allowlists]]
 description = "EVM stub golden vectors: a test key derived from a public label (keccak256 of 'praetor-wecross-evm-stub-test'), never funded"
 paths = ['''^wecross/evm-stub/src/test/resources/vectors\.json$''']
