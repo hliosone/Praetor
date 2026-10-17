@@ -58,7 +58,7 @@ lint: ## Type-check every TypeScript package
 	pnpm -s -r --if-present typecheck
 
 test-unit: test-scripts test-contracts
-	pnpm -s -r --if-present test
+	pnpm -r --if-present --reporter-hide-prefix test
 
 # Every commit: the quick fuzz profile. Milestone gate: `make test-contracts-full` (10k fuzz runs, spec 10).
 test-contracts:

@@ -10,6 +10,9 @@ solc_version = "0.8.28"
 evm_version = "paris"
 optimizer = true
 optimizer_runs = 200
+# The bytecode is embedded in packages/fisco-client: no metadata hash, so it does not depend on the checkout path.
+bytecode_hash = "none"
+cbor_metadata = false
 fs_permissions = [{ access = "read", path = "../../packages/protocol/vectors" }]
 remappings = [
   "forge-std/=lib/forge-std/src/",
