@@ -58,9 +58,11 @@ test-unit: test-scripts test-contracts
 # Every commit: the quick fuzz profile. Milestone gate: `make test-contracts-full` (10k fuzz runs, spec 10).
 test-contracts:
 	cd contracts/base && FOUNDRY_PROFILE=quick forge test --no-match-path 'test/fork/*' -q
+	cd contracts/fisco && FOUNDRY_PROFILE=quick forge test -q
 
-test-contracts-full: ## Base contracts with 10k fuzz runs and full invariants
+test-contracts-full: ## Base and FISCO contracts with 10k fuzz runs and full invariants
 	cd contracts/base && forge test --no-match-path 'test/fork/*'
+	cd contracts/fisco && forge test
 
 test-fork: ## Base contracts fork tests on the real Safe7579 (needs network)
 	cd contracts/base && forge test --match-path 'test/fork/*'
