@@ -14,7 +14,7 @@ The automated suites use the scripted model for determinism (F4, F5, tool lockdo
 
 ## Guomi profile (M15 smoke, 2026-10-17)
 
-`make smoke-sm` (`infra/fisco/sm/run.sh`), last run 2026-10-17 20:09 to 20:12 UTC: 3 min 11 s with WeIdentity (warm Gradle cache), 45 s for the chain part alone (`SKIP_WEID=1`); the same results on each of the three full runs. Separate from `make test`: it needs Docker and a few minutes. Every run starts from nothing (fresh test-only keys, fresh chain) and removes its containers and network at the end; everything generated stays in `.run/sm` (git- and docker-ignored). Decisions: D55 to D59.
+`make smoke-sm` (`infra/fisco/sm/run.sh`), last run 2026-10-17 20:15 to 20:18 UTC: 3 min with WeIdentity (warm Gradle cache), 45 s for the chain part alone (`SKIP_WEID=1`); four full runs, the same results each time (the last one added the topic and literal checks). Separate from `make test`: it needs Docker and a few minutes. Every run starts from nothing (fresh test-only keys, fresh chain) and removes its containers and network at the end; everything generated stays in `.run/sm` (git- and docker-ignored). Decisions: D55 to D59.
 
 ### What runs
 
@@ -45,7 +45,7 @@ The automated suites use the scripted model for determinism (F4, F5, tool lockdo
 | Java SDK secp256k1 signatures over those digests are byte-identical to the vectors (RFC 6979, low s, v 27/28) | PASS, PASS |
 | SM2 binding: round trip, FISCO address = SM3(public key)[12..32], refused for another Base signer, for another SM2 key and when tampered | 5 PASS |
 
-### On the SM chain: 35 PASS, 0 FAIL, 5 INFO
+### On the SM chain: 37 PASS, 0 FAIL, 5 INFO
 
 | Area | Check | Result |
 |---|---|---|
@@ -58,7 +58,7 @@ The automated suites use the scripted model for determinism (F4, F5, tool lockdo
 | Status attestation (AgentStatus) | Freeze opened by the regulator: nonce 1, threshold 1, `fiscoRef` = SM3(abi.encode(board, id)); `digestOf` reverts `DigestOffChain`; a non-member SM2 account cannot submit (NotMember); the regulator's signature (Base digest computed off-chain, checked by the submitter first) makes it Ready, stored under its Base signer; `statusOf` = FROZEN; the outbox holds the attestation bytes and the opaque signature, and replaying Base's checks off-chain (keccak digest, ecrecover, member, threshold) accepts them | 8 PASS |
 | Loosening | Unfreeze opened by the bank: threshold 2, nonce 2; a second submission by the same member is refused (AlreadySigned); with bank and operator it is Ready, signers ascending, each signature recovering to its signer, Base would accept; `statusOf` = ACTIVE, 2 outbox messages | 4 PASS |
 | AuditLog | Only the operator appends (OnlyOperator); the on-chain head is the SM3 chain of the entry hashes and differs from the main profile's keccak head for the same entries (audit vector); an anchor (seq 1, that head) is Ready with the operator's and the bank's signatures, which Base would accept | 4 PASS |
-| SM3 facts | The SHA3 opcode computes SM3 (`keccak256("abc")` in Solidity returns `66c7f0f4...`); the dispatcher answers the SM3 selector and refuses the keccak one | 2 PASS |
+| SM3 facts | The SHA3 opcode computes SM3 (`keccak256("abc")` in Solidity returns `66c7f0f4...`); `keccak256` of a literal (foldable at compile time, like the typehash constants) returns SM3 too; the dispatcher answers the SM3 selector and refuses the keccak one; event topic0 of `ProposalOpened` is the SM3 hash of its signature (`9875b0bd...`, keccak would be `23e9ec8e...`), so log filters need SM3 topics | 4 PASS |
 | Member change | The old binding does not cover a new Base signer (refused before submission); a 2-of-3 `setMember` with a fresh binding stores the operator's new Base signer, and the binding verifies | 2 PASS |
 | INFO | Native RPC `call` to the genesis committee contract at block 0 returns empty with status 0 (it answers from block 1: the smoke reads governance after the first proposal) | recorded |
 | INFO | Crypto precompile `0x100a`: `keccak256Hash("abc")` = keccak256, `sm3("abc")` = SM3; `ecrecover` recovers the secp256k1 signer; `sm2Verify` accepts the bank's binding and returns the bank's FISCO account | recorded |
@@ -76,7 +76,7 @@ The automated suites use the scripted model for determinism (F4, F5, tool lockdo
 ### What does not work in SM mode, and why
 
 - **viem and the web3 RPC cannot send transactions** (V2): an SM chain accepts only SM2-signed transactions, so every TypeScript service that writes to FISCO through viem (`packages/fisco-client`, member services, bridge-relayer, the deploy script) cannot run against it. The Guomi profile is this smoke through the Java SDK, not a second running stack; the web3 RPC still serves reads (WeIdentity's deploy script uses it).
-- **No EIP-712 on FISCO with the SHA3 opcode**: SHA3, selectors, event topics and constant `keccak256` folding are SM3, so a board cannot compute Base's digest. The boards store signatures as opaque bytes (spec 04), `digestOf` and `domainSeparator` revert, member services compute the digest off-chain from `domainName` and `baseHook`, and Base verifies. Not an impossibility: the precompile's `keccak256Hash` and `ecrecover` work (INFO above), so on-chain verification would be possible with a precompile-based PraetorTypes (D58, not done).
+- **No EIP-712 on FISCO with the SHA3 opcode**: SHA3, selectors, event topics and `keccak256` of literals are SM3 (all measured above), so a board cannot compute Base's digest. The boards store signatures as opaque bytes (spec 04), `digestOf` and `domainSeparator` revert, member services compute the digest off-chain from `domainName` and `baseHook`, and Base verifies. Not an impossibility: the precompile's `keccak256Hash` and `ecrecover` work (INFO above), so on-chain verification would be possible with a precompile-based PraetorTypes (D58, not done).
 - **SM3 values where the main profile has keccak**: `fiscoRef`, board keys, the `policyHash` emitted by `MandateChecked`, and the AuditLog head (so an anchored head is the SM3 chain; `/api/audit/verify` recomputes with keccak and would need SM3 in this profile).
 - **Only members submit signatures**: the main profile's boards accept a signature from any sender (ecrecover attributes it); the SM build attributes it to the sending member's FISCO account, so a relayer cannot submit on a member's behalf.
 - **The agent's secp256k1 key cannot maintain its WeID** (4 scenario steps, BLOCKERS B3): the WeIdentity SDK treats keys as SM2 on an SM chain.

@@ -375,7 +375,12 @@ public final class SmSmoke {
   void statusThroughTheBoard() throws Exception {
     String board = "AgentStatus";
     String account = "0x000000000000000000000000000000000000a11c";
-    ok(chain.send(fisco.get("regulator"), board, at.get(board), "openStatus", account, BigInteger.valueOf(2), deadline(board)), "openStatus freeze");
+    TransactionReceipt opened = chain.send(fisco.get("regulator"), board, at.get(board), "openStatus", account, BigInteger.valueOf(2), deadline(board));
+    ok(opened, "openStatus freeze");
+    String event = "ProposalOpened(uint8,uint256,bytes32,uint64,uint64,address)";
+    String topic0 = opened.getLogEntries().isEmpty() ? "" : opened.getLogEntries().get(0).getTopics().get(0);
+    report.check("evm.topics", "event topics are SM3 too (" + event + "): log filters must use SM3 topics", topic0.equalsIgnoreCase(Abi.hex(chain.sm.hash(event.getBytes(StandardCharsets.UTF_8)))),
+        "topic0 " + topic0 + ", keccak would be " + Abi.hex(base.keccak(event)));
     BigInteger id = lastProposal(board);
     Proposal p = proposal(board, id);
     byte[] fiscoRef = Abi.wordAt(p.fields, 128);
@@ -496,6 +501,9 @@ public final class SmSmoke {
     Call.CallOutput sm3Sel = chain.rawCall(probe, probe, Abi.concat(chain.selector("sha3Of(bytes)"), args));
     report.check("evm.selectors", "the dispatcher answers the SM3 selector and refuses the keccak one", sm3Sel.getStatus() == 0 && keccakSel.getStatus() != 0,
         "SM3 selector status " + sm3Sel.getStatus() + ", keccak selector status " + keccakSel.getStatus());
+    byte[] literal = Abi.wordAt(chain.call("SmProbe", probe, "literalHash"), 0);
+    report.check("evm.literal", "keccak256 of a literal (foldable at compile time, like the typehash constants) is SM3 too", Hex.toHexString(literal).equals(SM3_ABC),
+        Abi.hex(literal));
     byte[] pk = probe(probe, "precompileKeccak", abc);
     report.info("precompile.keccak", "crypto precompile 0x100a keccak256Hash(\"abc\")", pk == null ? "call failed" : Abi.hex(pk) + (Hex.toHexString(pk).equals(KECCAK_ABC) ? " = keccak256" : " (not keccak256)"));
     byte[] ps = probe(probe, "precompileSm3", abc);

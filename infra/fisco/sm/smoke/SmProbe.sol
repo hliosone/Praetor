@@ -18,6 +18,11 @@ contract SmProbe {
         return keccak256(data);
     }
 
+    /// keccak256 of a literal: the compiler may fold it, as with PraetorTypes' typehash constants.
+    function literalHash() external pure returns (bytes32) {
+        return keccak256("abc");
+    }
+
     function precompileKeccak(bytes calldata data) external view returns (bytes32) {
         return CRYPTO.keccak256Hash(data);
     }
