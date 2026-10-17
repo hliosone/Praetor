@@ -1,5 +1,20 @@
 Praetor
-Copyright (c) 2026 the Praetor team. All rights reserved.
+Copyright © 2026 the Praetor team. All rights reserved.
+Source made available for evaluation by FinTechathon 2026 organisers and judges (see LICENSE).
 
-This repository contains or adapts third-party material under its own licences; see
-THIRD_PARTY_LICENSES.md and docs/PREEXISTING.md.
+This repository contains or adapts third-party material under its own licence. Each file keeps its notice:
+
+- contracts/base/src/vendor/wecross/WeCrossProxyEVM.sol: modified copy of WeCrossProxy.sol from
+  WeCross-BCOS3-Stub v1.4.0 (Apache-2.0, WeBank).
+- infra/wecross/patches/account-manager/Default.java: modified copy of a class of WeCross-Account-Manager
+  v1.4.0 (Apache-2.0, WeBank).
+- wecross/evm-stub: structure of WeCross-Stub-Dev-Template (Apache-2.0, WeBank); the code is new.
+- scripts/wecross/router.ts: the WeCross-Java-SDK login protocol (Apache-2.0, WeBank), reimplemented.
+- services/api/assets/camt.053.001.02.xsd: ISO 20022 message schema, unmodified.
+- spikes/V4-wecross/evm-proxy/WeCrossProxy.bcos3.orig.sol.txt and
+  spikes/V9-webase/webase-front-v3.1.1-no-scaffold.patch: WeCross and WeBASE-Front material (Apache-2.0,
+  WeBank), Phase 0 spikes only.
+
+Solidity libraries are pinned git submodules under contracts/lib (MIT, see their own licence files).
+Dependencies, containers and deployed contracts: THIRD_PARTY_LICENSES.md. Code reused from the team's earlier
+projects: docs/PREEXISTING.md.
