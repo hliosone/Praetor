@@ -123,7 +123,7 @@ Praetor 账户的每一次执行都经过 `MandateHook.preCheck`（I1），无�
 28. **USDC 被隐式批准**（D21）：联盟无法下架 USDC 本身；适用 Circle 自身的控制。
 29. **流程。** 自 D49 起 `make slither` 通过，因为它像 `lib/` 一样过滤内置的 WeCross proxy；该 proxy 的发现在 [slither.md](../security/slither.md) 中逐一判定，而不作为关卡。M17 中发现的 gitleaks worktree 问题已修复（脚本挂载了公共 git 目录）。[deps.md](../security/deps.md) 中的依赖公告尚未升级。
 30. **默认 profile 中的仅测试服务。** 脚本化的伪 LLM 随 `agent` profile 启动；当 `PRAETOR_ENV=prod` 时 agent-runner 拒绝 `FAKE_LLM_URL`，因此生产部署必须保持其为空。`infra/compose.prod.yml` 把伪 LLM 移到 `test` profile，因此生产 compose 从不启动它。
-31. **已构建的恢复流程（F10）。** KYC 供应商是已标注的模拟服务，总是批准（风险 26），因此在演示中，任何知道所有者邮箱以及密封记录中四个身份字段的人都可以安排一次恢复；所有者的保护是 48 小时延迟、其间账户处于 RESTRICTED，以及任何剩余 passkey 都可以取消。银行的恢复通知发往其自身的日志接收端（D13），而不是所有者的设备；所有者可在 Web 应用的设置页以及 RESTRICTED 状态中看到待执行的恢复。`/api/recover/options` 对没有账户的邮箱返回 404，因此会泄露某个邮箱是否属于 Praetor 用户（按客户端限流，D71）。恢复需要由 KYC 提供方签发的 PersonKYC：通过 EUDI 钱包开户的所有者无法恢复（银行拒绝）。执行之后旧审批作废（新的 epoch），微信绑定被清除，智能体密钥被撤销，因此所有者需要重新安装智能体密钥（`SET_AGENT_KEY`，所有者与银行）。
+31. **已构建的恢复流程（F10）。** KYC 供应商是已标注的模拟服务，总是批准（风险 26），因此在演示中，任何知道所有者邮箱以及密封记录中四个身份字段的人都可以安排一次恢复；所有者的保护是 48 小时延迟、其间账户处于 RESTRICTED，以及任何剩余 passkey 都可以取消。银行的恢复通知发往其自身的日志接收端（D13），而不是所有者的设备；所有者可在 Web 应用的设置页以及 RESTRICTED 状态中看到待执行的恢复。`/api/recover/options` 对没有账户的邮箱返回 404，因此会泄露某个邮箱是否属于 Praetor 用户（按客户端限流，D71）。恢复需要由 KYC 提供方签发的 PersonKYC：通过 EUDI 钱包开户的所有者无法恢复（银行拒绝）。执行之后旧审批作废（新的 epoch），微信绑定被清除，智能体密钥被撤销，因此所有者需要重新安装智能体密钥（`SET_AGENT_KEY`，所有者与银行）。api 在该微信用户下次登录时才删除小程序绑定，而不是立即删除：恢复之前打开的小程序会话在其 2 小时令牌过期之前仍可读取该账户（其 SOTER 审批会在链上失败，因为绑定已被清除）。
 
 ## 6. 静态分析
 

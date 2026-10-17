@@ -361,7 +361,7 @@ sequenceDiagram
 
 `apps/miniprogram` 是所有者在微信中的日常界面：投资组合、状态、决策、智能体对话，以及通过 SOTER 用 Face ID 或指纹完成的 T2 审批（原生 WXML、WXSS 和 JS，英文与中文）。
 
-- **登录**（D50）。`wx.login` 给出一个 code；`POST /mp/session` 让 api 自行调用 code2Session，并只保留 `keccak256(openid)`。bearer 令牌有效期 2 小时，绝不等同于 Web 会话，并且只有在 LINK_WECHAT 之后记录的绑定仍与 Base 上的 `bindingOf(account)` 一致时才指向该账户，每次登录都会检查；解绑或恢复会使其失效。
+- **登录**（D50）。`wx.login` 给出一个 code；`POST /mp/session` 让 api 自行调用 code2Session，并只保留 `keccak256(openid)`。bearer 令牌有效期 2 小时，绝不等同于 Web 会话，并且只有在 LINK_WECHAT 之后记录的绑定仍与 Base 上的 `bindingOf(account)` 一致时才指向该账户，每次登录都会检查；从 Web 应用解绑会立即结束其会话，恢复（会清除 Base 上的绑定）则在下次登录时结束。
 - **路由**（D51、D53）。`/mp` 为已绑定的用户提供所有者的读取接口、智能体对话、拒绝、SOTER 审批和 F2 绑定，不提供任何所有者操作：解绑、新增定期付款和修改策略会复制 Web 应用的链接，由 passkey 在那里签名。任何响应都不包含所有者的邮箱或 KYC 数据。
 - **手机端的检查**（D52、D54）。在 SOTER 签署审批之前，手机解码每笔调用，重新计算 call hash 和 Tier2Approval 摘要，并签署它自己计算的摘要；对于绑定，它要求操作为 LINK_WECHAT 且 `payloadHash = keccak256(abi.encode(linkNonce))`。摘要代码是由 `src/protocol.mjs` 生成的 `lib/protocol.js`，并用黄金向量校验。
 - **状态。** 逻辑测试在 `make test` 中（替代 DevTools 构建）；在手机上，它以调试模式运行在微信测试账号下（[MANUAL.md](../MANUAL.md) 第 5 节，[TESTER.md](../TESTER.md)）。
