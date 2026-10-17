@@ -82,6 +82,24 @@ describe('recovery when every passkey is lost', () => {
     expect(o.options.excludeCredentials ?? []).toEqual([]);
   });
 
+  it('keeps recovering the first account of an email when someone signs up later with the same (unverified) email', async () => {
+    const store = new MemoryApiStore();
+    const app = createApiApp({
+      store, sessionSecret: 's'.repeat(64), rpId: RP, origin: ORIGIN,
+      accountFor: async (p) => ({ address: `0x${p.credIdHash.slice(-40)}` as `0x${string}` }),
+      recovery: { start: async () => ({ redirectUrl: 'https://praetor.localhost/kyc-mock/?session=r1' }), status: async () => ({ state: 'none' }), execute: async () => ({}) },
+    });
+    const signUp = async (label: string) => {
+      const { body: u } = await request(app).post('/api/onboarding/start').send({ email: 'lin@example.com' });
+      const { body: o } = await request(app).post('/api/onboarding/passkey/options').send({ userId: u.userId });
+      await request(app).post('/api/onboarding/passkey/verify').send({ userId: u.userId, response: softPasskey(label, RP, ORIGIN).registration(o.challenge) }).expect(200);
+      return u.userId as string;
+    };
+    const lin = await signUp('lin');
+    await signUp('squatter');
+    expect((await request(app).post('/api/recover/options').send({ email: 'lin@example.com' }).expect(200)).body.userId).toBe(lin);
+  });
+
   it('knows no account for an unknown email', async () => {
     const { app } = setup();
     await request(app).post('/api/recover/options').send({ email: 'nobody@example.com' }).expect(404);
