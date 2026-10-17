@@ -29,7 +29,7 @@ Single source of truth for where the build stands. After a context reset: read `
 - [x] M6 identity (gate: 43-step scenario, PersonKYC, AgentMandate 2 sigs, revocation)
 - [x] M7 TEEs on the simulator (gate: integration, I13)
 - [x] M8 mcp, agent-runner + OpenCode (fake LLM), scheduler, oracle-feeder (gate: e2e F4, F5)
-- [ ] M9 api, notifier (gate: e2e F1, F2, F3, F6)
+- [x] M9 api, notifier (gate: e2e F1, F2, F3, F6)
 - [ ] M10 standing orders, payout partner, Alipay+/WeChat Pay mocks (gate: e2e F7)
 - [ ] M11 audit writer, anchors, verify, camt.053 (gate: e2e F8, XSD)
 - [ ] M12 WeCross router + EVM stub, watchdog (gate: integration + e2e F9 with `BRIDGE=wecross`)
@@ -55,3 +55,4 @@ Single source of truth for where the build stands. After a context reset: read `
 | M6 | 2026-10-17 10:07 | 2026-10-17 11:16 | 69 min |
 | M7 | 2026-10-17 11:16 | 2026-10-17 12:02 | 46 min |
 | M8 | 2026-10-17 12:02 | 2026-10-17 14:40 | 2 h 38 min |
+| M9 | 2026-10-17 14:40 | 2026-10-17 15:37 | 57 min |
