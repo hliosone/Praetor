@@ -1,0 +1,44 @@
+[
+  {
+    "amount": "1000000",
+    "price8": "100000000",
+    "decimals": 6,
+    "valueUsd6": "1000000",
+    "refused": false
+  },
+  {
+    "amount": "1000000000000000000",
+    "price8": "265012345678",
+    "decimals": 18,
+    "valueUsd6": "2650123456",
+    "refused": false
+  },
+  {
+    "amount": "500000000000000000",
+    "price8": "3112000000",
+    "decimals": 18,
+    "valueUsd6": "15560000",
+    "refused": false
+  },
+  {
+    "amount": "1",
+    "price8": "1",
+    "decimals": 18,
+    "valueUsd6": "0",
+    "refused": false
+  },
+  {
+    "amount": "340282366920938463463374607431768211456",
+    "price8": "100000000",
+    "decimals": 6,
+    "valueUsd6": "340282366920938463463374607431768211456",
+    "refused": false
+  },
+  {
+    "amount": "340282366920938463463374607431768211457",
+    "price8": "100000000",
+    "decimals": 6,
+    "valueUsd6": null,
+    "refused": true
+  }
+]

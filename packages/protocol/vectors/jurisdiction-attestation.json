@@ -1,0 +1,31 @@
+{
+  "primaryType": "JurisdictionAttestation",
+  "domain": {
+    "name": "Praetor-test",
+    "version": "1",
+    "chainId": 84532,
+    "verifyingContract": "0x00000000000000000000000000000000DeaDBeef"
+  },
+  "encodeType": "JurisdictionAttestation(bytes2 jurisdiction,bool payoutBlocked,uint64 nonce,uint64 deadline,bytes32 fiscoRef)",
+  "typehash": "0xc53b77d3922bc7eb0e7c3218ed4567663e280f019c6fffd4867786c1103636fc",
+  "message": {
+    "jurisdiction": "0x434e",
+    "payoutBlocked": true,
+    "nonce": "1",
+    "deadline": "1800003600",
+    "fiscoRef": "0x23f68c9bd22b8a93d06adabe17481c87c016bcbd20adc8bfd707a4d813a57217"
+  },
+  "encoded": "0x434e00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000006b49e01023f68c9bd22b8a93d06adabe17481c87c016bcbd20adc8bfd707a4d813a57217",
+  "structHash": "0x6ede58ffd9a871a5d07229e9034a302d5373769b3302538997f0778ec6b8b981",
+  "digest": "0x0b8c86034389267d27858667a7bdc1459e832eb0861cf05bb61452614e081624",
+  "signatures": [
+    {
+      "who": "regulator",
+      "signer": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      "sig": "0x36cb42a8af1cfc7fe6044d89696442b133d12e8c1a62d518c233f012815d155034e109edfe6ac3cc238aee82d9cfe04e5ec8ffec16197c9f85c28167bd6c51411b"
+    }
+  ],
+  "sortedSigs": [
+    "0x36cb42a8af1cfc7fe6044d89696442b133d12e8c1a62d518c233f012815d155034e109edfe6ac3cc238aee82d9cfe04e5ec8ffec16197c9f85c28167bd6c51411b"
+  ]
+}

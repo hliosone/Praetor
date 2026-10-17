@@ -43,3 +43,7 @@ export const P256_N = 0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2
 
 // WebAuthn.sol refuses s > n/2; iPhones return a high s about half the time, so normalise off-chain.
 export const normalizeP256S = (s: bigint): bigint => (s > P256_N / 2n ? P256_N - s : s);
+
+// T4 attestations point back at the FISCO proposal they came from (spec 02, fiscoRef).
+export const fiscoRef = (fiscoContract: Address, proposalId: bigint): Hex =>
+  keccak256(encodeAbiParameters([{ type: 'address' }, { type: 'uint256' }], [fiscoContract, proposalId]));

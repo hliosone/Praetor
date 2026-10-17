@@ -1,0 +1,20 @@
+{
+  "binding": {
+    "mpAppId": "wx-test-app",
+    "openid": "o-test-openid",
+    "uid": "uid-test",
+    "cpuId": "cpu-test",
+    "bindingHash": "0xf8d4c15e8fc26cabf0e90a061a8a127c823cc284ccb2cebdb95ca3faa02387d0"
+  },
+  "merchant": {
+    "merchantId": "KOWLOON-LETTINGS",
+    "merchantRef": "0x920d2a253a8ffabbf274d987f382065bdbd67823c8b72836bbedb96aed9d1cab",
+    "partner": "0x00000000000000000000000000000000000000c1",
+    "merchantKey": "0x1eb531df5c8466a7269ca064dbc34eee3f2ebb37ade51dfcbf483339b741b1e6"
+  },
+  "fiscoRef": {
+    "fiscoContract": "0x0000000000000000000000000000000000001001",
+    "proposalId": "1",
+    "fiscoRef": "0xf04c2c5f6f9b62a2b5225d778c263b65e9f9e981a3c2cee9583d90b6a62a361c"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "primaryType": "SanctionsAttestation",
+  "domain": {
+    "name": "Praetor-test",
+    "version": "1",
+    "chainId": 84532,
+    "verifyingContract": "0x00000000000000000000000000000000DeaDBeef"
+  },
+  "encodeType": "SanctionsAttestation(address target,bool listed,uint64 nonce,uint64 deadline,bytes32 fiscoRef)",
+  "typehash": "0xceb99f13872566320c97cb13defd9d0466acfa0dd181d15ad90014670db700c9",
+  "message": {
+    "target": "0x00000000000000000000000000000000000000c1",
+    "listed": false,
+    "nonce": "2",
+    "deadline": "1800003600",
+    "fiscoRef": "0xb72ca3aecebdec5818b845ba12129e826838b3b71dced7a87aa9ca141d6fcfc6"
+  },
+  "encoded": "0x00000000000000000000000000000000000000000000000000000000000000c100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000006b49e010b72ca3aecebdec5818b845ba12129e826838b3b71dced7a87aa9ca141d6fcfc6",
+  "structHash": "0x31e09f1b015ad3878fdd627f933663f4dc751a7e87ecdf0855eca7f2881338a8",
+  "digest": "0x3f4169ea9821d9a6e04f51a9b0b38646ae17667940fbae344a5c75b0acf66e79",
+  "signatures": [
+    {
+      "who": "bank",
+      "signer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "sig": "0x80dd3ac596c0a42f81b5b635c62bc362726bfaa8aba7937b973ba4a4c76f2c0b3cfed07fdccbb05ac7f514ed388acd407d7e2de575dd567354832d1c7f27c8981b"
+    },
+    {
+      "who": "regulator",
+      "signer": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      "sig": "0xa196638dace8b64e81942cd4be2208495e7117ceb6ea53c4d92fdbfb583afc5a65600c198cfec99b6ca6d0ce93c5054b6475cfe732eb58558c76eabb561dcb731c"
+    }
+  ],
+  "sortedSigs": [
+    "0xa196638dace8b64e81942cd4be2208495e7117ceb6ea53c4d92fdbfb583afc5a65600c198cfec99b6ca6d0ce93c5054b6475cfe732eb58558c76eabb561dcb731c",
+    "0x80dd3ac596c0a42f81b5b635c62bc362726bfaa8aba7937b973ba4a4c76f2c0b3cfed07fdccbb05ac7f514ed388acd407d7e2de575dd567354832d1c7f27c8981b"
+  ]
+}

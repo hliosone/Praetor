@@ -1,0 +1,31 @@
+{
+  "primaryType": "SoterApproval",
+  "domain": {
+    "name": "Praetor-test",
+    "version": "1",
+    "chainId": 84532,
+    "verifyingContract": "0x00000000000000000000000000000000DeaDBeef"
+  },
+  "encodeType": "SoterApproval(address account,bytes32 digest,bytes32 bindingHash,uint64 soterCounter,uint64 expiresAt)",
+  "typehash": "0x440dad7c25ed4a15fcfa14dca5e83d551ec8af58d1c5857894a86d11ed79c7f9",
+  "message": {
+    "account": "0x000000000000000000000000000000000000a11c",
+    "digest": "0x7058b560fd3bce9e193e6f1fa5a3c8d883e366e49136f0c91177bf4c908a0063",
+    "bindingHash": "0xf8d4c15e8fc26cabf0e90a061a8a127c823cc284ccb2cebdb95ca3faa02387d0",
+    "soterCounter": "7",
+    "expiresAt": "1800000600"
+  },
+  "encoded": "0x000000000000000000000000000000000000000000000000000000000000a11c7058b560fd3bce9e193e6f1fa5a3c8d883e366e49136f0c91177bf4c908a0063f8d4c15e8fc26cabf0e90a061a8a127c823cc284ccb2cebdb95ca3faa02387d00000000000000000000000000000000000000000000000000000000000000007000000000000000000000000000000000000000000000000000000006b49d458",
+  "structHash": "0x307e9f16c68e6225c6b7534dd5e289b6a748f4e45640a74dc981a233052b0e0f",
+  "digest": "0x19a9b3aa0256afbd8c3cfb88cfe575cb5529aeaac6468e8e08a2f5e86662faf6",
+  "signatures": [
+    {
+      "who": "attester",
+      "signer": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
+      "sig": "0x26fad1e33cefa33e60d0186bf9542f114011986a69910a17c6f58db867a54b651247e8daf7a00545e99ee3773d8909ee1bdaebae2e704fdf1d8855ba2e0f47dd1b"
+    }
+  ],
+  "sortedSigs": [
+    "0x26fad1e33cefa33e60d0186bf9542f114011986a69910a17c6f58db867a54b651247e8daf7a00545e99ee3773d8909ee1bdaebae2e704fdf1d8855ba2e0f47dd1b"
+  ]
+}

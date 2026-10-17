@@ -1,0 +1,36 @@
+{
+  "primaryType": "AnchorAttestation",
+  "domain": {
+    "name": "Praetor-test",
+    "version": "1",
+    "chainId": 84532,
+    "verifyingContract": "0x00000000000000000000000000000000DeaDBeef"
+  },
+  "encodeType": "AnchorAttestation(uint64 seq,bytes32 head,uint64 fiscoBlock,uint64 deadline)",
+  "typehash": "0xcf1a6cc16eb40031fd966f68843d7c24e14aa0fddcb66d2e6af5a7ea5dcae865",
+  "message": {
+    "seq": "1",
+    "head": "0xa0e23853ab5e177831e1708bfbc31c2655f9b3e998433b7c2d3dd5c9c231da06",
+    "fiscoBlock": "1234",
+    "deadline": "1800003600"
+  },
+  "encoded": "0x0000000000000000000000000000000000000000000000000000000000000001a0e23853ab5e177831e1708bfbc31c2655f9b3e998433b7c2d3dd5c9c231da0600000000000000000000000000000000000000000000000000000000000004d2000000000000000000000000000000000000000000000000000000006b49e010",
+  "structHash": "0x751a9b53c585283d85b979c27dc3fa5794f87f9b10e53efa0d0517c9fd0167ef",
+  "digest": "0x6bf4302908b415b626de807c0978d09ece912f042eac67612746f5268c44336e",
+  "signatures": [
+    {
+      "who": "bank",
+      "signer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "sig": "0x79ed9cecb33b20f633ef04a7f16a2e5aabbcfa825b910dcb813ba4c3bfc68d5e43c6fe81bc8e66a42f1c86fb521c6bf73db69abf6ad9d005391fc0709e095b261c"
+    },
+    {
+      "who": "operator",
+      "signer": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+      "sig": "0xa13586ad1f18d7e5a0ef689c47d549070e9afbf5181685a287477ef6b21e6aea74b194ee7864459a231833129cad530c3d7a88a3fe12dc5241180f3868f74d261c"
+    }
+  ],
+  "sortedSigs": [
+    "0x79ed9cecb33b20f633ef04a7f16a2e5aabbcfa825b910dcb813ba4c3bfc68d5e43c6fe81bc8e66a42f1c86fb521c6bf73db69abf6ad9d005391fc0709e095b261c",
+    "0xa13586ad1f18d7e5a0ef689c47d549070e9afbf5181685a287477ef6b21e6aea74b194ee7864459a231833129cad530c3d7a88a3fe12dc5241180f3868f74d261c"
+  ]
+}

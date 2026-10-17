@@ -1,0 +1,29 @@
+{
+  "primaryType": "HeartbeatAttestation",
+  "domain": {
+    "name": "Praetor-test",
+    "version": "1",
+    "chainId": 84532,
+    "verifyingContract": "0x00000000000000000000000000000000DeaDBeef"
+  },
+  "encodeType": "HeartbeatAttestation(uint64 epoch,uint64 validUntil,uint64 deadline)",
+  "typehash": "0xc1fa53bd790aa3c6bcccaf77a88f82da582b438cc1a2595385bc8584150b4fb0",
+  "message": {
+    "epoch": "5",
+    "validUntil": "1800000180",
+    "deadline": "1800003600"
+  },
+  "encoded": "0x0000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000006b49d2b4000000000000000000000000000000000000000000000000000000006b49e010",
+  "structHash": "0x1ca2f804deef8c50f51b27731df29ebf58683fa2d13f154ebd37d239db4af7fe",
+  "digest": "0x1fd99a375c2c6d04ab272ddbae1f9bf845cf1b4e5b0ff0ab9256eb689b28c73f",
+  "signatures": [
+    {
+      "who": "operator",
+      "signer": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+      "sig": "0x3dcaf81a80e102dc3c4bcb391afbf38fda71b05aa2a75c7b68f7b839a6f2a3cc5b630371075cc6efa0e5360ebd8ed817ead7e3ed19f93ea2f595614e95899ca61b"
+    }
+  ],
+  "sortedSigs": [
+    "0x3dcaf81a80e102dc3c4bcb391afbf38fda71b05aa2a75c7b68f7b839a6f2a3cc5b630371075cc6efa0e5360ebd8ed817ead7e3ed19f93ea2f595614e95899ca61b"
+  ]
+}

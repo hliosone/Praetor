@@ -1,0 +1,67 @@
+[
+  {
+    "seq": 0,
+    "account": "0x000000000000000000000000000000000000a11c",
+    "kind": "KYA",
+    "reason": "OK",
+    "fiscoTx": "0xbc4e2282ca2fb33fb49ffd85429fcdeb80ac1ba352cc616add6913a47a5526f8",
+    "atMs": 1800000000000,
+    "prevHead": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "entryHash": "0x3fd058b8cfdc0076cfef8b7b544b9d5cacaa2479f2e40269f0829df98b385252",
+    "head": "0xd90df124e7fbadac7a3150e9d119504a8a4b3823ab5e618ad38aef6873aeb612"
+  },
+  {
+    "seq": 1,
+    "account": "0x000000000000000000000000000000000000a11c",
+    "kind": "DECISION",
+    "reason": "OK",
+    "tier": "T1_AUTONOMOUS",
+    "callHash": "0x9baf9038358ea3a0a5f88ee010d6f998a05fa99bcf62e6a1bb8e494a7f2b9c4a",
+    "baseTx": "0x4a09bf59456901aaf706d13f33481fda03ce6eb1ea3785070cb42ca14c0c048c",
+    "amountUsd6": "150000000",
+    "atMs": 1800000060000,
+    "prevHead": "0xd90df124e7fbadac7a3150e9d119504a8a4b3823ab5e618ad38aef6873aeb612",
+    "entryHash": "0xf3e079bbd91b90bbb41651bfe8cd1b9852f7cb70d8464363c4e70ca809e1989f",
+    "head": "0x0addaaf424709a21608d73c734737aaedeb80416f30a6cfa2e21698cb2d89c52"
+  },
+  {
+    "seq": 2,
+    "account": "0x000000000000000000000000000000000000a11c",
+    "kind": "REFUSAL",
+    "reason": "OVER_AUTO_CAP",
+    "tier": "T2_HUMAN",
+    "callHash": "0x9baf9038358ea3a0a5f88ee010d6f998a05fa99bcf62e6a1bb8e494a7f2b9c4a",
+    "userOpHash": "0x30d1d17e6da7695dbfc1442a9803ddfd83e2cc77080a8d2442ae0f8d92b12c41",
+    "amountUsd6": "450000000",
+    "atMs": 1800000120000,
+    "prevHead": "0x0addaaf424709a21608d73c734737aaedeb80416f30a6cfa2e21698cb2d89c52",
+    "entryHash": "0xaf3d64557f79849e5cc005d596d867427907aba287723359b0da716fed26042f",
+    "head": "0x5120fddfad666d36eb7d88b02a197dcf9a2ab268134c5eb966bdf6b3cc799e26"
+  },
+  {
+    "seq": 3,
+    "account": "0x000000000000000000000000000000000000a11c",
+    "kind": "APPROVAL",
+    "reason": "OK",
+    "tier": "T2_HUMAN",
+    "callHash": "0x9baf9038358ea3a0a5f88ee010d6f998a05fa99bcf62e6a1bb8e494a7f2b9c4a",
+    "atMs": 1800000180000,
+    "prevHead": "0x5120fddfad666d36eb7d88b02a197dcf9a2ab268134c5eb966bdf6b3cc799e26",
+    "entryHash": "0x02723543723483b02fcd7c719e226b625be8ffa372eb5ba7c7d97bbc9582d0d8",
+    "head": "0xa03b92777d9a79d05b3fe77c9e80718507b441140afd04cd8ca5ab9427b424cf"
+  },
+  {
+    "seq": 4,
+    "account": "0x000000000000000000000000000000000000a11c",
+    "kind": "PAYOUT_REQUESTED",
+    "reason": "OK",
+    "payoutId": "1",
+    "paymentRef": "0x0c38459a0b5ed2a98afa2a407dc31ff1744c1c3159dbbbd3aef8736778a0e063",
+    "merchantRef": "0x920d2a253a8ffabbf274d987f382065bdbd67823c8b72836bbedb96aed9d1cab",
+    "amountUsd6": "1200000000",
+    "atMs": 1800000240000,
+    "prevHead": "0xa03b92777d9a79d05b3fe77c9e80718507b441140afd04cd8ca5ab9427b424cf",
+    "entryHash": "0x3bd330886b336df420cb26da4264023662e44ba7b07c02ac838903e3c9358997",
+    "head": "0x919c07f1d3e4fddf0500ec955056fc4d0715e37c8864d3ca98257a83e8c8fe60"
+  }
+]

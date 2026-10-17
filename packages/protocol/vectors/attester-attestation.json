@@ -1,0 +1,32 @@
+{
+  "primaryType": "AttesterAttestation",
+  "domain": {
+    "name": "Praetor-test",
+    "version": "1",
+    "chainId": 84532,
+    "verifyingContract": "0x00000000000000000000000000000000DeaDBeef"
+  },
+  "encodeType": "AttesterAttestation(address attester,bytes32 measurement,bool active,uint64 nonce,uint64 deadline,bytes32 fiscoRef)",
+  "typehash": "0xa8d165bb22eac1d75c6dad79c113758a5a3a1eb950af3fc5d71ecdeb287f0f61",
+  "message": {
+    "attester": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
+    "measurement": "0xe6bd50e4ac62df5009699211ceee4483176fb3ef008248c9dfd4ae6bca70d49c",
+    "active": true,
+    "nonce": "1",
+    "deadline": "1800003600",
+    "fiscoRef": "0xdbb80455918903e41b9ce476660bc079a9e957c43339c0b89b056c5c71c7ea76"
+  },
+  "encoded": "0x00000000000000000000000015d34aaf54267db7d7c367839aaf71a00a2c6a65e6bd50e4ac62df5009699211ceee4483176fb3ef008248c9dfd4ae6bca70d49c00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000006b49e010dbb80455918903e41b9ce476660bc079a9e957c43339c0b89b056c5c71c7ea76",
+  "structHash": "0xe2c9be4bc130228bc580e0037c6cb30d12fa6749f5fd2b9a341f6a737840a354",
+  "digest": "0x9239114fe0767f50c372d12627fe1f2921e02e5dd0cde66d1bde1b60396b4330",
+  "signatures": [
+    {
+      "who": "bank",
+      "signer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "sig": "0x511ffb66b4ae9e62bfc41374c213c2ef7ebbe4d942e69a4584ee3b5e14adcc856e392d33c77df17a962b67ea3537afae2f2f5465e9c949011588dba60c59f6271c"
+    }
+  ],
+  "sortedSigs": [
+    "0x511ffb66b4ae9e62bfc41374c213c2ef7ebbe4d942e69a4584ee3b5e14adcc856e392d33c77df17a962b67ea3537afae2f2f5465e9c949011588dba60c59f6271c"
+  ]
+}
