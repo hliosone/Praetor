@@ -266,6 +266,7 @@ services:
     image: praetor/bridge-relayer:local
     profiles: [chain]
     environment:
+      WECROSS_FISCO_KEY: ${WECROSS_FISCO_KEY}
       PRAETOR_ENV: ${PRAETOR_ENV}
       CHAIN_MODE: ${CHAIN_MODE}
       BASE_RPC_URL: ${BASE_RPC_URL}
@@ -580,6 +581,77 @@ services:
       <<: *health
       start_period: 60s
       test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3110/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+
+  # WeCross (profile wecross, M12, D42): the router (BCOS3 stub for FISCO, Praetor's EVM stub for Base) and its account
+  # manager. wecross-setup generates their configuration once into infra/wecross/generated (TLS keys, passwords;
+  # git-ignored) and deploys WeCrossProxy and WeCrossHub on FISCO; scripts/wecross/up.ts then wires the outbox and the
+  # router's accounts. The router RPC stays on the Docker network.
+  wecross-setup:
+    build:
+      context: ..
+      dockerfile: infra/wecross/Dockerfile
+    image: praetor/wecross:1.4.0
+    profiles: [wecross]
+    labels: { praetor.job: oneshot }
+    command: ['setup']
+    environment:
+      WECROSS_FISCO_KEY: ${WECROSS_FISCO_KEY}
+      WECROSS_ADMIN_PASSWORD: ${WECROSS_ADMIN_PASSWORD}
+      WECROSS_AM_ENCRYPT_KEY: ${WECROSS_AM_ENCRYPT_KEY}
+      MYSQL_PASSWORD_WECROSS: ${MYSQL_PASSWORD_WECROSS}
+      BASE_RPC_URL: ${BASE_RPC_URL}
+      DEPLOYMENTS_FILE: /app/${DEPLOYMENTS_FILE}
+      FISCO_CHANNEL: 10.88.1.10:20200
+    volumes:
+      - ./wecross/generated:/data
+      - ./fisco/nodes/10.88.1.10/sdk:/fisco-sdk:ro
+      - ./deployments:/app/infra/deployments:ro
+    depends_on:
+      fisco-node0:
+        condition: service_healthy
+    networks:
+      praetor:
+        ipv4_address: 10.88.0.52
+
+  wecross-account-manager:
+    image: praetor/wecross:1.4.0
+    pull_policy: never
+    profiles: [wecross]
+    restart: unless-stopped
+    command: ['account-manager']
+    volumes:
+      - ./wecross/generated:/data
+    depends_on:
+      wecross-setup:
+        condition: service_completed_successfully
+      mysql:
+        condition: service_healthy
+    networks:
+      praetor:
+        ipv4_address: 10.88.0.51
+    healthcheck:
+      <<: *health
+      start_period: 60s
+      test: ['CMD-SHELL', "bash -c '</dev/tcp/127.0.0.1/8340'"]
+
+  wecross-router:
+    image: praetor/wecross:1.4.0
+    pull_policy: never
+    profiles: [wecross]
+    restart: unless-stopped
+    command: ['router']
+    volumes:
+      - ./wecross/generated:/data
+    depends_on:
+      wecross-account-manager:
+        condition: service_healthy
+    networks:
+      praetor:
+        ipv4_address: 10.88.0.50
+    healthcheck:
+      <<: *health
+      start_period: 90s
+      test: ['CMD-SHELL', 'curl -sf http://127.0.0.1:8250/sys/test >/dev/null']
 
   # TEEs locally (tee-sim profile): the dstack simulator's sockets on a shared volume, mounted where a CVM has them.
   # In prod both services run in their own Phala CVMs instead (spec 11).

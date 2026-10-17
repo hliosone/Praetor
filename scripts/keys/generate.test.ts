@@ -17,7 +17,7 @@ describe('key plan', () => {
   it('has one prefixed copy of every wallet role per set, plus the shared secrets', () => {
     const names = plannedNames();
     for (const set of KEY_SETS) for (const role of WALLET_ROLES) expect(names).toContain(`${set}_${role}`);
-    for (const shared of ['SESSION_SECRET', 'KYC_ENC_KEY', 'SIGNER_HMAC_MCP', 'VAPID_PRIVATE', 'MYSQL_ROOT_PASSWORD', 'OPENCODE_SERVER_PASSWORD'])
+    for (const shared of ['SESSION_SECRET', 'KYC_ENC_KEY', 'SIGNER_HMAC_MCP', 'VAPID_PRIVATE', 'MYSQL_ROOT_PASSWORD', 'OPENCODE_SERVER_PASSWORD', 'WECROSS_ADMIN_PASSWORD', 'WECROSS_AM_ENCRYPT_KEY'])
       expect(names).toContain(shared);
     expect(new Set(names).size).toBe(names.length);
   });

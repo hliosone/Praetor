@@ -60,6 +60,9 @@ const SHARED: { names: string[]; make: Generator }[] = [
     'STAFF_ENROL_TOKEN_BANK', 'STAFF_ENROL_TOKEN_REGULATOR', 'STAFF_ENROL_TOKEN_OPERATOR'].map((n) => ({ names: [n], make: () => ({ [n]: hex32() }) })),
   { names: ['OPENCODE_SERVER_PASSWORD'], make: () => ({ OPENCODE_SERVER_PASSWORD: password() }) },
   { names: ['MYSQL_ROOT_PASSWORD'], make: () => ({ MYSQL_ROOT_PASSWORD: password() }) },
+  // WeCross account manager (M12): its admin login (the router's too) and its AES key for the stored chain keys.
+  { names: ['WECROSS_ADMIN_PASSWORD'], make: () => ({ WECROSS_ADMIN_PASSWORD: password() }) },
+  { names: ['WECROSS_AM_ENCRYPT_KEY'], make: () => ({ WECROSS_AM_ENCRYPT_KEY: randomBytes(8).toString('hex') }) },
   ...MYSQL_SERVICES.map((s) => ({ names: [`MYSQL_PASSWORD_${s}`], make: () => ({ [`MYSQL_PASSWORD_${s}`]: password() }) })),
   { names: ['VAPID_PUBLIC', 'VAPID_PRIVATE'], make: vapid },
   { names: ['ALIPAYPLUS_TEST_MERCHANT_PRIVATE_KEY', 'ALIPAYPLUS_TEST_MERCHANT_PUBLIC_KEY'], make: () => rsaPair('ALIPAYPLUS_TEST_MERCHANT') },
