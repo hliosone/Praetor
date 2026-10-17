@@ -9,3 +9,13 @@ export async function heartbeatOnce(c: Pick<ConsortiumPort, 'deadline' | 'open' 
   const { ready } = await c.sign('status', proposalId);
   return { proposalId, ready, validUntil };
 }
+
+/** Runs calls of `fn` one after another (the job and a manual beat share it), whatever the previous outcome. */
+export function serialized<A extends unknown[], R>(fn: (...a: A) => Promise<R>): (...a: A) => Promise<R> {
+  let tail: Promise<unknown> = Promise.resolve();
+  return (...a: A) => {
+    const run = tail.then(() => fn(...a), () => fn(...a));
+    tail = run.catch(() => undefined);
+    return run;
+  };
+}
