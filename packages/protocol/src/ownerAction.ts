@@ -1,4 +1,4 @@
-import { encodeAbiParameters, keccak256, type Address, type Hex } from 'viem';
+import { decodeAbiParameters, encodeAbiParameters, keccak256, size, slice, type Address, type Hex } from 'viem';
 import { OwnerActionKind, ZERO_HASH } from './constants.js';
 import { callHash } from './hash.js';
 import { encodePolicy, type Policy } from './policy.js';
@@ -74,4 +74,20 @@ export function ownerActionPayload(a: Args): { payload: Hex; payloadHash: Hex } 
         : plain(encodeAbiParameters([{ type: 'uint8' }, { type: 'bytes32' }], [1, a.merchantKey]));
   }
   throw new Error(`unknown owner action kind ${(a as { kind: number }).kind}`);
+}
+
+/** payloadHash from (account, kind, payload), like PraetorTypes.ownerActionPayloadHash: what a co-signer checks. */
+export function ownerActionPayloadHash(account: Address, kind: number, payload: Hex): Hex {
+  if (kind === K.ADD_STANDING_ORDER) {
+    if (size(payload) !== 256) return keccak256(payload);
+    const [o] = decodeAbiParameters([STANDING_ORDER_TUPLE], payload) as unknown as [StandingOrder];
+    return structHash('StandingOrder', o);
+  }
+  if (kind === K.LINK_WECHAT) {
+    if (size(payload) < 32) return keccak256(payload);
+    return keccak256(encodeAbiParameters([{ type: 'bytes32' }], [slice(payload, 0, 32)]));
+  }
+  if (kind === K.PAUSE_AGENT || kind === K.RESUME_AGENT) return size(payload) === 0 ? ZERO_HASH : keccak256(payload);
+  if (kind === K.MODULE_CHANGE) return callHash({ account, target: account, value: 0n, data: payload });
+  return keccak256(payload);
 }

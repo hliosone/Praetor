@@ -9,3 +9,8 @@ paths = ['''^packages/protocol/vectors/[a-z0-9-]+\.json$''']
 [[allowlists]]
 description = "Deployment files: public contract and member addresses written by the deploy script"
 paths = ['''^infra/deployments/[a-z0-9-]+\.json$''']
+
+[[allowlists]]
+description = "Values that are exactly one 20-byte address (field names like agentKeyValidator); private keys are 32 bytes and never match"
+regexTarget = "secret"
+regexes = ['''^0x[0-9a-fA-F]{40}$''']

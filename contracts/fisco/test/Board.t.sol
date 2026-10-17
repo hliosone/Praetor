@@ -41,6 +41,7 @@ contract BoardTest is BoardBase {
         assertEq(msgs[0].kind, 0);
         assertEq(msgs[0].payload, abi.encode(a));
         assertEq(msgs[0].sigs.length, 1);
+        assertEq(msgs[0].enqueuedAt, NOW_MS / 1000, "the relayer watchdog needs the enqueue time (seconds)");
     }
 
     function test_looseningNeedsTwoAndSignaturesAreSortedBySigner() public {

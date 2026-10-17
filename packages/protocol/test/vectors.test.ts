@@ -22,3 +22,18 @@ describe('golden vectors', () => {
 
   it('uses exactly four test keys', () => expect(Object.keys(TEST_KEYS)).toEqual(['bank', 'regulator', 'operator', 'attester']));
 });
+
+describe('ownerActionPayloadHash (TS twin of the Solidity function)', () => {
+  it('matches every payload vector', async () => {
+    const { ownerActionPayloadHash } = await import('../src/index.js');
+    const file = JSON.parse(readFileSync(new URL('../vectors/owner-action-payloads.json', import.meta.url), 'utf8')) as { kind: number; args: { account: `0x${string}` }; payload: `0x${string}`; payloadHash: `0x${string}` }[];
+    for (const v of file) expect(ownerActionPayloadHash(v.args.account, v.kind, v.payload), String(v.kind)).toBe(v.payloadHash);
+  });
+
+  it('hashes a malformed standing order or link payload as plain bytes, like Solidity', async () => {
+    const { ownerActionPayloadHash, OwnerActionKind } = await import('../src/index.js');
+    const { keccak256 } = await import('viem');
+    expect(ownerActionPayloadHash('0x0000000000000000000000000000000000000001', OwnerActionKind.ADD_STANDING_ORDER, '0x01')).toBe(keccak256('0x01'));
+    expect(ownerActionPayloadHash('0x0000000000000000000000000000000000000001', OwnerActionKind.PAUSE_AGENT, '0x')).toBe(`0x${'00'.repeat(32)}`);
+  });
+});

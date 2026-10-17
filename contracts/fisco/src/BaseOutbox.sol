@@ -16,6 +16,7 @@ contract BaseOutbox {
         bool delivered;
         bytes32 baseTx;
         uint8 transport;
+        uint64 enqueuedAt; // seconds (FISCO block time / 1000): the relayer watchdog acts after BRIDGE_WATCHDOG_S
     }
 
     MemberRegistry public immutable registry;
@@ -60,6 +61,7 @@ contract BaseOutbox {
         m.board = msg.sender;
         m.proposalId = proposalId;
         m.payload = payload;
+        m.enqueuedAt = uint64(block.timestamp / 1000);
         for (uint256 i; i < sigs.length; ++i) m.sigs.push(sigs[i]);
         idPlusOne[msg.sender][proposalId] = id + 1;
         emit Enqueued(id, kind, msg.sender, proposalId);
