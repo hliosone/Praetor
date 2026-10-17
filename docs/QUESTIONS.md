@@ -33,9 +33,11 @@ Total LIVE: about **0.091 ETH + 100 USDC**.
 
 Total SANDBOX: about **0.086 ETH**. LOCAL keys need nothing (the fork funds them with `anvil_setBalance` / `deal`).
 
+**Before saying "go": keep the machine awake.** Phase 0 found no sleep inhibitor (only delay locks; KDE PowerDevil handles the lid switch), so a suspend would silently kill Phase B overnight. Run, in a terminal you leave open: `systemd-inhibit --what=sleep:idle:handle-lid-switch --who=praetor --why="Phase B build" --mode=block sleep infinity` (or set KDE power management to never suspend on AC). Keep the laptop on AC power.
+
 **Human values to put in `.env`** (all 8 are empty today; never paste them in chat):
 - `PYTH_API_KEY` (V8: every Hermes host now answers 401 without it). Without it, the feeder runs in "seeded" mode (Q27).
-- `MP_APPID`, `MP_SECRET`: the mini program test account of the person whose phone does Phase C (Q35).
+- `MP_APPID`, `MP_SECRET`: the mini program test account of the person whose phone does Phase C (Q36).
 - `OA_APPID`, `OA_SECRET`, `OA_TOKEN`, `OA_TEMPLATE_ID`: Official Account test account (+ one test template).
 - `OPENCODE_API_KEY`: optional. The free model works without it (V6). Needed only if the free tier stops answering.
 
@@ -45,7 +47,7 @@ Total SANDBOX: about **0.086 ETH**. LOCAL keys need nothing (the fork funds them
 
 **Q2. Three key sets in one `.env`.** Spec 11 lists unprefixed names (`BUNDLER_KEY`...), and spec 00 requires different member keys for local, live and sandbox. Default (already generated, D1): every wallet key exists three times, as `LOCAL_*`, `LIVE_*` and `SANDBOX_*`. Services read the unprefixed name first (prod's server `.env`), then the prefix of the active set (`CHAIN_MODE=fork` gives LOCAL, `live` gives LIVE, the sandbox deployment gives SANDBOX).
 
-**Q3. One deployer for both chains; bank FISCO account as FISCO governance admin.** Default (D2): `DEPLOYER_KEY` deploys on Base and FISCO and is the only deployer opened in the FISCO deploy whitelist, besides WeIdentity's and WeCross's own deployers (Q22, Q40). `build_chain.sh -a` gets the bank's FISCO address (spec 04).
+**Q3. One deployer for both chains; bank FISCO account as FISCO governance admin.** Default (D2): `DEPLOYER_KEY` deploys on Base and FISCO and is the only deployer opened in the FISCO deploy whitelist, besides WeIdentity's and WeCross's own deployers (Q32, Q40), opened through the committee (Q22). `build_chain.sh -a` gets the bank's FISCO address (spec 04).
 
 **Q4. Versions.** Default: exact pins everywhere. Node tooling pinned to TypeScript 5.9.3 (not the new TypeScript 7 native compiler), vitest 3.2.7, viem 2.57.5, tsx 4.23.15. Pinned images by digest. OpenCode 1.19.3, phala CLI 1.1.22, dstack-sdk 0.5.8, FISCO 3.17.1, WeIdentity 3.1.1-rc.2, WeCross 1.4.0, WeBASE-Front 3.1.1.
 
@@ -73,7 +75,7 @@ Total SANDBOX: about **0.086 ETH**. LOCAL keys need nothing (the fork funds them
 
 ## M2: Base contracts
 
-**Q14. (Critical, I1) The hook cannot block its own removal.** On the deployed Safe7579, `uninstallModule` skips the hooks when the module is the hook itself and swallows a reverting `onUninstall` (V1 T1). Spec 03 lets PasskeyValidator accept raw `uninstallModule` callData, so **the owner's passkey alone could remove MandateHook without the bank**. Default: PasskeyValidator accepts only `execute` (plus the launchpad's `setupSafe` for the first op, Q16). Module changes become `execute(single, account, installModule|uninstallModule(...))`. MandateHook allows that one self-call shape (an exception to rule 5 "target == account → HIDDEN_CALL") only with a live `moduleApprovals[account][callHash(account, 84532, account, 0, innerData)]`. It consumes the approval in the outer preCheck, passes it to the inner `installModule` preCheck through transient storage, and sets `uninstalling` for a hook removal. I will update spec 03 with a note at the top.
+**Q14. (Critical, I1) The hook cannot block its own removal.** On the deployed Safe7579, `uninstallModule` skips the hooks when the module is the hook itself and swallows a reverting `onUninstall` (V1 T1). Spec 03 lets PasskeyValidator accept raw `uninstallModule` callData, so **the owner's passkey alone could remove MandateHook without the bank**. Default: PasskeyValidator accepts only `execute` (plus the launchpad's `setupSafe` for the first op, Q16). Module changes become `execute(single, account, installModule|uninstallModule(...))`. MandateHook allows that one self-call shape (an exception to rule 5 "target == account → HIDDEN_CALL") only with a live `moduleApprovals[account][callHash(account, 84532, account, 0, innerData)]`. It consumes the approval in the outer preCheck, passes it to the inner `installModule` preCheck through transient storage, and sets `uninstalling` for a hook removal. The module-change shape is accepted only as a **single** call (never inside a batch). Because the hook cannot tell which validator signed an op, **AgentKeyValidator rejects any `execute` whose call targets the account itself** (single or any batch entry), so the agent key can never carry out a module change even while a MODULE_CHANGE approval is live (I7). I will update spec 03 with a note at the top.
 
 **Q15. Init batch order.** Spec 00/06 order `[setRegistry(0), installModule(4, hook), installModule(2, executor)]` sends the executor install through the hook just installed, which refuses it, so the first op fails (V1 T2). Default: `[setRegistry(0), installModule(2, StandingOrders), installModule(4, MandateHook)]` (proved on the fork). Spec 00 and 06 get a note.
 
@@ -124,6 +126,10 @@ Total SANDBOX: about **0.086 ETH**. LOCAL keys need nothing (the fork funds them
 **Q35. Agent capacity.** Spec 00/11 say "no capacity limit". One awake OpenCode instance takes 0.6 to 0.9 GB (V6), so a 16 GB server holds about 8 to 12 at once. Default: no limit on users, but at most `AGENT_MAX_ACTIVE` (default 8) awake instances. Further wakes and chats queue (a user waits seconds, never gets refused), plus the 30-minute idle stop.
 
 **Q36. Mini program test account owner.** Test accounts are tied to the WeChat account that created them, and one WeChat account works on one phone (Alex). Default: `MP_*` belong to the person whose iPhone runs Phase C; teammates are added as testers.
+
+**Q44. Reused OAuth/MCP storage.** BSA Sentry's `oauth.ts`/`mcp.ts` store clients, codes and tokens in `node:sqlite` (synchronous), while spec 00 puts every service on MySQL with `mysql2` + `drizzle-orm`. Default: port the reused code to drizzle on the `mcp` database (async), keeping Sentry's tests as the spec of behaviour (hashed secrets and codes, PKCE S256, one account per token).
+
+**Q45. EUDI wallet verifier.** Sentry's EUDI path (reused for bank-service KYC) talks to the EU reference verifier backend (`VERIFIER_BACKEND=https://verifier-backend.eudiw.dev`, `INTENDED_USE_ID`), which issues the `client_id` and `request_uri`, so no verifier certificate of our own is needed. That backend sees the presentation (age_over_18 and issuing country, test PID data). Default: reuse that path as is; the generated `EUDI_VERIFIER_KEY`/`EUDI_VERIFIER_CERT` stay unused, kept for a self-hosted verifier (roadmap).
 
 ## M10 to M12: payouts, audit, WeCross
 

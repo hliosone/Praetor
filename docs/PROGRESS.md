@@ -13,7 +13,7 @@ Single source of truth for where the build stands. After a context reset: read `
 - [x] Commit guard: `.claude/settings.json` attribution off, `scripts/git-hooks/commit-msg` + test, `make setup`
 - [x] `scripts/keys/generate.ts` + tests; keys generated into `.env` (600), three sets
 - [x] Spikes V1 to V11 (`docs/PHASE0.md` section 2, `spikes/V*/RESULT.md`)
-- [x] `docs/QUESTIONS.md` (43 questions with defaults, funding list)
+- [x] `docs/QUESTIONS.md` (45 questions with defaults, funding list, keep-awake step)
 - [x] Repo `CLAUDE.md`
 - [x] Commit, push, stop with the PHASE 0 DONE message
 

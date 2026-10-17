@@ -10,7 +10,7 @@ Steps are added during Phase B, each time something needs a human (phone Face ID
 
 | | |
 |---|---|
-| **You do** | Answer `docs/QUESTIONS.md` (or accept the defaults), fill the empty human values in `.env` (`MP_*`, `OA_*`, `PYTH_API_KEY`, `OPENCODE_API_KEY` if needed), fund the addresses listed in QUESTIONS.md section "Funding", then say "go". |
+| **You do** | Keep the laptop awake on AC power: leave `systemd-inhibit --what=sleep:idle:handle-lid-switch --who=praetor --why="Phase B build" --mode=block sleep infinity` running in a terminal (or set KDE power management to never suspend). Answer `docs/QUESTIONS.md` (or accept the defaults), fill the empty human values in `.env` (`MP_*`, `OA_*`, `PYTH_API_KEY`, `OPENCODE_API_KEY` if needed), fund the addresses listed in QUESTIONS.md section "Funding", then say "go". |
 | **You see** | Balances on https://sepolia.basescan.org for each funded address. |
 | **Claude checks** | `.env` values present (never printed), balances read on Base Sepolia, then starts Phase B. |
 | **Fallback** | Unfunded live addresses: Phase B runs everything on the fork; M16 (live run) waits in BLOCKERS.md. |

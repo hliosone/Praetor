@@ -24,6 +24,9 @@ Machine: Linux 7.0.0-38 (Ubuntu 24.04), 16 CPUs, 30 GiB RAM (19 GiB available at
 | gitleaks | yes (make test) | missing | pinned image in M0 (Q5) |
 | opencode | (V6) | missing | installed by V6: `opencode-ai@1.19.3` in the user's nvm prefix |
 | openssl | (keys) | 3.0.13 | OK |
+| Sleep disabled (`systemd-inhibit`) | yes | **not disabled**: `systemd-inhibit --list` shows only delay locks (ModemManager, NetworkManager, UPower) and KDE PowerDevil handling the lid switch; AC online | human step before "go" (QUESTIONS.md Funding section, MANUAL step 0) |
+
+Secret scan of the pushed history (end of Phase 0): none of the 72 generated `.env` values (nor any human value) appears in `git log -p --all`; the only `PRIVATE KEY` match is documentation text; 64-hex strings outside `spec/` are tx hashes, Pyth feed ids, curve constants, an SM3 digest, the USDC domain separator and a fixed P-256 test key in the V1 fork test.
 
 Ports: none of 80, 443, 3306, 6001, 8545-8548, 18545, 20200-20203, 30300-30303, 8250, 5002, 4096 were listening at check time. No container was running.
 
