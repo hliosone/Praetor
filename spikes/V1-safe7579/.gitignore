@@ -1,0 +1,6 @@
+# Libraries are cloned by setup.sh (pinned commits); build output is local.
+lib/
+out/
+cache/
+out-results/
+js/node_modules/

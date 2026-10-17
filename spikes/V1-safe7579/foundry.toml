@@ -1,0 +1,19 @@
+# V1 spike: Safe7579 creation path and hook coverage on a Base Sepolia fork.
+[profile.default]
+src = "src"
+test = "test"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.28"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+# The spike test has many locals; via_ir keeps it readable (product contracts use via_ir only where needed).
+via_ir = true
+fs_permissions = [{ access = "read-write", path = "./out-results" }]
+
+[rpc_endpoints]
+base_sepolia = "https://sepolia.base.org"
+
+[lint]
+lint_on_build = false
