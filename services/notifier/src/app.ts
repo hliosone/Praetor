@@ -26,6 +26,12 @@ export function refusalText(r: { reason: number; tier: number; target: string; t
   return `Blocked: ${(name && PHRASES[name]) ?? name ?? 'refused'}. ${r.explorer}/tx/${r.txHash}`;
 }
 
+/** A recovery the bank scheduled (F10): the 48 h delay protects the owner only if the owner hears of it in time. */
+export function recoveryText(r: { executableAt: bigint; txHash: string; explorer: string }): string {
+  const at = new Date(Number(r.executableAt) * 1000).toISOString().slice(0, 16).replace('T', ' ');
+  return `Recovery of your account scheduled: your passkeys will be replaced after ${at} UTC. Not you? Cancel it now in Settings with one of your passkeys. ${r.explorer}/tx/${r.txHash}`;
+}
+
 export function decisionText(d: { kind: 'rebalance' | 'payment'; usd: string; asset: string; txHash: string; explorer: string }): string {
   return d.kind === 'rebalance' ? `Agent sold ${d.usd} USD of ${d.asset}. ${d.explorer}/tx/${d.txHash}` : `Agent paid ${d.usd} USDC. ${d.explorer}/tx/${d.txHash}`;
 }
