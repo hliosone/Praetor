@@ -3,7 +3,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import express, { type NextFunction, type Request, type Response, type Router } from 'express';
 import { z } from 'zod';
-import { encodePolicy, OwnerActionKind as K, type OwnerAction, type Policy } from '@praetor/protocol';
+import { encodePolicy, isPushEndpoint, MAX_PUSH_SUBSCRIPTIONS, OwnerActionKind as K, type OwnerAction, type Policy } from '@praetor/protocol';
 import type { Address, Hex } from 'viem';
 import type { Onboarding } from './onboarding.js';
 import type { OwnerActions } from './owner-actions.js';
@@ -55,7 +55,7 @@ export type RouteModules = {
   runner: Pick<Clients['runner'], 'chat'>;
   agentKeyOf(account: Address): Promise<Address>;
   /** Web push: the browser subscriptions of the account (the notifier reads them). */
-  push: { subscribe(account: Address, s: { endpoint: string; keys: { p256dh: string; auth: string } }): Promise<void> };
+  push: Pick<PushStore, 'subscribe' | 'list'>;
   /** Judges' sandbox (interim, D48): demo USDC for a sandbox account on the fork. */
   sandbox: { fund(account: Address, client: string): Promise<unknown> };
   /** F10: the next agent key version, through the onboarding's agent steps. */
@@ -131,8 +131,11 @@ export function apiRoutes(r: Router, h: typeof handler, session: express.Request
     send(res, out);
   }));
 
+  // The notifier posts to the endpoint: only a browser's push service, and a few per account (SSRF, amplification).
   r.post('/push/subscribe', session, h(async (req, res) => {
-    const b = z.object({ endpoint: z.string().url().max(512).startsWith('https://'), keys: z.object({ p256dh: z.string().min(1).max(256), auth: z.string().min(1).max(64) }) }).parse(req.body);
+    const b = z.object({ endpoint: z.string().url().max(512).startsWith('https://').refine(isPushEndpoint, 'not a browser push service'), keys: z.object({ p256dh: z.string().min(1).max(256), auth: z.string().min(1).max(64) }) }).parse(req.body);
+    const mine = await m.push.list(acct(res));
+    if (mine.length >= MAX_PUSH_SUBSCRIPTIONS && !mine.some((x) => x.endpoint === b.endpoint)) throw new HttpError(409, `at most ${MAX_PUSH_SUBSCRIPTIONS} devices receive notifications`);
     await m.push.subscribe(acct(res), { endpoint: b.endpoint, keys: b.keys });
     res.status(204).end();
   }));
