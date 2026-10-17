@@ -509,6 +509,9 @@ importers:
       '@praetor/userop':
         specifier: workspace:*
         version: link:../packages/userop
+      '@praetor/weid-client':
+        specifier: workspace:*
+        version: link:../packages/weid-client
       '@types/node':
         specifier: 22.20.5
         version: 22.20.5

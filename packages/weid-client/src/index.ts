@@ -37,6 +37,40 @@ export interface WeidClientOptions {
 
 const WEID = /^did:weid:101:0x[0-9a-fA-F]{40}$/;
 
+/** CPT schemas (spec 05). PersonKYC also names its holder (the user's WeID), so the credential is bound to a person (D28). */
+export const PERSON_KYC_CPT = {
+  title: 'PersonKYC',
+  description: 'KYC attestation issued by the bank',
+  type: 'object',
+  properties: {
+    holder: { type: 'string', description: 'WeID of the person' },
+    ageOver18: { type: 'boolean' },
+    jurisdiction: { type: 'string', pattern: '^[A-Z]{2}$' },
+    riskProfile: { type: 'string', enum: ['conservative', 'balanced', 'growth'] },
+    sanctionsScreened: { type: 'string', description: 'date of the last sanctions screening (YYYY-MM-DD)' },
+    kycLevel: { type: 'integer', minimum: 0 },
+  },
+  required: ['holder', 'ageOver18', 'jurisdiction', 'riskProfile', 'sanctionsScreened', 'kycLevel'],
+} as const;
+
+export const AGENT_MANDATE_CPT = {
+  title: 'AgentMandate',
+  description: 'Mandate from a principal to an AI agent wallet',
+  type: 'object',
+  properties: {
+    principal: { type: 'string', description: 'WeID of the principal (user)' },
+    wallet: { type: 'string', description: 'CAIP-10 account, eip155:84532:0x...' },
+    agentKey: { type: 'string', pattern: '^0x[0-9a-fA-F]{40}$' },
+    scopes: { type: 'array', items: { type: 'string' } },
+    mandateHash: { type: 'string', pattern: '^0x[0-9a-fA-F]{64}$' },
+    riskProfile: { type: 'string' },
+    agentMeasurement: { type: 'string', pattern: '^0x[0-9a-fA-F]{64}$' },
+  },
+  required: ['principal', 'wallet', 'agentKey', 'scopes', 'mandateHash', 'riskProfile', 'agentMeasurement'],
+} as const;
+
+const INVALID: Verification = { valid: false, signature: false, revoked: false, evidence: false };
+
 export function weidClient(o: WeidClientOptions) {
   const f = o.fetch ?? fetch;
   const admin = o.adminInvoker ?? 'private_key';
@@ -56,6 +90,11 @@ export function weidClient(o: WeidClientOptions) {
     const j = await postJson(`${o.helperUrl}${path}`, body);
     if (j.error !== undefined && j.error !== null) throw new WeidError(path, j.errorCode, String(j.error));
     return j as T;
+  }
+
+  async function verify(credential: Credential, issuerWeId: string, extra: { evidenceHash?: string; signatureOnly?: true } = {}): Promise<Verification> {
+    const r = await helper<Partial<Verification>>('/credentials/verify', { credential, issuerWeId, ...extra });
+    return { valid: r.valid === true, signature: r.signature === true, revoked: r.revoked === true, evidence: r.evidence === true, hash: r.hash, signatureError: r.signatureError };
   }
 
   const weId = (op: string, v: unknown): string => {
@@ -102,9 +141,23 @@ export function weidClient(o: WeidClientOptions) {
       const r = await helper<{ credential: Credential; hash: string }>('/credentials/countersign', { credential, signerWeId });
       return { credential: r.credential, hash: r.hash };
     },
-    async verify(credential: Credential, issuerWeId: string): Promise<Verification> {
-      const r = await helper<Partial<Verification>>('/credentials/verify', { credential, issuerWeId });
-      return { valid: r.valid === true, signature: r.signature === true, revoked: r.revoked === true, evidence: r.evidence === true, hash: r.hash, signatureError: r.signatureError };
+    verify,
+    /** A credential the bank (or another pinned issuer) issued under a pinned CPT: never trusts the credential's own
+     *  issuer field. evidenceHash: the full credential's evidence, for a selective-disclosure copy. */
+    async verifyIssued(credential: Credential, pin: { issuer: string; cptId: number; evidenceHash?: string }): Promise<Verification> {
+      if (credential.issuer !== pin.issuer || credential.cptId !== pin.cptId) return INVALID;
+      return verify(credential, pin.issuer, pin.evidenceHash ? { evidenceHash: pin.evidenceHash } : {});
+    },
+    /** AgentMandate: outer credential countersigned by the bank (evidence, so revocable), wrapping exactly one inner
+     *  credential of the AgentMandate CPT signed by the principal and naming the principal. */
+    async verifyMandate(outer: Credential, pin: { bank: string; principal: string; cptId: number }): Promise<Verification> {
+      const list = (outer.claim as { credentialList?: Credential[] }).credentialList;
+      const inner = Array.isArray(list) && list.length === 1 ? list[0]! : undefined;
+      if (outer.issuer !== pin.bank || !inner || inner.issuer !== pin.principal || inner.cptId !== pin.cptId || inner.claim?.principal !== pin.principal) return INVALID;
+      const o = await verify(outer, pin.bank);
+      if (!o.valid) return o;
+      const i = await verify(inner, pin.principal, { signatureOnly: true });
+      return i.signature ? o : { ...o, valid: false, signature: false, signatureError: i.signatureError };
     },
     selective: async (credential: Credential, fields: string[]) =>
       (await helper<{ credential: Credential }>('/credentials/selective', { credential, fields })).credential,

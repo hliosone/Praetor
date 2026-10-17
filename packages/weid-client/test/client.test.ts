@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { weidClient, WeidError, type Credential } from '../src/index.js';
+import { weidClient, WeidError, PERSON_KYC_CPT, AGENT_MANDATE_CPT, type Credential } from '../src/index.js';
 
 type Call = { url: string; body: any };
 // A scripted fetch: each handler answers one call, in order; every request is recorded.
@@ -102,5 +102,54 @@ describe('helper calls', () => {
   it('revoke must be confirmed by the helper', async () => {
     const { f } = fake({ revoked: false, error: 'no evidence' });
     await expect(weidClient(opts(f)).revoke(cred, W('e'))).rejects.toThrow(/revoke/);
+  });
+});
+
+describe('pinned checks', () => {
+  const bank = W('b'), user = W('u'), other = W('o');
+  const kyc = { id: 'k', cptId: 2000001, issuer: bank, claim: {}, proof: {} } as Credential;
+  const ok = { valid: true, signature: true, revoked: false, evidence: true };
+
+  it('verifyIssued asks the helper with the pinned issuer and the evidence hash', async () => {
+    const { calls, f } = fake(ok);
+    expect(await weidClient(opts(f)).verifyIssued(kyc, { issuer: bank, cptId: 2000001, evidenceHash: '0xee' })).toMatchObject({ valid: true });
+    expect(calls[0]!.body).toEqual({ credential: kyc, issuerWeId: bank, evidenceHash: '0xee' });
+  });
+
+  it('verifyIssued refuses another issuer or another CPT without asking the helper', async () => {
+    const { calls, f } = fake();
+    const c = weidClient(opts(f));
+    expect((await c.verifyIssued({ ...kyc, issuer: other }, { issuer: bank, cptId: 2000001 })).valid).toBe(false);
+    expect((await c.verifyIssued({ ...kyc, cptId: 2000002 }, { issuer: bank, cptId: 2000001 })).valid).toBe(false);
+    expect(calls).toHaveLength(0);
+  });
+
+  const inner = { id: 'i', cptId: 2000002, issuer: user, claim: { principal: user }, proof: {} } as Credential;
+  const outer = { id: 'o', cptId: 107, issuer: bank, claim: { credentialList: [inner] }, proof: {} } as unknown as Credential;
+
+  it('verifyMandate checks the outer credential (bank, evidence) and the inner one (principal, signature only)', async () => {
+    const { calls, f } = fake(ok, { valid: true, signature: true, revoked: false, evidence: false });
+    expect(await weidClient(opts(f)).verifyMandate(outer, { bank, principal: user, cptId: 2000002 })).toMatchObject({ valid: true });
+    expect(calls[0]!.body).toEqual({ credential: outer, issuerWeId: bank });
+    expect(calls[1]!.body).toEqual({ credential: inner, issuerWeId: user, signatureOnly: true });
+  });
+
+  it('verifyMandate refuses an inner credential from someone else, of another CPT, or naming another principal', async () => {
+    const c = weidClient(opts(fake().f));
+    const wrap = (i: object) => ({ ...outer, claim: { credentialList: [{ ...inner, ...i }] } }) as unknown as Credential;
+    expect((await c.verifyMandate(wrap({ issuer: other }), { bank, principal: user, cptId: 2000002 })).valid).toBe(false);
+    expect((await c.verifyMandate(wrap({ cptId: 1 }), { bank, principal: user, cptId: 2000002 })).valid).toBe(false);
+    expect((await c.verifyMandate(wrap({ claim: { principal: other } }), { bank, principal: user, cptId: 2000002 })).valid).toBe(false);
+    expect((await c.verifyMandate({ ...outer, issuer: other } as Credential, { bank, principal: user, cptId: 2000002 })).valid).toBe(false);
+  });
+
+  it('verifyMandate is invalid when the inner signature fails, even if the outer one holds', async () => {
+    const { f } = fake(ok, { valid: false, signature: false, revoked: false, evidence: false });
+    expect((await weidClient(opts(f)).verifyMandate(outer, { bank, principal: user, cptId: 2000002 })).valid).toBe(false);
+  });
+
+  it('the CPT schemas carry exactly the spec 05 fields (plus the KYC holder, D28)', () => {
+    expect(Object.keys(PERSON_KYC_CPT.properties).sort()).toEqual(['ageOver18', 'holder', 'jurisdiction', 'kycLevel', 'riskProfile', 'sanctionsScreened']);
+    expect(Object.keys(AGENT_MANDATE_CPT.properties).sort()).toEqual(['agentKey', 'agentMeasurement', 'mandateHash', 'principal', 'riskProfile', 'scopes', 'wallet']);
   });
 });

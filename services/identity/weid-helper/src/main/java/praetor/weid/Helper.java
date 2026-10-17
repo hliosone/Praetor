@@ -127,22 +127,34 @@ public final class Helper {
         return map("credential", JSON.readTree(outer.toJson()), "hash", outer.getHash());
     }
 
-    /** Signature (and inner signatures) valid, not expired, and not revoked in its evidence: the SDK's verify alone
-     *  ignores revocation (V3), so verification is all three. */
+    /** Valid = signature (and embedded signatures) good, not expired, evidence found, and the issuer's revocation flag
+     *  read without error and false. The SDK's verify alone ignores revocation (V3), and a credential without evidence
+     *  could never be revoked, so both fail closed. evidenceHash: the full credential's evidence, for a
+     *  selective-disclosure copy (its own hash differs). signatureOnly: the inner credential of a countersigned one,
+     *  whose revocation is the outer credential's evidence. */
     private static Map<String, Object> verify(JsonNode b) throws Exception {
         CredentialPojo c = CredentialPojo.fromJson(JSON.writeValueAsString(b.get("credential")));
         String issuer = text(b, "issuerWeId");
         ResponseData<Boolean> sig = CREDS.verify(issuer, c);
-        boolean revoked = false;
-        String hash = c.getHash();
-        ResponseData<EvidenceInfo> ev = EVIDENCE.getEvidence(hash);
-        if (ev.getErrorCode() == 0 && ev.getResult() != null) {
-            ResponseData<Boolean> rv = EVIDENCE.isRevoked(ev.getResult(), issuer);
-            revoked = Boolean.TRUE.equals(rv.getResult());
+        boolean sigOk = sig.getErrorCode() == 0 && Boolean.TRUE.equals(sig.getResult());
+        if (b.path("signatureOnly").asBoolean(false)) {
+            return map("valid", sigOk, "signature", sigOk, "signatureError", sig.getErrorMessage(), "revoked", false, "evidence", false);
         }
-        boolean valid = sig.getErrorCode() == 0 && Boolean.TRUE.equals(sig.getResult()) && !revoked;
-        return map("valid", valid, "signature", sig.getErrorCode() == 0 && Boolean.TRUE.equals(sig.getResult()),
-            "signatureError", sig.getErrorMessage(), "revoked", revoked, "evidence", ev.getResult() != null, "hash", hash);
+        String hash = b.hasNonNull("evidenceHash") ? b.get("evidenceHash").asText() : c.getHash();
+        ResponseData<EvidenceInfo> ev = EVIDENCE.getEvidence(hash);
+        // The issuer itself must have signed the evidence (signInfo is keyed by address, V3): only then is its
+        // revocation flag the one that counts.
+        String issuerAddress = issuer.substring(issuer.lastIndexOf(':') + 1);
+        boolean found = ev.getErrorCode() == 0 && ev.getResult() != null && ev.getResult().getSignInfo() != null
+            && ev.getResult().getSignInfo().containsKey(issuerAddress);
+        Boolean revoked = null;
+        if (found) {
+            ResponseData<Boolean> rv = EVIDENCE.isRevoked(ev.getResult(), issuer);
+            if (rv.getErrorCode() == 0 && rv.getResult() != null) revoked = rv.getResult();
+        }
+        boolean valid = sigOk && found && Boolean.FALSE.equals(revoked);
+        return map("valid", valid, "signature", sigOk, "signatureError", sig.getErrorMessage(),
+            "revoked", Boolean.TRUE.equals(revoked), "evidence", found, "hash", hash);
     }
 
     private static Map<String, Object> selective(JsonNode b) throws Exception {

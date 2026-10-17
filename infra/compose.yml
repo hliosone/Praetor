@@ -27,6 +27,11 @@ networks:
     ipam:
       config:
         - subnet: 10.88.0.0/16
+  # Custodial WeIdentity services (no auth, every hosted key): only bank, MySQL and FISCO node0 join them.
+  identity:
+    ipam:
+      config:
+        - subnet: 10.89.0.0/24
 
 volumes:
   mysql-data:
@@ -76,6 +81,8 @@ services:
     networks:
       praetor:
         ipv4_address: 10.88.0.3
+      identity:
+        ipv4_address: 10.89.0.3
     healthcheck:
       <<: *health
       # MYSQL_PWD keeps the root password off the command line (visible in `ps`).
@@ -146,6 +153,8 @@ services:
     networks:
       praetor:
         ipv4_address: 10.88.0.21
+      identity:
+        ipv4_address: 10.89.0.21
     healthcheck:
       <<: *health
       test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3020/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
@@ -272,7 +281,7 @@ services:
     environment:
       WEID_ADMIN_KEY: ${WEID_ADMIN_KEY}
       MYSQL_PASSWORD_WEID: ${MYSQL_PASSWORD_WEID}
-      FISCO_CHANNEL: 10.88.1.10:20200
+      FISCO_CHANNEL: fisco-node0:20200
       FISCO_RPC_URL: ${FISCO_RPC_URL}
     volumes:
       - ./fisco/nodes/10.88.1.10/sdk:/fisco-sdk:ro
@@ -285,8 +294,8 @@ services:
       fisco-node0:
         condition: service_healthy
     networks:
-      praetor:
-        ipv4_address: 10.88.0.30
+      identity:
+        ipv4_address: 10.89.0.30
 
   weid-rest:
     build:
@@ -301,9 +310,11 @@ services:
     depends_on:
       weid-deploy:
         condition: service_completed_successfully
+    environment:
+      FISCO_CHANNEL: fisco-node0:20200
     networks:
-      praetor:
-        ipv4_address: 10.88.0.31
+      identity:
+        ipv4_address: 10.89.0.31
     healthcheck:
       <<: *health
       start_period: 60s
@@ -321,9 +332,11 @@ services:
     depends_on:
       weid-rest:
         condition: service_healthy
+    environment:
+      FISCO_CHANNEL: fisco-node0:20200
     networks:
-      praetor:
-        ipv4_address: 10.88.0.32
+      identity:
+        ipv4_address: 10.89.0.32
     healthcheck:
       <<: *health
       start_period: 60s
@@ -339,10 +352,11 @@ services:
     environment:
       WEID_REST: http://weid-rest:6001/weid/api/invoke
       WEB3_RPC: ${FISCO_RPC_URL}
+      FISCO_CHANNEL: fisco-node0:20200
     volumes:
       - weid-out:/weid/out:ro
       - weid-keys:/weid/keys:ro
-    networks: [praetor]
+    networks: [identity]
 
   fisco-node0:
     <<: *fisco
@@ -350,6 +364,8 @@ services:
     networks:
       praetor:
         ipv4_address: 10.88.1.10
+      identity:
+        ipv4_address: 10.89.0.10
 
   fisco-node1:
     <<: *fisco

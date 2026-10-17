@@ -7,6 +7,8 @@ STATE=${1:?state.properties}
 OUT=$(dirname "$STATE")
 WORK=$(mktemp -d)
 mkdir -p "$WORK/conf" && cp /weid/out/conf/* "$WORK/conf/"
+# The node address recorded at deployment may not be routable from this network.
+[ -n "${FISCO_CHANNEL:-}" ] && sed -i "s#^nodes=.*#nodes=${FISCO_CHANNEL}#" "$WORK/conf/weidentity.properties"
 cd "$WORK"
 exec java -Dfile.encoding=UTF-8 -Djdk.tls.namedGroups=secp256r1,secp256k1 \
   -Dlog4j.configurationFile=$J/log4j2.xml -Dspike.log=$OUT/java_sdk.log \

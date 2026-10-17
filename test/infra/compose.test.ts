@@ -16,6 +16,7 @@ type Service = {
   labels?: Record<string, string>;
   restart?: string;
   depends_on?: Record<string, { condition?: string }>;
+  networks?: string[] | Record<string, unknown>;
 };
 const compose = parse(read('infra/compose.yml'), { merge: true }) as {
   services: Record<string, Service>;
@@ -56,6 +57,15 @@ describe('infra/compose.yml', () => {
 
   it('runs on the 10.88.0.0/16 network (Q9)', () => {
     expect(compose.networks.praetor?.ipam?.config?.[0]?.subnet).toBe('10.88.0.0/16');
+  });
+
+  it('keeps the custodial WeIdentity services on their own network, joined only by bank, MySQL and one FISCO node', () => {
+    // weid-rest and weid-helper hold every hosted key with no auth (spec 05): nothing agent-side may reach them.
+    const on = (s: Service, n: string) => (Array.isArray(s.networks) ? s.networks.includes(n) : Object.keys(s.networks ?? {}).includes(n));
+    expect(compose.networks.identity?.ipam?.config?.[0]?.subnet).toBe('10.89.0.0/24');
+    const members = services.filter(([, s]) => on(s, 'identity')).map(([n]) => n).sort();
+    expect(members).toEqual(['bank', 'fisco-node0', 'mysql', 'weid-deploy', 'weid-helper', 'weid-rest', 'weid-scenario']);
+    for (const [name, s] of services) if (name.startsWith('weid-')) expect(on(s, 'praetor'), name).toBe(false);
   });
 
   it('forks Base Sepolia at the pinned block with the P-256 precompile (Q6, Q7)', () => {
