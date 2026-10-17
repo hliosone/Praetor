@@ -1,6 +1,7 @@
 // Standing orders (spec 06 F7): the orders on-chain with their merchant, the agent's proposals, a form to add one
 // (owner + bank), trigger when due (anyone), cancel (owner alone).
 import { useState } from 'react';
+import { OwnerActionKind as K } from '@praetor/protocol';
 import { useI18n } from '../i18n/index.js';
 import { api, usd, type Prepared } from '../lib/api.js';
 import { useLoad } from '../lib/useLoad.js';
@@ -17,7 +18,7 @@ export function Payments() {
   const [period, setPeriod] = useState<'monthly' | 'weekly'>('monthly');
   const [msg, setMsg] = useState<string>();
   const act = async (fn: () => Promise<string>) => { setMsg(undefined); try { setMsg(await fn()); } catch (e) { setMsg((e as Error).message); } void l.reload(); };
-  const sign = async (body: unknown) => ((await signAndSubmit(await api<Prepared>('POST', '/standing-orders/propose', body))).success ? 'Standing order set on Base.' : 'Refused on Base.');
+  const sign = async (body: unknown) => ((await signAndSubmit(await api<Prepared>('POST', '/standing-orders/propose', body), K.ADD_STANDING_ORDER)).success ? 'Standing order set on Base.' : 'Refused on Base.');
   return (
     <div className="stack">
       <section className="panel">
@@ -34,7 +35,7 @@ export function Payments() {
                 <td>{o.active ? new Date(Number(o.nextDue) * 1000).toLocaleString() : 'cancelled'}</td>
                 <td className="row">
                   {o.active && <button onClick={() => act(async () => ((await api<{ success: boolean }>('POST', `/standing-orders/${o.id}/trigger`)).success ? 'Paid.' : 'Not due yet.'))}>{t('payments.trigger')}</button>}
-                  {o.active && <button className="danger" onClick={() => act(async () => ((await signAndSubmit(await api<Prepared>('POST', '/owner-actions/prepare', { kind: 2, id: o.id }))).success ? 'Cancelled.' : 'Refused.'))}>{t('payments.cancel')}</button>}
+                  {o.active && <button className="danger" onClick={() => act(async () => ((await signAndSubmit(await api<Prepared>('POST', '/owner-actions/prepare', { kind: K.CANCEL_STANDING_ORDER, id: o.id }), K.CANCEL_STANDING_ORDER)).success ? 'Cancelled.' : 'Refused.'))}>{t('payments.cancel')}</button>}
                 </td>
               </tr>
             ))}

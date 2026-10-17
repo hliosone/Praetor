@@ -1,5 +1,7 @@
 // A first policy for a new account (Lin's mandate, spec 00): what the onboarding proposes and the mandate page
 // starts from. Amounts in USDC base units as decimal strings, as the api takes them.
+import type { Policy } from '@praetor/protocol';
+
 export type Config = { chainId: number; domainName: string; mandateHook: `0x${string}`; usdc: `0x${string}`; txau: `0x${string}`; txag: `0x${string}`; deskSpreadBps: number };
 
 export type PolicyJson = {
@@ -21,5 +23,13 @@ export function defaultPolicy(c: Config, now = Math.floor(Date.now() / 1000)): P
       { token: c.txag, minBps: 0, targetBps: 1500, maxBps: 1500 },
     ],
     maxRebalancesPerDay: 1, maxTradeUsd: usdc(1000), maxSlippageBps: 100, validUntil: String(now + 365 * 86_400), soterEnabled: true,
+  };
+}
+
+/** The policy as the protocol encodes it: what the page compares with the payload it is asked to sign. */
+export function policyFromJson(p: PolicyJson): Policy {
+  return {
+    ...p, autoCap: BigInt(p.autoCap), hardCap: BigInt(p.hardCap), dailyBudget: BigInt(p.dailyBudget), monthlyBudget: BigInt(p.monthlyBudget),
+    bufferUsdc: BigInt(p.bufferUsdc), maxTradeUsd: BigInt(p.maxTradeUsd), validUntil: BigInt(p.validUntil),
   };
 }

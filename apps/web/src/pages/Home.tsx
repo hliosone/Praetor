@@ -1,6 +1,7 @@
 // Dashboard (spec 07): total value, the vault rings with bands, the status pill, the agent, the decision feed and
 // what waits for the owner. Polls the api every few seconds: the chain is the source of truth.
 import { Link } from 'react-router-dom';
+import { OwnerActionKind as K } from '@praetor/protocol';
 import { useI18n } from '../i18n/index.js';
 import { Rings } from '../components/Rings.js';
 import { StatusPill, TierBadge } from '../components/StatusPill.js';
@@ -43,7 +44,7 @@ export function Home() {
           )}
           <div className="row">
             <Link className="button" to="/agent">{t('home.chat')}</Link>
-            <button onClick={async () => { await signAndSubmit(await api<Prepared>('POST', '/owner-actions/prepare', { kind: 7 })); void status.reload(); }}>{t('home.pause')}</button>
+            <button onClick={async () => { await signAndSubmit(await api<Prepared>('POST', '/owner-actions/prepare', { kind: K.PAUSE_AGENT }), K.PAUSE_AGENT); void status.reload(); }}>{t('home.pause')}</button>
           </div>
         </article>
       </section>

@@ -2,7 +2,9 @@
 // WebAuthn options, and the owner's assertion over a 32-byte digest the page recomputed itself ("what you see is
 // what you sign").
 import { startAuthentication, startRegistration, type AuthenticationResponseJSON } from '@simplewebauthn/browser';
-import { api } from './api.js';
+import { api, type Me } from './api.js';
+import { checkOwnerAction, type PreparedJson } from './ownerAction.js';
+import type { Config } from './policy.js';
 
 const b64url = (hex: string) => {
   const bytes = hex.replace(/^0x/, '').match(/../g)!.map((h) => parseInt(h, 16));
@@ -27,8 +29,10 @@ export function assertDigest(digest: `0x${string}`): Promise<AuthenticationRespo
   return startAuthentication({ optionsJSON: { challenge: b64url(digest), rpId: location.hostname, userVerification: 'required', allowCredentials: [] } });
 }
 
-/** Prepare -> sign -> submit, the shape of every owner action. */
-export async function signAndSubmit(prepared: { ownerAction: unknown; payload: `0x${string}`; digest: `0x${string}` }) {
-  const assertion = await assertDigest(prepared.digest);
+/** Prepare -> check -> sign -> submit, the shape of every owner action: the passkey signs the digest this page
+ * recomputed for the kind of action it asked for, never the server's digest as such. */
+export async function signAndSubmit(prepared: { ownerAction: unknown; payload: `0x${string}`; digest: `0x${string}` }, kind: number, expectedPayload?: `0x${string}`) {
+  const [cfg, me] = await Promise.all([api<Config>('GET', '/config'), api<Me>('GET', '/me')]);
+  const assertion = await assertDigest(checkOwnerAction(prepared as PreparedJson, cfg, me.account, kind, expectedPayload));
   return api<{ success: boolean; txHash: string | null }>('POST', '/owner-actions/submit', { ownerAction: prepared.ownerAction, payload: prepared.payload, assertion });
 }

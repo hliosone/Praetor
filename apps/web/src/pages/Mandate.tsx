@@ -1,11 +1,12 @@
 // The mandate (spec 07): the current policy in plain words, the bank's caps alongside, an editable form whose
 // proposal goes through the bank's FISCO check, then the owner's passkey and the bank's co-signature.
 import { useEffect, useState } from 'react';
+import { encodePolicy, OwnerActionKind as K } from '@praetor/protocol';
 import { useI18n } from '../i18n/index.js';
 import { api, usd, type Prepared } from '../lib/api.js';
 import { useLoad } from '../lib/useLoad.js';
 import { signAndSubmit } from '../lib/passkey.js';
-import type { PolicyJson } from '../lib/policy.js';
+import { policyFromJson, type PolicyJson } from '../lib/policy.js';
 
 type Caps = { perTx: string; daily: string; monthly: string };
 const FIELDS = [['autoCap', 'Pay alone up to'], ['hardCap', 'Never more than'], ['dailyBudget', 'Daily budget'], ['monthlyBudget', 'Monthly budget'], ['bufferUsdc', 'Keep at least (USDC)'], ['maxTradeUsd', 'Largest rebalance']] as const;
@@ -41,7 +42,7 @@ export function Mandate() {
           try {
             const r = await api<Prepared & { ok: boolean; failedRule?: number }>('POST', '/policy/propose', { policy: form });
             if (!r.ok) return setMsg(`The bank's check on FISCO refused it (rule ${r.failedRule}).`);
-            setMsg((await signAndSubmit(r)).success ? 'Mandate updated on Base.' : 'Refused on Base.');
+            setMsg((await signAndSubmit(r, K.SET_POLICY, encodePolicy(policyFromJson(form)))).success ? 'Mandate updated on Base.' : 'Refused on Base.');
             void cur.reload();
           } catch (err) { setMsg((err as Error).message); }
         }}>

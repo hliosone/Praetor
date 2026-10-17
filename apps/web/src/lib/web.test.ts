@@ -3,8 +3,11 @@ import { translate } from '../i18n/index.js';
 import en from '../i18n/en.json';
 import zh from '../i18n/zh-CN.json';
 import { derToRs } from './staffKey.js';
-import { defaultPolicy } from './policy.js';
+import { defaultPolicy, policyFromJson } from './policy.js';
 import { usd } from './api.js';
+import { encodeAbiParameters, keccak256 } from 'viem';
+import { digest, encodePolicy, praetorDomain } from '@praetor/protocol';
+import { checkOwnerAction } from './ownerAction.js';
 
 const N = BigInt('0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551');
 
@@ -47,5 +50,30 @@ describe('web app logic', () => {
 
   it('formats USD amounts of 6 decimals', () => {
     expect(usd('1234560000')).toMatch(/1.?234\.56/);
+  });
+
+  it('signs an owner action only when its digest, kind, account and payload hash are what the page asked for', () => {
+    const cfg = { domainName: 'Praetor-test', mandateHook: '0x00000000000000000000000000000000000000aa' } as const;
+    const account = '0x00000000000000000000000000000000000c0ffe' as const;
+    const payload = encodeAbiParameters([{ type: 'uint32' }], [7]);
+    const oa = { account, action: 2, payloadHash: keccak256(payload), nonce: '3', expiresAt: '1800000000', fiscoRef: `0x${'00'.repeat(32)}` as const };
+    const d = digest(praetorDomain(cfg.domainName, cfg.mandateHook), 'OwnerAction', { ...oa, nonce: 3n, expiresAt: 1_800_000_000n });
+    expect(checkOwnerAction({ ownerAction: oa, payload, digest: d }, cfg, account, 2)).toBe(d);
+    expect(() => checkOwnerAction({ ownerAction: oa, payload, digest: keccak256('0x01') }, cfg, account, 2)).toThrow(/digest/);
+    expect(() => checkOwnerAction({ ownerAction: oa, payload, digest: d }, cfg, account, 7)).toThrow(/kind/);
+    expect(() => checkOwnerAction({ ownerAction: oa, payload, digest: d }, cfg, '0x00000000000000000000000000000000000000bb', 2)).toThrow(/account/);
+    expect(() => checkOwnerAction({ ownerAction: oa, payload: encodeAbiParameters([{ type: 'uint32' }], [8]), digest: d }, cfg, account, 2)).toThrow(/payload/);
+  });
+
+  it('signs a policy only when the payload is the policy on the page', () => {
+    const c = { chainId: 84532, domainName: 'Praetor-test', mandateHook: '0x00000000000000000000000000000000000000aa', usdc: '0x0000000000000000000000000000000000000002', txau: '0x0000000000000000000000000000000000000003', txag: '0x0000000000000000000000000000000000000004', deskSpreadBps: 30 } as const;
+    const account = '0x00000000000000000000000000000000000c0ffe' as const;
+    const form = defaultPolicy(c, 1_800_000_000);
+    const payload = encodePolicy(policyFromJson(form));
+    const oa = { account, action: 0, payloadHash: keccak256(payload), nonce: '1', expiresAt: '1800000000', fiscoRef: `0x${'00'.repeat(32)}` as const };
+    const d = digest(praetorDomain(c.domainName, c.mandateHook), 'OwnerAction', { ...oa, nonce: 1n, expiresAt: 1_800_000_000n });
+    expect(checkOwnerAction({ ownerAction: oa, payload, digest: d }, c, account, 0, payload)).toBe(d);
+    const other = encodePolicy(policyFromJson({ ...form, hardCap: '9000000000' }));
+    expect(() => checkOwnerAction({ ownerAction: oa, payload, digest: d }, c, account, 0, other)).toThrow(/not the one on this page/);
   });
 });

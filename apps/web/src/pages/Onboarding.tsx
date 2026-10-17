@@ -3,11 +3,12 @@
 // signature is the passkey's over a digest this page shows.
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { encodePolicy, OwnerActionKind as K } from '@praetor/protocol';
 import { useI18n } from '../i18n/index.js';
 import { Topbar } from '../components/Layout.js';
 import { api, type Prepared } from '../lib/api.js';
 import { assertDigest, signAndSubmit, signUp } from '../lib/passkey.js';
-import { defaultPolicy, type Config } from '../lib/policy.js';
+import { defaultPolicy, policyFromJson, type Config } from '../lib/policy.js';
 
 const STEPS = ['passkey', 'account', 'kyc', 'suitability', 'agent', 'mandate', 'policy'] as const;
 type Step = (typeof STEPS)[number] | 'done';
@@ -136,8 +137,8 @@ export function Onboarding() {
                   if (a?.agentKey?.toLowerCase() === agent.agentKey.toLowerCase()) break;
                   await sleep(2000);
                 }
-                const p = await api<Prepared>('POST', '/owner-actions/prepare', { kind: 5, validUntil: Math.floor(Date.now() / 1000) + 90 * 86_400 });
-                if (!(await signAndSubmit(p)).success) throw new Error('the agent key was not installed');
+                const p = await api<Prepared>('POST', '/owner-actions/prepare', { kind: K.SET_AGENT_KEY, validUntil: Math.floor(Date.now() / 1000) + 90 * 86_400 });
+                if (!(await signAndSubmit(p, K.SET_AGENT_KEY)).success) throw new Error('the agent key was not installed');
                 setStep('policy');
               })}>{t('onb.sign')}</button>
             </>
@@ -145,9 +146,10 @@ export function Onboarding() {
           {step === 'policy' && (
             <button className="primary" disabled={busy} onClick={run(async () => {
               const cfg = await api<Config>('GET', '/config');
-              const r = await api<Prepared & { ok: boolean; failedRule?: number }>('POST', '/policy/propose', { policy: defaultPolicy(cfg) });
+              const policy = defaultPolicy(cfg);
+              const r = await api<Prepared & { ok: boolean; failedRule?: number }>('POST', '/policy/propose', { policy });
               if (!r.ok) throw new Error(`the bank's FISCO check refused rule ${r.failedRule}`);
-              if (!(await signAndSubmit(r)).success) throw new Error('the policy was not set');
+              if (!(await signAndSubmit(r, K.SET_POLICY, encodePolicy(policyFromJson(policy)))).success) throw new Error('the policy was not set');
               setStep('done');
             })}>{t('onb.policySet')}</button>
           )}
