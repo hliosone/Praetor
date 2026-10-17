@@ -315,6 +315,40 @@ importers:
         specifier: 3.2.7
         version: 3.2.7(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1)
 
+  services/alipayplus-mock:
+    dependencies:
+      express:
+        specifier: 4.21.2
+        version: 4.21.2
+      pino:
+        specifier: 9.14.0
+        version: 9.14.0
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/express':
+        specifier: 4.17.21
+        version: 4.17.21
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+      '@types/supertest':
+        specifier: 6.0.3
+        version: 6.0.3
+      supertest:
+        specifier: 7.1.4
+        version: 7.1.4
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.7
+        version: 3.2.7(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1)
+
   services/api:
     dependencies:
       '@praetor/chain':
@@ -774,6 +808,55 @@ importers:
       '@types/node':
         specifier: 22.20.5
         version: 22.20.5
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.7
+        version: 3.2.7(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1)
+
+  services/payout-partner:
+    dependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: 1.30.1
+        version: 1.30.1(zod@3.25.76)
+      '@praetor/chain':
+        specifier: workspace:*
+        version: link:../../packages/chain
+      '@praetor/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@praetor/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      express:
+        specifier: 4.21.2
+        version: 4.21.2
+      pino:
+        specifier: 9.14.0
+        version: 9.14.0
+      viem:
+        specifier: 2.57.5
+        version: 2.57.5(typescript@5.9.3)(zod@3.25.76)
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/express':
+        specifier: 4.17.21
+        version: 4.17.21
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+      '@types/supertest':
+        specifier: 6.0.3
+        version: 6.0.3
+      supertest:
+        specifier: 7.1.4
+        version: 7.1.4
       tsx:
         specifier: 4.23.15
         version: 4.23.15
@@ -3207,7 +3290,7 @@ snapshots:
       etag: 1.8.1
       finalhandler: 2.1.1
       fresh: 2.0.0
-      http-errors: 2.0.0
+      http-errors: 2.0.1
       merge-descriptors: 2.0.0
       mime-types: 3.0.2
       on-finished: 2.4.1
@@ -3219,7 +3302,7 @@ snapshots:
       router: 2.2.0
       send: 1.2.1
       serve-static: 2.2.1
-      statuses: 2.0.1
+      statuses: 2.0.2
       type-is: 2.1.0
       vary: 1.1.2
     transitivePeerDependencies:
@@ -3254,7 +3337,7 @@ snapshots:
       escape-html: 1.0.3
       on-finished: 2.4.1
       parseurl: 1.3.3
-      statuses: 2.0.1
+      statuses: 2.0.2
     transitivePeerDependencies:
       - supports-color
 
