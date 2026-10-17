@@ -97,7 +97,10 @@ abstract contract Board {
         p.sigs.push(sig);
         for (uint256 i = n; i > 0 && p.signers[i - 1] > signer; --i) {
             (p.signers[i], p.signers[i - 1]) = (p.signers[i - 1], p.signers[i]);
-            (p.sigs[i], p.sigs[i - 1]) = (p.sigs[i - 1], p.sigs[i]);
+            // A tuple swap of storage `bytes` copies through references and duplicates one side: go through memory.
+            bytes memory moved = p.sigs[i];
+            p.sigs[i] = p.sigs[i - 1];
+            p.sigs[i - 1] = moved;
         }
         if (role == registry.BANK()) p.hasBank = true;
         emit Signed(p.kind, id, signer, uint8(n + 1));

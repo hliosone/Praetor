@@ -61,6 +61,32 @@ contract BoardTest is BoardBase {
         assertEq(status.statusOf(account), 0);
     }
 
+    /// Signatures stay attached to their signers when the board re-sorts them (Base checks each one).
+    function test_sortedSignaturesStillRecoverToTheirSigners() public {
+        vm.prank(regFisco);
+        uint256 id = status.openStatus(makeAddr("account"), 0, _dl());
+        bytes32 d = status.digestOf(status.proposal(id).fields, 0);
+        // Sign in descending address order so the board has to move the second signature in front of the first.
+        (uint256 hi, uint256 lo) = vm.addr(regSignerPk) > vm.addr(opSignerPk) ? (regSignerPk, opSignerPk) : (opSignerPk, regSignerPk);
+        status.sign(id, _sig(hi, d));
+        status.sign(id, _sig(lo, d));
+        Board.Proposal memory p = status.proposal(id);
+        assertEq(uint8(p.status), uint8(Board.Status.READY));
+        for (uint256 i; i < 2; ++i) {
+            (uint8 v, bytes32 r, bytes32 s_) = _split(p.sigs[i]);
+            assertEq(ecrecover(d, v, r, s_), p.signers[i], "signature i recovers to signer i");
+        }
+        assertLt(uint160(p.signers[0]), uint160(p.signers[1]));
+    }
+
+    function _split(bytes memory sig) internal pure returns (uint8 v, bytes32 r, bytes32 s_) {
+        assembly {
+            r := mload(add(sig, 32))
+            s_ := mload(add(sig, 64))
+            v := byte(0, mload(add(sig, 96)))
+        }
+    }
+
     function test_signatureRules() public {
         (uint256 id, P.StatusAttestation memory a) = _openFreeze(makeAddr("account"));
         bytes32 d = _digest(P.hash(a));
