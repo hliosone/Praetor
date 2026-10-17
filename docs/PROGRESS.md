@@ -34,10 +34,10 @@ Single source of truth for where the build stands. After a context reset: read `
 - [x] M11 audit writer, anchors, verify, camt.053 (gate: e2e F8, XSD)
 - [ ] M12 WeCross router + EVM stub, watchdog (gate: integration + e2e F9 with `BRIDGE=wecross`)
 - [ ] M13 web app, Phone3D, i18n, PWA, sandbox, console (gate: Playwright F1 to F9, screenshots, axe)
-- [ ] M14 mini program (gate: logic tests, MANUAL steps)
+- [x] M14 mini program (gate: logic tests, MANUAL steps) (built by a parallel agent, D44; phone steps in MANUAL 5)
 - [ ] M15 F10 + Guomi smoke + whole suite (gate: e2e F1 to F10 on fork)
 - [ ] M16 live run + red team (gate: EVIDENCE.md, "N attacks, 0 executed")
-- [ ] M17 security pack + docs EN/中文
+- [x] M17 security pack + docs EN/中文 (parallel agent, D44; refreshed at the end of Phase B)
 - [ ] M18 deployment rehearsal (gate: smoke on `compose.prod.yml`)
 
 ## Timings
@@ -58,3 +58,6 @@ Single source of truth for where the build stands. After a context reset: read `
 | M9 | 2026-10-17 14:40 | 2026-10-17 15:37 | 57 min |
 | M10 | 2026-10-17 15:37 | 2026-10-17 16:17 | 40 min |
 | M11 | 2026-10-17 16:17 | 2026-10-17 17:26 | 69 min |
+| M14 (agent) | 2026-10-17 19:24 | 2026-10-17 20:26 | 62 min |
+| M15 Guomi smoke (agent) | 2026-10-17 19:24 | 2026-10-17 20:27 | 63 min |
+| M17 (agent) | 2026-10-17 19:24 | 2026-10-17 20:11 | 47 min |
