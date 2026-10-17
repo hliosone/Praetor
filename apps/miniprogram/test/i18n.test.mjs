@@ -7,6 +7,8 @@ const i18n = require('../miniprogram/lib/i18n.js');
 const en = require('../miniprogram/lib/i18n/en.js');
 const zh = require('../miniprogram/lib/i18n/zh-CN.js');
 
+// Built from its code point: the repository refuses the character itself in any file.
+const EM_DASH = String.fromCharCode(0x2014);
 const placeholders = (s) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
 
 describe('i18n: English and Simplified Chinese', () => {
@@ -23,7 +25,7 @@ describe('i18n: English and Simplified Chinese', () => {
   });
 
   it('never uses an em dash, not even the Chinese double dash', () => {
-    for (const [k, v] of Object.entries({ ...fe, ...fz })) expect(v.includes('—'), k).toBe(false);
+    for (const [k, v] of Object.entries({ ...fe, ...fz })) expect(v.includes(EM_DASH), k).toBe(false);
   });
 
   it('words every refusal reason, tier and status of spec 02', () => {
