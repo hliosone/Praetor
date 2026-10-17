@@ -166,6 +166,7 @@ const app = createApiApp({
   accountFor: async (p, salt) => ({ address: (await prepareAccount(pub as never, accountModules(p), salt)).address }),
   extend: (r, h, session) => apiRoutes(r, h, session, {
     onboarding, ownerActions, approvals, link, standingOrders, audit, statement, bank: c.bank, runner: c.runner,
+    chainNowMs: async () => Number(await now()) * 1000,
     agentKeyOf: async (account) => (await pub.readContract({ address: d.mandateHook, abi: MandateHookAbi, functionName: 'kyaOf', args: [account] }))[0] as Address,
   }),
   mount: (a, h) => {

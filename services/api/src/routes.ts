@@ -41,6 +41,8 @@ export type RouteModules = {
   audit: Audit;
   /** camt.053.001.02 of the account over [fromMs, toMs], already validated against the XSD. */
   statement(account: Address, fromMs: number, toMs: number): Promise<string>;
+  /** Base time in ms (block timestamps date the audit entries and the statement). */
+  chainNowMs(): Promise<number>;
   bank: Pick<Clients['bank'], 'policyCheck'>;
   runner: Pick<Clients['runner'], 'chat'>;
   agentKeyOf(account: Address): Promise<Address>;
@@ -124,17 +126,18 @@ export function apiRoutes(r: Router, h: typeof handler, session: express.Request
   r.post('/standing-orders/:id/trigger', session, h(async (req, res) => send(res, await m.standingOrders.trigger(acct(res), z.coerce.number().int().min(1).max(2 ** 32 - 1).parse(req.params.id)))));
 
   // F8: the account's audit trail, the three-way verification, and the ISO 20022 statement.
-  const range = (q: unknown) => {
+  // Entries carry Base block times: the default end is "now" on Base, which a fork can run ahead of the wall clock.
+  const range = async (q: unknown) => {
     const b = z.object({ from: z.coerce.number().int().min(0).optional(), to: z.coerce.number().int().min(0).optional() }).parse(q);
-    return { from: b.from ?? 0, to: b.to ?? Date.now() };
+    return { from: b.from ?? 0, to: b.to ?? Math.max(Date.now(), await m.chainNowMs()) };
   };
   r.get('/audit', session, h(async (req, res) => {
-    const { from, to } = range(req.query);
+    const { from, to } = await range(req.query);
     send(res, { entries: await m.audit.list(acct(res), from, to) });
   }));
   r.get('/audit/verify', session, h(async (_req, res) => send(res, await m.audit.verify())));
   r.get('/statements/camt053', session, h(async (req, res) => {
-    const { from, to } = range(req.query);
+    const { from, to } = await range(req.query);
     res.type('application/xml').set('content-disposition', `attachment; filename="praetor-camt053-${acct(res).slice(2, 10)}.xml"`).send(await m.statement(acct(res), from, to));
   }));
 
