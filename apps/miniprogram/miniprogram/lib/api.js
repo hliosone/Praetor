@@ -12,13 +12,15 @@ class ApiError extends Error {
 
 function createApi(d) {
   async function send(method, path, body, extra) {
-    const token = d.session.token();
-    const go = () => d.request(Object.assign({ url: `${d.base}/mp${path}`, method, data: body, header: token ? { authorization: `Bearer ${token}` } : {} }, extra));
+    const go = () => {
+      const token = d.session.token();
+      const header = token ? { 'content-type': 'application/json', authorization: `Bearer ${token}` } : { 'content-type': 'application/json' };
+      return d.request(Object.assign({ url: `${d.base}/mp${path}`, method, data: body, header }, extra));
+    };
     let r = await go();
     if (r.statusCode === 401) {
       await d.session.login();
-      const fresh = d.session.token();
-      r = await d.request(Object.assign({ url: `${d.base}/mp${path}`, method, data: body, header: fresh ? { authorization: `Bearer ${fresh}` } : {} }, extra));
+      r = await go();
     }
     if (r.statusCode >= 200 && r.statusCode < 300) return r.data;
     throw new ApiError(r.statusCode, r.data);

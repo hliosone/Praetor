@@ -85,7 +85,7 @@ describe('approve (F6 step 5a)', () => {
     expect(order).toEqual(['login', 'startSoterAuthentication', 'login']);
     expect(posted[0].data).toMatchObject({ code: 'code-2', authMode: 'facial', resultJSONSignature: 'device-sig' });
     expect(JSON.parse(posted[0].data.resultJSON).raw).toBe(v.digest.slice(2));
-    expect(posted[0].header).toEqual({ authorization: 'Bearer T-linked' });
+    expect(posted[0].header).toEqual({ 'content-type': 'application/json', authorization: 'Bearer T-linked' });
     expect(p.data).toMatchObject({ result: 'executed', resultText: 'Approved and executed', busy: false });
   });
 
@@ -171,7 +171,7 @@ describe('link (F2 steps 2-3)', () => {
     await p.confirm();
     await settle(30);
     expect(wx.named('startSoterAuthentication')[0].opts).toMatchObject({ challenge: v.digest.slice(2), authContent: 'Link WeChat to 0x0000…0ffe' });
-    expect(posted[0].header).toEqual({ authorization: 'Bearer T-guest' });
+    expect(posted[0].header).toEqual({ 'content-type': 'application/json', authorization: 'Bearer T-guest' });
     expect(posted[0].data.code).toBe('code-2');
     expect(p.data.stage).toBe('linked');
     expect(getApp().session.account()).toBe(ACCOUNT);

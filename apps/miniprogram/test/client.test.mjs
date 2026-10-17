@@ -83,8 +83,10 @@ describe('api client and session', () => {
     await session.login();
     expect(session.account()).toBe('0xabc');
     expect(await api.call('GET', '/portfolio')).toEqual({ ok: true });
-    expect(seen[0]).toMatchObject({ url: 'https://api.test/mp/session', method: 'POST', data: { code: 'code-1' } });
-    expect(seen[1]).toMatchObject({ url: 'https://api.test/mp/portfolio', method: 'GET', header: { authorization: 'Bearer T1' } });
+    // JSON stated explicitly: the api's body parser reads nothing else.
+    expect(seen[0]).toMatchObject({ url: 'https://api.test/mp/session', method: 'POST', data: { code: 'code-1' }, header: { 'content-type': 'application/json' } });
+    expect(seen[1]).toMatchObject({ url: 'https://api.test/mp/portfolio', method: 'GET' });
+    expect(seen[1].header).toEqual({ 'content-type': 'application/json', authorization: 'Bearer T1' });
   });
 
   it('on a 401 signs in again once (one wx.login for concurrent calls) and retries', async () => {

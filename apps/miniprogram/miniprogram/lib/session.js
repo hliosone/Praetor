@@ -8,7 +8,7 @@ function createSession(d) {
 
   async function login() {
     const code = await d.login();
-    const r = await d.request({ url: `${d.base}/mp/session`, method: 'POST', data: { code } });
+    const r = await d.request({ url: `${d.base}/mp/session`, method: 'POST', data: { code }, header: { 'content-type': 'application/json' } });
     if (r.statusCode !== 200) throw new ApiError(r.statusCode, r.data);
     state = { token: r.data.token, account: r.data.account || null, expiresAt: r.data.expiresAt };
     return state;
