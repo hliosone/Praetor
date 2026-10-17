@@ -11,6 +11,7 @@
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "no-referrer"
+		X-Frame-Options "DENY"
 		-Server
 	}
 
@@ -42,7 +43,6 @@
 	handle {
 		header {
 			Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
-			X-Frame-Options "DENY"
 			Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
 		}
 		root * /srv/web
