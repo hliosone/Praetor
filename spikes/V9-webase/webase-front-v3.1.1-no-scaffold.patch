@@ -1,0 +1,314 @@
+build.gradle                                       |   3 -
+ .../webase/front/scaffold/ScaffoldController.java  | 107 ----------
+ .../webase/front/scaffold/ScaffoldService.java     | 231 ---------------------
+ .../webase/front/scaffold/entity/ReqProject.java   |  46 ----
+ .../webase/front/scaffold/entity/RspFile.java      |  31 ---
+ 5 files changed, 418 deletions(-)
+
+--- Changes ---
+
+build.gradle
+  @@ -82,9 +82,6 @@ List jackson = [
+  -    'com.webank.webase:solscaffold:3.3.0-SNAPSHOT',
+  -    'com.webank:WeBankBlockchain-SmartDev-Scaffold:3.3.0-SNAPSHOT',
+  -    'com.webank:solc-gradle-plugin:3.3.0-SNAPSHOT'
+   ]
+   
+   dependencies {
+  +0 -3
+
+src/main/java/com/webank/webase/front/scaffold/ScaffoldController.java
+  @@ -1,107 +0,0 @@
+  -/**
+  - * Copyright 2014-2020 the original author or authors.
+  - * <p>
+  - * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+  - * in compliance with the License. You may obtain a copy of the License at
+  - * <p>
+  - * http://www.apache.org/licenses/LICENSE-2.0
+  - * <p>
+  - * Unless required by applicable law or agreed to in writing, software distributed under the License
+  - * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+  - * or implied. See the License for the specific language governing permissions and limitations under
+  - * the License.
+  - */
+  -
+  -package com.webank.webase.front.scaffold;
+  -
+  -import com.webank.webase.front.base.code.ConstantCode;
+  -import com.webank.webase.front.base.controller.BaseController;
+  -import com.webank.webase.front.base.exception.FrontException;
+  -import com.webank.webase.front.base.response.BaseResponse;
+  -import com.webank.webase.front.scaffold.entity.ReqProject;
+  -import com.webank.webase.front.scaffold.entity.RspFile;
+  -import com.webank.webase.front.util.CommonUtils;
+  -import com.webank.webase.front.util.ValidateUtil;
+  -import java.time.Duration;
+  -import java.time.Instant;
+  -import javax.validation.Valid;
+  -import lombok.extern.log4j.Log4j2;
+  -import org.apache.commons.lang3.StringUtils;
+  -import org.springframework.beans.factory.annotation.Autowired;
+  -import org.springframework.web.bind.annotation.GetMapping;
+  -import org.springframework.web.bind.annotation.PostMapping;
+  -import org.springframework.web.bind.annotation.RequestBody;
+  -import org.springframework.web.bind.annotation.RequestMapping;
+  -import org.springframework.web.bind.annotation.RequestParam;
+  -import org.springframework.web.bind.annotation.RestController;
+  -
+  -/**
+  - * @author marsli
+  - */
+  -@Log4j2
+  -@RestController
+  -@RequestMapping(value = "scaffold")
+  -public class ScaffoldController extends BaseController {
+  -    @Autowired
+  -    private ScaffoldService scaffoldService;
+  -
+  -
+  -    @PostMapping("/export")
+  -    public BaseResponse exportProjectApi(@Valid @RequestBody ReqProject param) {
+  -        Instant startTime = Instant.now();
+  -        log.info("start exportProjectApi param:{} groupId:{}", startTime.toEpochMilli(),
+  -            param);
+  -        if (StringUtils.isBlank(param.getChannelIp())) {
+  -            param.setChannelIp("127.0.0.1");
+  -        }
+  -        // check artifact name and group name
+  -        if (!CommonUtils.startWithLetter(param.getArtifactName())) {
+  -            log.error("must start with letter");
+  -            throw new FrontException(ConstantCode.PARAM_INVALID_LETTER_DIGIT);
+  -        }
+  -        // validate group name, ex: org.example
+  -        if (!param.getGroup().contains(".")) {
+  -            // only org
+  -            if (!CommonUtils.startWithLetter(param.getGroup())) {
+  -                log.error("group name must start with letter");
+  -                throw new FrontException(ConstantCode.PARAM_INVALID_LETTER_DIGIT);
+  -            }
+  -        } else {
+  -            // include org.xxx
+  -            String[] groupNameArray = param.getGroup().split("\\.");
+  -            for (String group: groupNameArray) {
+  -                // not start or end with dot "."
+  -                if (StringUtils.isBlank(group)) {
+  -                    log.error("group cannot start or end with dot");
+  -                    throw new FrontException(ConstantCode.PARAM_INVALID_LETTER_DIGIT);
+  -                }
+  -                if (!CommonUtils.startWithLetter(group)) {
+  -                    log.error("package name must start with letter");
+  -                    throw new FrontException(ConstantCode.PARAM_INVALID_LETTER_DIGIT);
+  -                }
+  -            }
+  -        }
+  -        // start export
+  -        RspFile rspFile = scaffoldService.exportProject(param);
+  -        log.info("end exportProjectApi useTime:{} result:{}",
+  -            Duration.between(startTime, Instant.now()).toMillis(), rspFile.getFileName());
+  -        return new BaseResponse(ConstantCode.RET_SUCCESS, rspFile);
+  -    }
+  -
+  -    @GetMapping("/check")
+  -    public BaseResponse checkChannelPort(@RequestParam("nodeIp") String nodeIp,
+  -        @RequestParam("channelPort") int channelPort) {
+  -        Instant startTime = Instant.now();
+  -        log.info("start checkChannelPort startTime:{}, nodeIp:{} channelPort:{}",
+  -            startTime.toEpochMilli(), nodeIp, channelPort);
+  -        if(!ValidateUtil.ipv4Valid(nodeIp)) {
+  -            log.error("not valid nodeIp:{}", nodeIp);
+  -            throw new FrontException(ConstantCode.IP_FORMAT_ERROR);
+  -        }
+  ... (7 lines truncated)
+  +0 -107
+
+src/main/java/com/webank/webase/front/scaffold/ScaffoldService.java
+  @@ -1,231 +0,0 @@
+  -/**
+  - * Copyright 2014-2020 the original author or authors.
+  - * <p>
+  - * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+  - * in compliance with the License. You may obtain a copy of the License at
+  - * <p>
+  - * http://www.apache.org/licenses/LICENSE-2.0
+  - * <p>
+  - * Unless required by applicable law or agreed to in writing, software distributed under the License
+  - * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+  - * or implied. See the License for the specific language governing permissions and limitations under
+  - * the License.
+  - */
+  -
+  -package com.webank.webase.front.scaffold;
+  -
+  -import com.webank.scaffold.config.WebaseConfig.ContractInfo;
+  -import com.webank.scaffold.factory.WebaseProjectFactory;
+  -import com.webank.webase.front.base.code.ConstantCode;
+  -import com.webank.webase.front.base.config.Web3Config;
+  -import com.webank.webase.front.base.exception.FrontException;
+  -import com.webank.webase.front.cert.FrontCertService;
+  -import com.webank.webase.front.contract.ContractService;
+  -import com.webank.webase.front.contract.entity.Contract;
+  -import com.webank.webase.front.keystore.KeyStoreService;
+  -import com.webank.webase.front.scaffold.entity.ReqProject;
+  -import com.webank.webase.front.scaffold.entity.RspFile;
+  -import com.webank.webase.front.util.CommonUtils;
+  -import com.webank.webase.front.util.NetUtils;
+  -import com.webank.webase.front.util.ZipUtils;
+  -import com.webank.webase.front.web3api.Web3ApiService;
+  -import java.io.File;
+  -import java.util.ArrayList;
+  -import java.util.Base64;
+  -import java.util.List;
+  -import java.util.Map;
+  -import java.util.stream.Collectors;
+  -import lombok.extern.slf4j.Slf4j;
+  -import org.apache.commons.lang3.StringUtils;
+  -import org.apache.commons.lang3.tuple.Pair;
+  -import org.fisco.bcos.sdk.v3.model.CryptoType;
+  -import org.springframework.beans.factory.annotation.Autowired;
+  -import org.springframework.stereotype.Service;
+  -
+  -/**
+  - * use webank-blockchain-smart-dev-scaffold
+  - * to generate demo project of contract
+  - * @author marsli
+  - */
+  -@Slf4j
+  -@Service
+  -public class ScaffoldService {
+  -    @Autowired
+  -    private ContractService contractService;
+  -    @Autowired
+  -    private FrontCertService certService;
+  -    @Autowired
+  -    private KeyStoreService keyStoreService;
+  -    @Autowired
+  -    private Web3ApiService web3ApiService;
+  -    @Autowired
+  -    private Web3Config web3Config;
+  -
+  -    private static final String GRADLE_VERSION = "6.6.1";
+  -
+  -    private static final String OUTPUT_DIR = "output";
+  -    private static final String ZIP_SUFFIX = ".zip";
+  -    private static final String OUTPUT_ZIP_DIR = OUTPUT_DIR + File.separator + "zip";
+  -
+  -    /**
+  -     * generate by contract with sol
+  -      */
+  -    public RspFile exportProject(ReqProject reqProject) {
+  -        String artifactName = reqProject.getArtifactName();
+  -        // check dir exist
+  -        File checkProjectDir = new File(OUTPUT_DIR + File.separator + artifactName);
+  -        if (checkProjectDir.exists()) {
+  -            boolean result = CommonUtils.deleteDir(checkProjectDir);
+  -            log.warn("exportProject dir exist: {}, now delete it result:{}", artifactName, result);
+  -        }
+  -        // get contract info list
+  -        List<Integer> contractIdList = reqProject.getContractIdList();
+  -        List<Contract> tbContractList = new ArrayList<>();
+  -        for (Integer id : contractIdList) {
+  -            Contract contract = contractService.findById(id.longValue());
+  -            // if contract abi is null, not compile
+  -            // if abi is [](empty list), compile already
+  -            if (contract == null || contract.getContractAbi() == null) {
+  -                log.error("exportProject contract not exist or abi empty, id:{}", id);
+  -                throw new FrontException(ConstantCode.INVALID_CONTRACT_ID);
+  -            }
+  -            log.info("tbContractList add name:{},abi:{}", contract.getContractName(), contract.getContractAbi());
+  -            // check abi is empty, check 是否已编译
+  -            if (StringUtils.isBlank(contract.getContractAbi())) {
+  -                log.error("contract abi is empty, of name:{}, not support lib contract", contract.getContractName());
+  -                throw new FrontException(ConstantCode.ABI_GET_ERROR.getCode(),
+  -                    "library contract not support export project, please exclude this contract:" + contract.getContractName());
+  -            }
+  -            tbContractList.add(contract);
+  -        }
+  ... (131 lines truncated)
+  +0 -231
+
+src/main/java/com/webank/webase/front/scaffold/entity/ReqProject.java
+  @@ -1,46 +0,0 @@
+  -/**
+  - * Copyright 2014-2020 the original author or authors.
+  - * <p>
+  - * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+  - * in compliance with the License. You may obtain a copy of the License at
+  - * <p>
+  - * http://www.apache.org/licenses/LICENSE-2.0
+  - * <p>
+  - * Unless required by applicable law or agreed to in writing, software distributed under the License
+  - * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+  - * or implied. See the License for the specific language governing permissions and limitations under
+  - * the License.
+  - */
+  -
+  -package com.webank.webase.front.scaffold.entity;
+  -
+  -import java.util.List;
+  -import javax.validation.constraints.NotBlank;
+  -import javax.validation.constraints.NotNull;
+  -import lombok.Data;
+  -import lombok.NoArgsConstructor;
+  -
+  -/**
+  - * @author marsli
+  - */
+  -@Data
+  -@NoArgsConstructor
+  -public class ReqProject {
+  -    @NotNull
+  -    private List<Integer> contractIdList;
+  -    @NotBlank
+  -    private String group;
+  -    @NotBlank
+  -    private String artifactName;
+  -    @NotNull
+  -    private String groupId;
+  -    /**
+  -     * channel ip for exported project to connect node
+  -     */
+  -    private String channelIp;
+  -    private Integer channelPort;
+  -    /**
+  -     * select multi user to export in project by p12 format
+  -     */
+  -    private List<String> userAddressList;
+  -}
+  +0 -46
+
+src/main/java/com/webank/webase/front/scaffold/entity/RspFile.java
+  @@ -1,31 +0,0 @@
+  -/**
+  - * Copyright 2014-2020 the original author or authors.
+  - * <p>
+  - * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+  - * in compliance with the License. You may obtain a copy of the License at
+  - * <p>
+  - * http://www.apache.org/licenses/LICENSE-2.0
+  - * <p>
+  - * Unless required by applicable law or agreed to in writing, software distributed under the License
+  - * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+  - * or implied. See the License for the specific language governing permissions and limitations under
+  - * the License.
+  - */
+  -
+  -package com.webank.webase.front.scaffold.entity;
+  -
+  -import lombok.AllArgsConstructor;
+  -import lombok.Data;
+  -import lombok.NoArgsConstructor;
+  -
+  -/**
+  - * @author marsli
+  - */
+  -@Data
+  -@NoArgsConstructor
+  -@AllArgsConstructor
+  -public class RspFile {
+  -    private String fileName;
+  -    private String fileStreamBase64;
+  -
+  -}
+  +0 -31
+[full diff: rtk git diff --no-compact]
