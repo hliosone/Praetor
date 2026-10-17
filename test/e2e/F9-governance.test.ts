@@ -139,7 +139,7 @@ describe('F9 consortium governance (BRIDGE=relayer)', () => {
     const [measurement] = await read<readonly [Hex, boolean]>('attesterOf', [attester]);
     await openAndSign(s, 'operator', '/attesters', { attester, measurement, active: false }, ['operator']);
     await waitFor('attester inactive', async () => !(await read<readonly [Hex, boolean]>('attesterOf', [attester]))[1]);
-    await openAndSign(s, 'bank', '/attesters', { attester, measurement, active: true }, ['bank']);
-    await waitFor('attester active again', async () => (await read<readonly [Hex, boolean]>('attesterOf', [attester]))[1]);
+    // Re-activation is a new activation: a fresh quote, verified again by the bank.
+    expect(await activateSoterAttester(s)).toBe(attester);
   });
 });

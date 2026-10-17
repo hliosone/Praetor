@@ -2,7 +2,7 @@
 // like the api will, with software passkeys standing in for staff and owner devices. Reads .env without printing.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { createPublicClient, createWalletClient, encodeFunctionData, http, keccak256, parseAbi, toHex, type Address, type Hex } from 'viem';
+import { createPublicClient, createWalletClient, encodeAbiParameters, encodeFunctionData, http, keccak256, pad, parseAbi, toHex, type Address, type Hex } from 'viem';
 import { baseSepolia } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { MandateHookAbi, PriceOracleAbi, PraetorTokenAbi, baseNow, loadDeployments, type Deployment } from '@praetor/chain';
@@ -79,7 +79,18 @@ export async function activateSoterAttester(s: Stack): Promise<Address> {
   const { nonce } = await ok(member(s, 'bank', '/attesters/nonce', { attester }), 'attester nonce');
   const { quote } = await ok(attesterCall(s, '/v1/attest', { nonce }), 'attester quote');
   const { measurement } = await ok(member(s, 'bank', '/attesters/verify', { attester, nonce, quote }), 'attester quote check');
-  await openAndSign(s, 'bank', '/attesters', { attester, measurement, active: true }, ['bank']);
+  // A board keeps one open proposal per key until its deadline: join a matching one left open (never signed).
+  const fisco = JSON.parse(readFileSync(`${root}infra/deployments/fisco-local.json`, 'utf8')) as { attesterRegistry: Address };
+  const fiscoPub = createPublicClient({ transport: http(process.env.FISCO_RPC_URL_HOST ?? 'http://10.88.1.10:8545') });
+  const key = keccak256(encodeAbiParameters([{ type: 'uint8' }, { type: 'bytes32' }], [7, pad(attester as Hex)]));
+  const openId = await fiscoPub.readContract({ address: fisco.attesterRegistry, abi: parseAbi(['function openProposalOf(bytes32) view returns (uint256)']), functionName: 'openProposalOf', args: [key] });
+  const pending = openId ? await ok(member(s, 'bank', `/proposals/attesters/${openId}`), 'open attester proposal') : null;
+  const m = pending?.message as { measurement?: string; active?: boolean } | undefined;
+  if (pending && pending.status === 1 && m?.active === true && m.measurement?.toLowerCase() === String(measurement).toLowerCase()) {
+    await ok(member(s, 'bank', `/proposals/attesters/${openId}/sign`, { assertion: staffAssertion(s, 'bank', pending.digest) }), 'sign open attester proposal');
+  } else {
+    await openAndSign(s, 'bank', '/attesters', { attester, measurement, active: true }, ['bank']);
+  }
   await waitFor('attester active on Base', async () => (await read<readonly [Hex, boolean]>(s, 'attesterOf', [attester]))[1]);
   return attester;
 }

@@ -27,7 +27,7 @@ Single source of truth for where the build stands. After a context reset: read `
 - [x] M4 FISCO chain + contracts + fisco-client (gate: 4-node integration)
 - [x] M5 member services governance, bridge-relayer, seed script (gate: F9 steps 1, 2, 5, 6, 7 + FROZEN refusal)
 - [x] M6 identity (gate: 43-step scenario, PersonKYC, AgentMandate 2 sigs, revocation)
-- [ ] M7 TEEs on the simulator (gate: integration, I13)
+- [x] M7 TEEs on the simulator (gate: integration, I13)
 - [ ] M8 mcp, agent-runner + OpenCode (fake LLM), scheduler, oracle-feeder (gate: e2e F4, F5)
 - [ ] M9 api, notifier (gate: e2e F1, F2, F3, F6)
 - [ ] M10 standing orders, payout partner, Alipay+/WeChat Pay mocks (gate: e2e F7)
@@ -53,3 +53,4 @@ Single source of truth for where the build stands. After a context reset: read `
 | M4 | 2026-10-17 08:57 | 2026-10-17 09:19 | 22 min |
 | M5 | 2026-10-17 09:19 | 2026-10-17 10:07 | 48 min |
 | M6 | 2026-10-17 10:07 | 2026-10-17 11:16 | 69 min |
+| M7 | 2026-10-17 11:16 | 2026-10-17 12:02 | 46 min |
