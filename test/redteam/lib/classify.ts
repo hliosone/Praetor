@@ -10,7 +10,7 @@ export type Observation = {
   /** A value or a permission moved that the mandate does not allow. */
   executed: boolean;
   /** The layer that stopped the attack; `error` when the harness could not run it (inconclusive, fails the suite). */
-  layer: Layer | 'error';
+  layer: Layer | 'error' | 'none';
   reason?: ReasonName;
   tier?: TierName;
   /** Custom error name (BadNonce, AA24...) or HTTP status. */

@@ -7,7 +7,10 @@
     "test:int": "vitest run --config vitest.int.config.ts",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test:warp": "vitest run --config vitest.warp.config.ts"
+    "test:warp": "vitest run --config vitest.warp.config.ts",
+    "test:redteam": "vitest run --config vitest.redteam.config.ts redteam/suite/scripted.test.ts",
+    "test:redteam:live": "vitest run --config vitest.redteam.config.ts redteam/suite/live.test.ts",
+    "test:redteam:global": "REDTEAM_GLOBAL=1 vitest run --config vitest.redteam.config.ts redteam/suite/global.test.ts"
   },
   "devDependencies": {
     "@praetor/bundler": "workspace:*",
