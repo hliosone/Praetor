@@ -8,7 +8,7 @@ Praetor is an agent wallet (FinTechathon 2026, International Track, Topic F). An
 - **Bounded**: every call the account makes passes an on-chain **Mandate hook** that applies the user's rules and the bank's caps, default deny. Anything unusual needs the owner's Face ID (a passkey, or SOTER inside WeChat).
 - **Regulated**: a **FISCO BCOS** consortium (bank, regulator, operator) holds identity, approved assets, sanctions, the agent's status and an append-only audit log. Its decisions reach Base as member signatures that the hook verifies itself. One regulator signature freezes the agent; loosening needs two of three.
 
-This document is the technical documentation for judges: the picture first, then the core algorithms, the security design and the deployment. It describes the code as built at the end of milestone M17; where the build differs from `spec/`, the entry in [DECISIONS.md](DECISIONS.md) is cited. Chinese version: [zh-CN/ARCHITECTURE.md](zh-CN/ARCHITECTURE.md). Security evidence: [security/SELF_ASSESSMENT.md](security/SELF_ASSESSMENT.md).
+This document is the technical documentation for judges: the picture first, then the core algorithms, the security design and the deployment. It describes the code as built on 2026-10-18, after the web app, the mini program, agent key rotation and recovery (F10), the Base Sepolia deployment and the production compose were added; section 7 names the milestone gates that are still pending (D85). Where the build differs from `spec/`, the entry in [DECISIONS.md](DECISIONS.md) is cited. Chinese version: [zh-CN/ARCHITECTURE.md](zh-CN/ARCHITECTURE.md). Security evidence: [security/SELF_ASSESSMENT.md](security/SELF_ASSESSMENT.md).
 
 ## 1. The system in one picture
 
@@ -83,7 +83,7 @@ flowchart TB
 | Backend | `services/api`, `mcp`, `agent-runner`, `scheduler`, `bundler`, `oracle-feeder`, `notifier`, `bridge-relayer`, `payout-partner`, `alipayplus-mock` (also the WeChat Pay mock), `kyc-vendor-mock`, `fake-llm` (tests only) |
 | TEEs | `services/agent-signer`, `services/soter-attester` (dstack simulator locally, Phala Cloud CVMs in production) |
 | Transport | `wecross/evm-stub` (Java 8), `infra/wecross`, `services/bridge-relayer` |
-| Front ends | `apps/web` (React, the 3D phone, EN and 中文, PWA, consortium console); the WeChat mini program is built in M14 |
+| Front ends | `apps/web` (React, the 3D phone, EN and 中文, PWA with web push, consortium console, recovery page, interim judges' sandbox); `apps/miniprogram` (WeChat mini program, native WXML, EN and 中文, SOTER approvals) |
 | Shared | `packages/protocol` (EIP-712 types, reason codes, callHash, policy, audit chain, golden vectors in TS and Solidity), `chain`, `userop`, `config`, `db`, `fisco-client`, `weid-client` |
 
 ## 2. Two chains and the bridge
@@ -149,14 +149,14 @@ flowchart LR
 
 | Key | Can | Cannot |
 |---|---|---|
-| Owner passkey | Validate owner userOps (`execute`, and the launchpad's `setupSafe` for the first op); sign Tier2Approval and OwnerAction digests | Loosen anything without the bank (T3); produce an ERC-1271 signature |
-| Agent key (agent-signer TEE, `getKey("praetor/agent/<account>/v<n>")`) | Validate `execute` userOps of its account, to targets other than the account | Change rules, keys or modules; act outside the hook; sign for another chain or entry point (refused by agent-signer) |
+| Owner passkey | Validate owner userOps (`execute`, and the launchpad's `setupSafe` for the first op); sign Tier2Approval and OwnerAction digests; sign in to the web app, only while PasskeyValidator holds it (D47) | Loosen anything without the bank (T3), including adding another device (`SET_OWNER_KEY`); produce an ERC-1271 signature |
+| Agent key (agent-signer TEE, `getKey("praetor/agent/<account>/v<n>")`; a rotation moves to the next version, section 4.13) | Validate `execute` userOps of its account, to targets other than the account | Change rules, keys or modules; act outside the hook; sign for another chain or entry point (refused by agent-signer) |
 | Attester key (soter-attester TEE) | Sign `SoterApproval` after Tencent verified a SOTER signature over the exact digest | Approve without a fresh SOTER signature; act once any one member deactivates it |
-| Member Base signer keys | Sign consortium attestations | Exceed their threshold: 1 tightens, 2 loosen, the bank alone for caps, KYA, asset and attester activation |
+| Member Base signer keys | Sign consortium attestations; the bank's key also co-signs owner actions and alone signs a recovery's `SET_OWNER_KEY` after its re-KYC (section 4.13) | Exceed their threshold: 1 tightens, 2 loosen, the bank alone for caps, KYA, asset and attester activation |
 | Member FISCO keys | Open and sign FISCO proposals, append audit entries (operator) | Anything on Base |
 | Bundler, paymaster signer | Submit userOps and plain transactions to five allowlisted contracts; sponsor registered accounts | Forge a user or member signature |
 | Oracle feeder | Push prices, at most 25 % per update | Trade |
-| Desk operator, token agent (bank) | Register identities, operate the desk, freeze tokens; the ERC-3643 agent role can force-transfer tXAU and tXAG (known risk 12) | Move USDC; trade for others |
+| Desk operator, token agent (bank) | Register identities, operate the desk, freeze tokens; the ERC-3643 agent role can force-transfer tXAU and tXAG (known risk 12); send the bank's `scheduleRecovery` transaction (the authority is the bank signature it carries) | Move USDC; trade for others |
 | Payout partner | Withdraw, settle or fail its own payouts on PayoutRail | Pull from wallets |
 
 All non-TEE keys live in `.env` (git-ignored, mode 600) in three sets: `LOCAL_*` (anvil fork), `LIVE_*` (Base Sepolia), `SANDBOX_*` (judges' sandbox). Services read the unprefixed name first, then the active set's prefix (D1). The EIP-712 domain name carries the environment (`Praetor`, `Praetor-local`, `Praetor-sandbox`), and each environment has its own member keys, so a signature can never be replayed across environments even though the fork and live Base share chain id 84532.
@@ -227,7 +227,7 @@ The binding is set by `LINK_WECHAT`, an owner action that needs the passkey and 
 
 ### 4.4 Consortium attestations: thresholds and nonces
 
-On FISCO each decision type has a **board** contract (`contracts/fisco/src/Board.sol`): a member's FISCO account opens a proposal; the board allocates the proposal id and `nonce = stored + 1` for that key (one open proposal per key); members sign the EIP-712 digest with their Base signer keys; signatures are kept sorted by signer; at the threshold the board emits `Ready` and enqueues the attestation in `BaseOutbox`. An expired proposal is closed and releases its nonce; a Ready message that missed its Base deadline undelivered is reissued with the same nonce (D25). Member services sign only with a staff passkey assertion over the exact digest, except four automated, rule-checked signatures: the operator's heartbeat, the bank's KYA, the bank's owner-action co-signature and the bank's anchor co-signature (D24, D41).
+On FISCO each decision type has a **board** contract (`contracts/fisco/src/Board.sol`): a member's FISCO account opens a proposal; the board allocates the proposal id and `nonce = stored + 1` for that key (one open proposal per key); members sign the EIP-712 digest with their Base signer keys; signatures are kept sorted by signer; at the threshold the board emits `Ready` and enqueues the attestation in `BaseOutbox`. An expired proposal is closed and releases its nonce; a Ready message that missed its Base deadline undelivered is reissued with the same nonce (D25). Member services sign only with a staff passkey assertion over the exact digest, except four automated, rule-checked signatures: the operator's heartbeat, the bank's KYA, the bank's owner-action co-signature and the bank's anchor co-signature (D24, D41). Outside the boards, the bank also signs a recovery's `SET_OWNER_KEY` alone, after its own re-KYC matched (section 4.13).
 
 On Base, `ConsortiumLib` (a library of the hook) accepts a message only if `block.timestamp <= deadline`, `nonce == stored + 1`, and the signatures recover to distinct members in ascending order (no duplicates, no malleable signatures). Thresholds as built:
 
@@ -252,7 +252,7 @@ The operator service opens a `HeartbeatAttestation` every `HEARTBEAT_INTERVAL_S`
 
 `BRIDGE=wecross` is the local default (D42). The bridge-relayer, holding the WeCross router's FISCO account key, asks `BaseOutbox.requestWeCross(id)`; the outbox calls the WeCross hub; the **WeCross router** (1.4.0, stock BCOS3 stub on the FISCO side) polls the hub and hands the call to **Praetor's EVM stub** (`wecross/evm-stub`, Java 8, signing, RLP and ABI checked byte for byte against viem vectors), which sends a transaction to the vendored `WeCrossProxy` on Base. The proxy routes the name `inbox` to `WeCrossInbox.deliver(["Status", hex(abi.encode(attestation, signatures))])`, which calls the hook's permissionless setter and returns `["ok", nonce]` or `["error", reason]` without ever reverting the router's call. WeCross holds only transport keys; no member key enters it.
 
-The relayer is the watchdog: any message WeCross has not applied within `BRIDGE_WATCHDOG_S` (120 s) it submits itself through the bundler, and it records deliveries in the outbox (first write wins). With `BRIDGE=relayer` it delivers directly. As a last resort any member can submit an attestation to the hook. WeCross's known issues and how they are contained: [security/wecross.md](security/wecross.md).
+The relayer is the watchdog: any message WeCross has not applied within `BRIDGE_WATCHDOG_S` (120 s) it submits itself through the bundler, and it records deliveries in the outbox (first write wins). The delay is measured on FISCO's clock from the message's enqueue time (FISCO's web3 RPC reports block time in seconds, its EVM `block.timestamp` in milliseconds), so a request stuck in the WeCross hub is delivered whatever the Base clock says (`services/bridge-relayer/test/relayer.test.ts`). With `BRIDGE=relayer` it delivers directly. As a last resort any member can submit an attestation to the hook. WeCross's known issues and how they are contained: [security/wecross.md](security/wecross.md).
 
 ### 4.7 Audit chain, Base anchors and the camt.053 statement
 
@@ -263,7 +263,7 @@ entryHash = keccak256(canonical JSON without entryHash)
 head_n    = keccak256(abi.encode(head_{n-1}, entryHash_n)),  head_0 = 0x0
 ```
 
-The operator stores the entry, appends its hash to `AuditLog` on FISCO (operator only), then marks it appended, so a crash never appends twice (D41). Every `ANCHOR_EVERY` entries (20) or `ANCHOR_INTERVAL_S` (one hour in production) the operator opens an anchor: `AuditLog.openAnchor` takes the sequence number, head and block from the log itself, so nobody can anchor a head that is not on the log. The operator signs; the bank co-signs only after recomputing the whole chain from the operator's JSON and reaching that head; two signatures make it Ready and it lands in `Anchor` on Base.
+The operator stores the entry, appends its hash to `AuditLog` on FISCO (operator only), then marks it appended, so a crash never appends twice (D41). Every `ANCHOR_EVERY` entries (20) or `ANCHOR_INTERVAL_S` (one hour in production) the operator opens an anchor: `AuditLog.openAnchor` takes the sequence number, head and block from the log itself, so nobody can anchor a head that is not on the log. The operator signs; the bank co-signs only after recomputing the whole chain from the operator's JSON and reaching that head; two signatures make it Ready and it lands in `Anchor` on Base. An anchor left open (its co-signature lost in a restart) is resumed rather than opened again, which the board would refuse.
 
 Verification (`/api/audit/verify`, web page Audit) uses three independent sources: it recomputes every hash from the JSON alone, compares the result with the FISCO heads (and bisects `headAt` to name the first tampered entry, even if its stored hashes were rewritten), and checks that the latest Base anchor is one of the recomputed heads. The **camt.053** bank statement (ISO 20022 `camt.053.001.02`) is built from the account's USDC transfers and payouts and validated against the official XSD with xmllint-wasm before it is returned; an invalid document is never served.
 
@@ -286,7 +286,8 @@ flowchart LR
 - **Tool lockdown** (D15). OpenCode's configuration is `permission: {"*": "ask", "praetor_*": "allow"}` and the runner rejects every permission request during a turn, so built-in tools (shell, files, web) never run. The per-account MCP bearer reaches OpenCode only through an environment substitution, never in a file. agent-runner sits on its own `agent` network.
 - **MCP server.** Ten tools: `get_portfolio`, `get_mandate`, `get_status`, `get_activity`, `explain`, `pay`, `rebalance`, `get_approval`, `propose_standing_order`, `trigger_standing_order`. **No tool takes an account**: the account comes from the bearer. `pay` and `rebalance` dry-run with `checkBatch`, then always submit, so a refusal is recorded on-chain as evidence; a T2 result opens an approval request for the owner. No tool reads KYC data (I9).
 - **Bring any agent.** External MCP clients (for example claude.ai) connect through OAuth 2.1 with dynamic client registration and PKCE S256 (code ported from BSA Sentry); the user consents with their Praetor session. Their actions still go through the agent key in the TEE and the hook.
-- **Signing.** agent-signer signs only for mcp, only `execute` userOps on chain 84532 and EntryPoint v0.7, never to the account itself, at most 120 per account per hour; it computes the userOpHash itself.
+- **Signing.** agent-signer signs only for mcp, only `execute` userOps on chain 84532 and EntryPoint v0.7, never to the account itself, at most 120 per account per hour; it computes the userOpHash itself. mcp names the account's agent key as Base holds it (`kyaOf`) and agent-signer finds its key version among at most 16, so mcp never learns versions and a rotation needs no change on its side (D47).
+- **After an approval.** Once the owner approved a T2 call, the api asks mcp to resubmit it; mcp signs only a single call whose approval is live and unconsumed on the hook (`approvalOf`), anything else is refused (D72).
 
 ### 4.9 Standing orders and payout rails
 
@@ -311,6 +312,64 @@ The **bundler** is ours (`POST /userop/prepare` then `/userop/send`, D22). It si
 
 `PriceOracle` holds 8-decimal USD prices for tXAU and tXAG (USDC pinned at 1). The oracle-feeder pushes Pyth Hermes prices when `PYTH_API_KEY` is set, otherwise seeded prices flagged `DEMO` (D13); every update may move at most 25 %, and the hook refuses trades on prices older than `maxPriceAge` (4 days, metals do not trade at weekends). The demo shock (`pnpm shock --asset XAU --pct 20`) is a DEMO price the feeder holds for `DEMO_HOLD_S`. `TreasuryDesk` swaps USDC and metal at the oracle price plus or minus a 30 bps spread, minting what it sells and burning what it buys back. tXAU and tXAG are our own ERC-3643 tokens: transfers only between verified identities in allowed countries.
 
+### 4.13 Agent key rotation, devices and owner recovery (F10)
+
+The chain stays the source of truth for keys; the api only prepares what the owner and the bank sign (D47).
+
+- **Stop my agent.** `REVOKE_AGENT_KEY` is an owner-alone action (T3-): the key stops validating at once. The api then asks the bank to revoke the AgentMandate evidence of every agent key that AgentKeyValidator no longer holds; the bank reads Base itself before revoking.
+- **Rotate.** A new agent key is the next agent-signer key version (`praetor/agent/<account>/v<n+1>`). `POST /api/agent/rotate` finds the version whose address Base holds (`kyaOf`, at most 16 versions) and runs the onboarding path for the next one: quote checked by the bank, agent DID, AgentMandate signed with the passkey, a KYA that the bank links to its predecessor on FISCO (`MandateRegistry.linkSuccessor`), then `SET_AGENT_KEY` (owner and bank). The old key stops validating and its mandate is revoked as above.
+- **Devices.** Settings registers another passkey (at most four per account) and adds it on Base with `SET_OWNER_KEY`, signed by a current passkey and co-signed by the bank. Sign-in accepts only passkeys that PasskeyValidator holds, so a new device signs in once Base has it, and an owner action, approval or mandate is signed as the credential named in the assertion's id.
+- **Recovery** when every passkey is lost: the user opens `/recover`, enters the email and creates a new passkey; the bank runs its own re-KYC with the KYC provider, and only a result matching the sealed PersonKYC record (name, birth date, nationality, document number) makes it sign the `SET_OWNER_KEY` alone and send `scheduleRecovery` from its desk account. The account is RESTRICTED for 48 h, any remaining passkey cancels alone (`CANCEL_RECOVERY`), and after 48 h anyone may execute (the api through the bundler). Recovery needs a PersonKYC issued from the provider (not the EUDI path). The recovery state comes from the hook's Recovery events; Settings shows a pending recovery and the bank's notice goes to its own log sink (D13).
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor User as Owner on a new device
+  participant API as api
+  participant BANK as bank service
+  participant KYC as KYC provider
+  participant HOOK as MandateHook on Base
+  actor Old as Any remaining passkey
+  User->>API: /recover: email and a new passkey
+  API->>BANK: start the re-KYC with that key
+  User->>KYC: document, selfie, liveness
+  KYC->>BANK: result
+  BANK->>BANK: same person as the sealed PersonKYC record?
+  BANK->>HOOK: scheduleRecovery(SET_OWNER_KEY, bank signature)
+  HOOK->>HOOK: account RESTRICTED, executable in 48 h
+  Old-->>HOOK: CANCEL_RECOVERY at any time (owner alone)
+  API->>HOOK: executeRecovery after 48 h (anyone)
+  HOOK->>HOOK: replace every owner key, clear the WeChat binding, new epoch, revoke the agent key
+```
+
+After execution the old approvals are void (the epoch changed) and the owner installs a new agent key. The flow is covered by `test/e2e/F10-rotation-recovery.test.ts` and, because it moves the fork clock 48 h, by `test/warp/F10-recovery-execute.test.ts`, which `make e2e` runs last; both are written and wait for the M15 gate. Its risks are in the [self-assessment](security/SELF_ASSESSMENT.md), known risk 31.
+
+### 4.14 The web app and the consortium console
+
+`apps/web` (React and Vite, EN and 中文, an installable PWA) is the owner's main screen: `/` the landing page with the 3D phone, `/start` onboarding, `/home` portfolio rings and decisions, `/approve/:id` Tier-2 approvals, `/mandate`, `/payments` (standing orders, payees with the names the agent resolves), `/agent` (chat with the tools each turn called, stop or rotate the agent key), `/audit` (verify, camt.053), `/settings` (devices, a pending recovery, WeChat link and unlink, web push), `/recover`, `/sandbox` and `/console`.
+
+- **What you see is what you sign** (D46). Before the passkey signs, the page recomputes the Tier2Approval digest from the request's preimage and, for every owner action, checks the kind it asked for, the account, `payloadHash` against the payload and the EIP-712 digest; for a policy, an agent key, a new passkey, a revocation and a recovery cancellation it rebuilds the payload from what it shows (`apps/web/src/lib/ownerAction.ts`). A lying api gets no signature.
+- **Console.** One panel per member (bank, regulator, operator) side by side; each panel signs in with its own member service's staff passkey and asserts with that enrolled credential. A proposal opened from the console shows in every member's panel with a tracker of who signed and how many signatures it needs: the regulator freezes alone, loosening needs a second member. The api only relays; the member service verifies the staff assertion over the digest it reads from FISCO. The list of accounts needs a staff session (D70).
+- **Browser controls** (D71). Caddy sends a CSP with scripts from self only and no framing, HSTS, nosniff and no-referrer; the api refuses a write from another Origin and rate-limits the public sign-in, onboarding and recovery routes per client.
+- **Tests.** Unit tests in `make test` (`apps/web/src/lib/web.test.ts`, `apps/web/src/pages/Settings.test.tsx`); the Playwright journey F1 to F10 with a virtual authenticator, screenshots at 1440 and 390 px and axe checks (`apps/web/e2e`, `make e2e-web`), written and waiting for the M13 gate.
+
+### 4.15 The WeChat mini program
+
+`apps/miniprogram` is the owner's daily screen inside WeChat: portfolio, status, decisions, the agent chat and Tier-2 approvals with Face ID or fingerprint through SOTER (native WXML, WXSS and JS, EN and 中文).
+
+- **Sign-in** (D50). `wx.login` gives a code; `POST /mp/session` lets the api call code2Session itself and keep only `keccak256(openid)`. The bearer token lasts 2 h, is never the web session, and names the account only while the link recorded after LINK_WECHAT still matches `bindingOf(account)` on Base, checked at every sign-in; an unlink or a recovery ends it.
+- **Routes** (D51, D53). `/mp` gives the linked user the owner's reads, the agent chat, reject, SOTER approvals and the F2 link, and no owner action: unlink, new standing orders and policy changes copy the web app link, where the passkey signs. No response carries the owner's email or KYC data.
+- **What the phone checks** (D52, D54). Before SOTER signs an approval, the phone decodes each call, recomputes the call hash and the Tier2Approval digest and signs its own digest; for a link it requires LINK_WECHAT with `payloadHash = keccak256(abi.encode(linkNonce))`. The digest code is `lib/protocol.js`, generated from `src/protocol.mjs` and checked against the golden vectors.
+- **Status.** Logic tests in `make test` (a stand-in for the DevTools build); on phones it runs in debug mode under the WeChat test account ([MANUAL.md](MANUAL.md) section 5, [TESTER.md](TESTER.md)).
+
+### 4.16 Notifications and web push
+
+The notifier fans each message out to every channel of the account and keeps an outbox: the WeChat Official Account channel (a log sink until the OA test account exists, BLOCKERS B2) and web push. The web app subscribes its service worker from Settings with the VAPID public key of the api's public config; the api stores the subscription (`POST /api/push/subscribe`, https endpoints only) and the notifier reads it through an internal route, encrypts the message for each browser (RFC 8291) and signs the request with Praetor's VAPID key (RFC 8292). The service worker shows the notification and opens its link. A push service down never blocks the other channels.
+
+### 4.17 The interim judges' sandbox
+
+Spec 00's own sandbox deployment (domain `Praetor-sandbox`, SANDBOX keys) is not built; `/sandbox` is its interim stand-in on the main deployment (D48, D73). One click creates a disposable account with the browser's own passkey, passes the demo KYC, installs the agent and a default mandate, and funds it from the faucet: `POST /api/sandbox/faucet` mints 5,000 demo USDC once per account, at most `SANDBOX_RATE_LIMIT_PER_HOUR` per client, and only on the fork. The scenario buttons run real flows and show their transactions: a 300 USDC payment to a new café (real model, approved with the passkey), a prompt injection towards the demo sanctioned address, a rent standing order, the audit check. The freeze links to the console: no member key signs anything for a button.
+
 ## 5. Security design
 
 The full analysis, with the tests behind each claim, is [security/SELF_ASSESSMENT.md](security/SELF_ASSESSMENT.md). In short:
@@ -318,6 +377,7 @@ The full analysis, with the tests behind each claim, is [security/SELF_ASSESSMEN
 - **One choke point.** Every execution passes the hook, whoever signed it; Safe owners cannot execute; no signature path exists outside the hook (I1, I16, I17, proven by fork tests on the real Safe7579).
 - **Default deny and bank caps first.** Only four call shapes are modelled; the effective limit is always the stricter of the user's policy and the bank's caps, and no approval lifts a T0 reason (I2, I8, fuzz and invariant tests).
 - **Humans approve on-chain.** Approvals are bound to one exact call, single use, expiring within an hour, verified by WebAuthn.sol or an attested SOTER approval (I5, I6).
+- **What you see is what you sign.** The web app and the mini program recompute every digest they sign from what they show, so a compromised api gets no signature for something else (D46, D52).
 - **Stricter needs fewer signatures than looser.** One member freezes; two loosen; nonces allocated by FISCO cannot be jumped (I3, I18). Silence fails safe (I4).
 - **Evidence by construction.** Refusal reasons are computed on-chain (I11); every decision lands in a hash chain anchored on Base.
 - **Data minimisation.** KYC data stays in the bank; Base carries addresses, amounts and hashes plus the pseudonymous KYA attributes (I9, I19, D69).
@@ -326,20 +386,26 @@ The tiers in one line each: **T0** never (hook refuses); **T1** the agent alone;
 
 ## 6. Deployment
 
-**Local is a small production** (spec 11): one Docker Compose file (`infra/compose.yml`) with profiles `core`, `chain`, `wecross`, `agent`, `tee-sim`, `mocks`, `dev`; every pulled image pinned by digest; healthchecks on every long-running service. Only Caddy publishes ports (80 and 443; anvil also listens on loopback 18545 for Foundry). Three networks isolate what must not talk: `praetor` (10.88.0.0/16), `identity` (WeIdentity with the bank, MySQL and one FISCO node only, D29) and `agent` (agent-runner with mcp, the scheduler, the api and the test-only fake LLM, D35). MySQL has one database and one user per service. Base runs as an anvil fork of Base Sepolia with the P-256 precompile (`--network optimism`); FISCO runs four sealers from our own image built from the sha256-pinned 3.17.1 release; the TEEs run on the dstack simulator.
+**Local is a small production** (spec 11): one Docker Compose file (`infra/compose.yml`) with profiles `core`, `chain`, `wecross`, `agent`, `tee-sim`, `mocks`, `dev`; every pulled image pinned by digest; healthchecks on every long-running service. Only Caddy publishes ports (80 and 443; anvil also listens on loopback 18545 for Foundry). Three networks isolate what must not talk: `praetor` (10.88.0.0/16), `identity` (WeIdentity with the bank, MySQL and one FISCO node only, D29) and `agent` (agent-runner with mcp, the scheduler, the api and the test-only fake LLM, D35). MySQL has one database and one user per service. Base runs as an anvil fork of Base Sepolia with the P-256 precompile (`--network optimism`), which retries the public RPC and dumps its state to a volume every 20 s (D45); FISCO runs four sealers from our own image built from the sha256-pinned 3.17.1 release; the TEEs run on the dstack simulator.
 
-**Production** (Phase C, with the human): one server for the stack plus two Phala Cloud CVMs (Intel TDX, dstack) for agent-signer and soter-attester, with `ATTESTATION_MODE=phala`, compose hashes registered by the bank, secrets as encrypted environment variables, and the live Base Sepolia deployment. The production compose overrides (`infra/compose.prod.yml`) are built in M18. Steps: [DEPLOY.md](DEPLOY.md); TEE checklist: [security/tee-checklist.md](security/tee-checklist.md).
+**Live mode** (M16, D74, D75). `make up LIVE=1` adds `infra/live.env`: the stack runs on Base Sepolia with the `LIVE_` keys, without anvil, against `infra/deployments/base-sepolia.json` (MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`, deployed at block 48253270 with domain `Praetor`), at `DEMO_SCALE=100` and production heartbeat and price intervals. FISCO stays the local chain, governed by the `LOCAL` set (`FISCO_KEYSET=LOCAL`), with a second consortium bound to the live hook (`infra/deployments/fisco-live.json`); every key Base trusts comes from the `LIVE_` set. The live budget is small: `scripts/deploy/fund-live.ts` spreads the deployer's testnet ETH to the gas accounts (dry run unless `--send`), and one deployment with a 0.004 ETH paymaster deposit cost about 0.0045 ETH. `scripts/evidence/live-run.ts` runs the evidence flows with the real model and `scripts/evidence/collect.ts` writes [EVIDENCE.md](EVIDENCE.md) from the chains; the evidence is not collected yet at this commit.
 
-## 7. Build status at M17
+**Production** (Phase C, with the human): one server for the stack plus two Phala Cloud CVMs (Intel TDX, dstack) for agent-signer and soter-attester, with `ATTESTATION_MODE=phala`, compose hashes registered by the bank, secrets as encrypted environment variables, and the live Base Sepolia deployment. `infra/compose.prod.yml` adds to the same base file a restart policy for every long-running service and log rotation for all, keeps the scripted model out (a `test` profile), lets Caddy take a real certificate (`CADDY_TLS` is the ACME account email instead of `internal`) and disables the plain-HTTP tunnel site (its host name never resolves). `make rehearsal` starts the stack with it (`PRAETOR_ENV=rehearsal`), runs the smoke subset of the flows, then `scripts/deploy/prod-refusals.sh`, which checks that each service refuses its test-only settings with `PRAETOR_ENV=prod` (I13). Phones reach a laptop stack before the domain exists through `make tunnel`: a cloudflared quick tunnel that reaches Caddy over plain HTTP, writes its URL to `.run/tunnel-url` and points the mini program's develop environment at it ([TESTER.md](TESTER.md)). Steps: [DEPLOY.md](DEPLOY.md); TEE checklist: [security/tee-checklist.md](security/tee-checklist.md).
+
+## 7. Build status on 2026-10-18
+
+"Built" means the code and its unit tests are in `make test`; a milestone gate is passed only when `docs/PROGRESS.md` ticks it (D85).
 
 | Area | Status |
 |---|---|
-| Base and FISCO contracts, protocol, bundler, member services, identity, TEEs on the simulator, agent with MCP, api, standing orders and payouts, audit and camt.053 | Built and tested (M1 to M11) |
-| WeCross transport | Built (M12); its milestone gate (F9 with `BRIDGE=wecross`) is pending |
-| Web app (landing with the 3D phone, onboarding, dashboard, approvals, mandate, payments, agent, audit, settings, console) | In progress (M13); the judges' sandbox is part of M13 |
-| WeChat mini program | M14 |
-| Agent key rotation and owner recovery flow (F10), Guomi (SM) profile smoke | M15 (the contract side of recovery is built and tested) |
-| Live run on Base Sepolia, transaction evidence, red-team suite | M16 |
-| Production compose and deployment rehearsal | M18; the cloud deployment is Phase C |
+| Base and FISCO contracts, protocol, bundler, member services, identity, TEEs on the simulator, agent with MCP, api, standing orders and payouts, audit and camt.053 | Built and tested; gates M1 to M11 passed |
+| WeCross transport | Built (M12); its gate (F9 with `BRIDGE=wecross`) is pending |
+| Web app with the consortium console, payees, devices, recovery page, web push, interim sandbox | Built (M13); the Playwright journey F1 to F10 and the sandbox spec are written; gate pending |
+| WeChat mini program | Built (M14, gate passed: logic tests and MANUAL steps); phones in Phase C |
+| Agent key rotation, devices and owner recovery (F10) | Built; `test/e2e/F10-rotation-recovery.test.ts` and the 48 h `test/warp/F10-recovery-execute.test.ts` are written; the M15 gate (F1 to F10 on the fork) is pending |
+| Guomi (SM) profile smoke | Run and recorded in [SMOKE.md](SMOKE.md): 11 self-test and 37 on-chain checks pass; WeIdentity scenario 39 of 43 (BLOCKERS B3) |
+| Base Sepolia deployment and live mode | Contracts deployed on Base Sepolia and the consortium on FISCO (D74, D75); the live evidence run is not collected yet (M16 gate pending) |
+| Red-team suite | Not built at this commit (`make redteam` is a placeholder) |
+| Production compose, rehearsal target, prod refusal check, phone tunnel | Built (M18); the rehearsal gate is pending; the cloud deployment is Phase C |
 
 The WeBASE explorer was proven in Phase 0 (V9) but is not part of the stack (cut list, D4).
