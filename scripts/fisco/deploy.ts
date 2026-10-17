@@ -19,22 +19,31 @@ const key = (role: string) => {
   return v as Hex;
 };
 const addr = (role: string) => privateKeyToAccount(key(role)).address;
+// The FISCO chain's own accounts (D75): on this machine one FISCO chain serves every environment and its governance is
+// the LOCAL set, so FISCO_KEYSET=LOCAL keeps FISCO-side keys LOCAL while Base signers come from the environment's set.
+const fiscoSet = process.env.FISCO_KEYSET ?? set;
+const fkey = (role: string) => {
+  const v = env[`${fiscoSet}_${role}`];
+  if (!v) throw new Error(`missing ${fiscoSet}_${role}`);
+  return v as Hex;
+};
+const faddr = (role: string) => privateKeyToAccount(fkey(role)).address;
 
 const base = JSON.parse(readFileSync(`${root}infra/deployments/${baseFile}.json`, 'utf8'));
-const steps = await bootstrapGovernance(rpc, { admin: key('BANK_FISCO_KEY'), regulator: key('REGULATOR_FISCO_KEY'), operator: key('OPERATOR_FISCO_KEY') },
-  [addr('DEPLOYER_KEY'), addr('WEID_ADMIN_KEY'), addr('WECROSS_FISCO_KEY')]);
+const steps = await bootstrapGovernance(rpc, { admin: fkey('BANK_FISCO_KEY'), regulator: fkey('REGULATOR_FISCO_KEY'), operator: fkey('OPERATOR_FISCO_KEY') },
+  [faddr('DEPLOYER_KEY'), faddr('WEID_ADMIN_KEY'), faddr('WECROSS_FISCO_KEY')]);
 console.log(`governance: ${steps.length ? steps.join(', ') : 'already bootstrapped'}`);
 const d = await deployConsortium(rpc, {
-  deployerKey: key('DEPLOYER_KEY'),
+  deployerKey: fkey('DEPLOYER_KEY'),
   members: [
-    { fiscoAccount: addr('BANK_FISCO_KEY'), baseSigner: addr('BANK_BASE_SIGNER_KEY') },
-    { fiscoAccount: addr('REGULATOR_FISCO_KEY'), baseSigner: addr('REGULATOR_BASE_SIGNER_KEY') },
-    { fiscoAccount: addr('OPERATOR_FISCO_KEY'), baseSigner: addr('OPERATOR_BASE_SIGNER_KEY') },
+    { fiscoAccount: faddr('BANK_FISCO_KEY'), baseSigner: addr('BANK_BASE_SIGNER_KEY') },
+    { fiscoAccount: faddr('REGULATOR_FISCO_KEY'), baseSigner: addr('REGULATOR_BASE_SIGNER_KEY') },
+    { fiscoAccount: faddr('OPERATOR_FISCO_KEY'), baseSigner: addr('OPERATOR_BASE_SIGNER_KEY') },
   ],
   baseHook: base.mandateHook,
   domainName: base.domainName,
-  router: addr('WECROSS_FISCO_KEY'),
-  relayer: addr('RELAYER_FISCO_KEY'),
+  router: faddr('WECROSS_FISCO_KEY'),
+  relayer: faddr('RELAYER_FISCO_KEY'),
   usdc: base.usdc,
 });
 writeFileSync(`${root}infra/deployments/fisco-${envName}.json`, JSON.stringify({ env: envName, chainId: 20200, baseDeployment: baseFile, ...d }, null, 2) + '\n');

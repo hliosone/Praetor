@@ -6,6 +6,7 @@ ENV_FILES = --env-file infra/.env.example $(if $(wildcard .env),--env-file .env)
 # LIVE=1 runs the stack on Base Sepolia (infra/live.env, LIVE_ keys, no anvil): the M16 evidence run (D74).
 ifneq ($(LIVE),)
 export CHAIN_MODE = live
+export FISCO_KEYSET = LOCAL
 endif
 GRADLE_IMAGE = gradle@sha256:213476fe3598a433b19077b5b85ae95656cc0cba6fbc707d598c5a7ee865c52f
 # PROD=1 adds the production overrides (M18 rehearsal, prod server).
