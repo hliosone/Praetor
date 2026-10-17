@@ -28,6 +28,12 @@ describe('key plan', () => {
     expect(names).toContain('INTERNAL_TOKEN_BUNDLER');
   });
 
+  it('has staff enrolment tokens per member service and an internal token for member services (Q28, D24)', () => {
+    for (const n of ['STAFF_ENROL_TOKEN_BANK', 'STAFF_ENROL_TOKEN_REGULATOR', 'STAFF_ENROL_TOKEN_OPERATOR', 'INTERNAL_TOKEN_MEMBERS']) {
+      expect(plannedNames()).toContain(n);
+    }
+  });
+
   it('has a FISCO account for the bridge-relayer in every set (D23)', () => {
     for (const set of KEY_SETS) expect(plannedNames()).toContain(`${set}_RELAYER_FISCO_KEY`);
   });

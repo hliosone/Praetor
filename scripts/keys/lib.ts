@@ -49,7 +49,12 @@ const SHARED: { names: string[]; make: Generator }[] = [
   ...['SESSION_SECRET', 'KYC_ENC_KEY', 'KYC_VENDOR_HMAC', 'MCP_OAUTH_SIGNING_KEY',
     'SIGNER_HMAC_MCP', 'SIGNER_HMAC_API', 'SIGNER_HMAC_BANK', 'ATTESTER_HMAC_API',
     // Bearer token for internal callers of the bundler (api, mcp, scheduler, member services) on the Docker network.
-    'INTERNAL_TOKEN_BUNDLER'].map((n) => ({ names: [n], make: () => ({ [n]: hex32() }) })),
+    'INTERNAL_TOKEN_BUNDLER',
+    // api -> member services (opening proposals, owner-action co-signing); signing a consortium decision also
+    // needs a staff passkey (spec 05), so this token alone can never make a member sign a loosening.
+    'INTERNAL_TOKEN_MEMBERS',
+    // One-time tokens to enrol the first staff passkey of each member service (Q28), consumed on first use.
+    'STAFF_ENROL_TOKEN_BANK', 'STAFF_ENROL_TOKEN_REGULATOR', 'STAFF_ENROL_TOKEN_OPERATOR'].map((n) => ({ names: [n], make: () => ({ [n]: hex32() }) })),
   { names: ['OPENCODE_SERVER_PASSWORD'], make: () => ({ OPENCODE_SERVER_PASSWORD: password() }) },
   { names: ['MYSQL_ROOT_PASSWORD'], make: () => ({ MYSQL_ROOT_PASSWORD: password() }) },
   ...MYSQL_SERVICES.map((s) => ({ names: [`MYSQL_PASSWORD_${s}`], make: () => ({ [`MYSQL_PASSWORD_${s}`]: password() }) })),
