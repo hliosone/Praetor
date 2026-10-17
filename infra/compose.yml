@@ -42,6 +42,7 @@ volumes:
   weid-keys:
   weid-src:
   weid-gradle:
+  dstack-sock:
 
 services:
   caddy:
@@ -296,6 +297,50 @@ services:
     healthcheck:
       <<: *health
       test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3040/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+
+  # TEEs locally (tee-sim profile): the dstack simulator's sockets on a shared volume, mounted where a CVM has them.
+  # In prod both services run in their own Phala CVMs instead (spec 11).
+  dstack-sim:
+    build:
+      context: ./dstack-sim
+    image: praetor/dstack-sim:0.5.3
+    profiles: [tee-sim]
+    restart: unless-stopped
+    network_mode: none
+    volumes:
+      - dstack-sock:/var/run/dstack
+    healthcheck:
+      <<: *health
+      test: ['CMD', 'test', '-S', '/var/run/dstack/dstack.sock']
+
+  agent-signer:
+    build:
+      context: ..
+      dockerfile: infra/node-service.Dockerfile
+      args:
+        SERVICE: agent-signer
+    image: praetor/agent-signer:local
+    profiles: [tee-sim]
+    restart: unless-stopped
+    environment:
+      PRAETOR_ENV: ${PRAETOR_ENV}
+      ATTESTATION_MODE: ${ATTESTATION_MODE}
+      SIGNER_HMAC_MCP: ${SIGNER_HMAC_MCP}
+      SIGNER_HMAC_API: ${SIGNER_HMAC_API}
+      SIGNER_HMAC_BANK: ${SIGNER_HMAC_BANK}
+      PUBLIC_URL: ${PUBLIC_URL}
+      DSTACK_ENDPOINT: /var/run/dstack/dstack.sock
+    volumes:
+      - dstack-sock:/var/run/dstack
+    depends_on:
+      dstack-sim:
+        condition: service_healthy
+    networks:
+      praetor:
+        ipv4_address: 10.88.0.50
+    healthcheck:
+      <<: *health
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3050/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
 
   # WeIdentity (spec 05, V3): one-shot deployment, then the REST service (custodial keys) and our SDK helper.
   # Docker network only: neither has authentication.

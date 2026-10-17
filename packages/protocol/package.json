@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./caller-auth": "./src/callerAuth.ts"
   },
   "scripts": {
     "test": "vitest run && forge test --root . -q && FOUNDRY_PROFILE=paris forge build --root . -q",

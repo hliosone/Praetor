@@ -235,6 +235,52 @@ importers:
         specifier: 3.2.7
         version: 3.2.7(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1)
 
+  services/agent-signer:
+    dependencies:
+      '@phala/dstack-sdk':
+        specifier: 0.5.8
+        version: 0.5.8(@noble/curves@1.9.1)(@noble/hashes@1.8.0)(viem@2.57.5(typescript@5.9.3)(zod@3.25.76))
+      '@praetor/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      '@praetor/userop':
+        specifier: workspace:*
+        version: link:../../packages/userop
+      express:
+        specifier: 4.21.2
+        version: 4.21.2
+      pino:
+        specifier: 9.14.0
+        version: 9.14.0
+      viem:
+        specifier: 2.57.5
+        version: 2.57.5(typescript@5.9.3)(zod@3.25.76)
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/express':
+        specifier: 4.17.21
+        version: 4.17.21
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+      '@types/supertest':
+        specifier: 6.0.3
+        version: 6.0.3
+      supertest:
+        specifier: 7.1.4
+        version: 7.1.4
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.7
+        version: 3.2.7(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1)
+
   services/bank:
     dependencies:
       '@praetor/chain':
@@ -756,6 +802,22 @@ packages:
 
   '@paralleldrive/cuid2@2.3.1':
     resolution: {integrity: sha512-XO7cAxhnTZl0Yggq6jOgjiOHhbgcO4NqFqwSmQpjK3b6TEE6Uj/jfSk6wzYyemh3+I0sHirKSetjQwn5cZktFw==}
+
+  '@phala/dstack-sdk@0.5.8':
+    resolution: {integrity: sha512-VANlyo0Jj6pxmJl3zksHJ4/5y3VflApVmgsfcfmokk3KYKRBkW5oMkexBTR6lZaGVPOqJ48QGOLP/7CF3IEvFg==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      '@noble/curves': ^1.8.1
+      '@noble/hashes': ^1.6.1
+      '@solana/web3.js': ^1.98.4
+      viem: ^2.43.3
+    peerDependenciesMeta:
+      '@noble/curves':
+        optional: true
+      '@solana/web3.js':
+        optional: true
+      viem:
+        optional: true
 
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
@@ -1871,6 +1933,13 @@ snapshots:
   '@paralleldrive/cuid2@2.3.1':
     dependencies:
       '@noble/hashes': 1.8.0
+
+  '@phala/dstack-sdk@0.5.8(@noble/curves@1.9.1)(@noble/hashes@1.8.0)(viem@2.57.5(typescript@5.9.3)(zod@3.25.76))':
+    dependencies:
+      '@noble/hashes': 1.8.0
+    optionalDependencies:
+      '@noble/curves': 1.9.1
+      viem: 2.57.5(typescript@5.9.3)(zod@3.25.76)
 
   '@pinojs/redact@0.4.0': {}
 

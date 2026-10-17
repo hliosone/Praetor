@@ -5,7 +5,7 @@ SHELL := /bin/bash
 ENV_FILES = --env-file infra/.env.example $(if $(wildcard .env),--env-file .env) $(if $(wildcard .run/compose.env),--env-file .run/compose.env)
 COMPOSE = docker compose -f infra/compose.yml $(ENV_FILES)
 # Profiles that exist so far; later milestones add chain, wecross, agent, tee-sim, mocks.
-PROFILES ?= core chain mocks dev
+PROFILES ?= core chain mocks tee-sim dev
 PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 
 .PHONY: help setup install up down ps logs test test-guards test-unit test-scripts test-contracts test-contracts-full test-fork lint gitleaks test-int e2e e2e-live redteam slither deploy-contracts deploy-fisco tunnel reset-fork up-base
