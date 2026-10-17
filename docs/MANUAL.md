@@ -50,3 +50,79 @@ Steps are added during Phase B, each time something needs a human (phone Face ID
 | **You see** | Each Face ID prompt names what you sign; the approval page shows the full payee address and amount; the payment lands after each approval; a replayed approval is refused. |
 | **Claude checks** | `kyaOf`, `policyHashOf`, `bindingOf` on Base; ApprovalRegistered and the payment tx; the api never saw a private key. Automated stand-in: e2e F1, F2, F3, F6 with the software passkey and the SOTER fixture (`SOTER_FAKE_TENCENT=1`). |
 | **Fallback** | Face ID not offered (non-Safari browser in WeChat): open the link in Safari as the page asks; SOTER not available on the phone: approve with the passkey on the web. |
+
+## 5. The WeChat mini program (M14)
+
+The mini program is built and its logic tested in Phase B (`pnpm --filter @praetor/miniprogram test`, part of `make test`): golden vectors, every refusal, page logic against a fake `wx`, and a stand-in for the DevTools build. What follows needs a human: the DevTools QR login, the test account and two phones. Run the steps in order; 5.4 to 5.7 are the riskiest.
+
+### 5.1 WeChat DevTools and the project
+
+| | |
+|---|---|
+| **You do** | Install WeChat DevTools (Linux: the community port msojocs v2.02.2608080-1, Alex's `infra/wechat-devtools/NOTES.md`; start it with `NODE_OPTIONS="--network-family-autoselection-attempt-timeout=5000 --dns-result-order=ipv4first"`). Scan its login QR code with the WeChat account that owns the mini program test account. Import the folder `apps/miniprogram` (not `apps/miniprogram/miniprogram`). In Details > Basic info set the AppID of your test account (DevTools stores it in `project.private.config.json`, ignored by the repository). In Details > Local settings check that "ES6 to ES5", "Enhanced compile" and "Minify" are off (the project ships them off; `lib/protocol.js` must never be transpiled: Babel turns `**` into `Math.pow`, which throws on BigInt), and turn "Do not verify domain names" on for the simulator. Optional: Settings > Security > Service port on, so Claude can use the CLI (`cli build`, `cli preview` with `--project apps/miniprogram`). |
+| **You see** | The simulator opens on Praetor's home screen, dark, in your system language; the console has no compile error. |
+| **Claude checks** | `project.config.json` is unchanged (only `project.private.config.json` differs, and it is ignored). With the service port on: the CLI build exits 0 and Claude records the DevTools version in `docs/PHASE0.md` V11. |
+| **Fallback** | DevTools will not log in on Linux: use DevTools on a Mac or Windows laptop with the same folder (only the AppID changes). It refuses `lib/protocol.js`: check the three settings again, then add `lib/protocol.js` to the files excluded from "ES6 to ES5" by hand. |
+
+### 5.2 The api the mini program talks to
+
+| | |
+|---|---|
+| **You do** | Put the test account's `MP_APPID` and `MP_SECRET` in `.env` (never paste them in chat) and set `SOTER_FAKE_TENCENT=0`. Then let Claude rebuild the api and soter-attester images, start the tunnel and point the mini program at it. In DevTools, Details > Basic info, check the AppID shown is the one in `MP_APPID`. |
+| **You see** | Claude reports the tunnel URL; `apps/miniprogram/miniprogram/config.js` now has it as `develop`; the simulator's home screen says "Link this WeChat" (your WeChat user is signed in as a guest). |
+| **Claude checks** | `.env` values present (never printed); the `api` and `soter-attester` containers run with `PRAETOR_ENV`, `MP_*` and `SOTER_FAKE_TENCENT=0`; the tunnel URL is in `.run/tunnel-url` (`make tunnel`; while that target is still a stub, cloudflared started by hand with Alex's flags `--protocol http2 --edge-ip-version 4`); `pnpm --filter @praetor/miniprogram tunnel` set `develop`; `POST /mp/session` with a made-up code answers 401 (WeChat refused it), proving the real code2Session path; the api log shows no openid. |
+| **Fallback** | No `MP_*`: keep `SOTER_FAKE_TENCENT=1`; the simulator still signs in (the fake answers `openid-of-<code>`) but SOTER cannot be verified, so 5.4 to 5.7 wait. Tunnel blocked: run DevTools on the build machine against `https://praetor.localhost` with "Do not verify domain names" on, simulator only. |
+
+### 5.3 Preview on the phones (test account, debug mode)
+
+| | |
+|---|---|
+| **You do** | In the test account console add each teammate's WeChat as a tester. In DevTools click Preview and scan the QR code with the iPhone (Face ID), then with the Android phone (fingerprint). On each phone open the mini program's menu (the "..." button), choose "Open debugging" (开发调试) and restart the mini program. |
+| **You see** | Praetor opens on both phones; a vConsole button appears in debug mode; the home screen loads instead of failing with `url not in domain list`. |
+| **Claude checks** | The api log shows `POST /mp/session` 200 from both phones. |
+| **Fallback** | Requests fail with `url not in domain list`: debug mode is off (V11); turn it on again. Preview QR refused: the phone's WeChat is not a tester of this test account. |
+
+### 5.4 SOTER support probe (iPhone Face ID, Android fingerprint)
+
+| | |
+|---|---|
+| **You do** | On each phone: Settings > "SOTER support probe". |
+| **You see** | iPhone: `supportMode: ["facial"]` and `facial` enrolled. Android: `supportMode` contains `"fingerPrint"` and it is enrolled. Nothing leaves the phone (the probe only displays). |
+| **Claude checks** | Nothing on the server (by design); you read the JSON aloud or send a screenshot. The approve page takes its mode from `supportMode` (`lib/soter.js pickMode`): Face ID first, else fingerprint. |
+| **Fallback** | No SOTER mode on a phone: that phone approves with the passkey in the web app (the approve page says so); continue with the other phone. |
+
+### 5.5 Link WeChat from the web app QR (F2)
+
+| | |
+|---|---|
+| **You do** | In Safari on the iPhone (or on the laptop), open the web app, Settings > Link WeChat: a QR code appears. In the mini program on the iPhone tap "Scan the QR code" and scan it; check the account address shown is yours; tap "Confirm with Face ID". Back in the web app tap "Confirm with my passkey". |
+| **You see** | The Face ID prompt says "Link WeChat to 0x1234…abcd" (your account, shortened). The mini program says "Now confirm with your passkey in the web app", then "WeChat is linked to your account" once the passkey is done; Back opens home with your portfolio. |
+| **Claude checks** | `bindingOf(account)` on Base is non-zero and equals the attester's proof; the api's `mp_bindings` table has one row for the account (an openid hash, no openid); a new sign-in from the phone returns the account; the soter-attester log has no openid, uid or cpu_id. Automated stand-in: `services/api/test/mp-routes.test.ts`, `apps/miniprogram/test/pages.test.mjs` (link), e2e F2 "signed in with a wx.login code". |
+| **Fallback** | "Not signing: ..." on the phone: the request did not match what is shown; tell Claude the exact message (it names the check). The attester refuses ("WeChat refused the request"): `MP_*` do not belong to this mini program, or `verify_signature` got Official Account credentials (V11 trap 1). |
+
+### 5.6 Approve a Tier-2 payment with Face ID, and compare the digest with the web app
+
+| | |
+|---|---|
+| **You do** | In the web app chat (or the mini program chat) ask the agent to pay 300 USDC to an address that is not in the mandate. When the request appears, open it in the web app (`/approve/:id`) and in the mini program (home > Waiting for you), and open "What you sign" in both. Compare the digest in the mini program (recomputed on the phone) with the one in the web app; then tap "Approve with Face ID" in the mini program. |
+| **You see** | The same full payee address, amount and digest on both screens; the Face ID prompt says "Approve: Pay 300 USDC to 0x…" (from the decoded call, not the agent's summary); then "Approved and executed". |
+| **Claude checks** | ApprovalRegistered with authKind SOTER and the payment tx on Base; the request's channel is `soter`; the SOTER counter of the binding increased. Automated stand-in: e2e F6 (SOTER fixture), `apps/miniprogram/test/verify.test.mjs`, `pages.test.mjs` (approve). |
+| **Fallback** | Face ID succeeds but the api answers "this phone is not the one linked to the account": the phone or the WeChat user differs from the linked one; link again (5.5). The counter does not increase on iOS: set `SOTER_COUNTER_STRICT=false` (spec 02) and redeploy, recorded in DECISIONS. |
+
+### 5.7 Fingerprint on Android, replay, freeze and language
+
+| | |
+|---|---|
+| **You do** | Link the Android phone instead (5.5 with it), have the agent ask for another new payment and approve it with the fingerprint. Then ask Claude to replay that approval and to freeze the agent from the console; switch the mini program to 简体中文 in Settings. |
+| **You see** | The fingerprint approval executes; the replay is refused; after the freeze the home screen turns red "Frozen by the regulator" within one refresh (15 s); every string is in Chinese after the switch. |
+| **Claude checks** | The replay lands as TIER2_INVALID (counter not higher); StatusApplied FROZEN on Base; the next agent action is refused FROZEN. |
+| **Fallback** | No Android phone with a fingerprint: run 5.6 on the iPhone again and record that Android was not tested. |
+
+### 5.8 Unlink (owner alone, passkey)
+
+| | |
+|---|---|
+| **You do** | In the mini program: Settings > Unlink WeChat, read the message, open the copied link in Safari, then in the web app Settings tap "Unlink WeChat" and confirm with the passkey. Reopen the mini program. |
+| **You see** | The mini program explains that unlinking needs the passkey and copies the web app link; after the passkey the web app says "WeChat unlinked on Base"; the mini program shows "Link this WeChat" again. |
+| **Claude checks** | UNLINK_WECHAT applied on Base (`bindingOf` is zero); the api's `mp_bindings` row is gone; the phone's old token gets 401 on `/mp/portfolio`. Automated stand-in: `services/api/test/mp-routes.test.ts` (UNLINK_WECHAT), `apps/web/src/pages/Settings.test.tsx`. |
+| **Fallback** | The unlink is refused on Base: read the reason the web app shows; this owner action needs no bank signature, so a refusal means the passkey or the binding hash differs. |

@@ -1,0 +1,2 @@
+.amount { font-weight: 650; }
+.item .row { flex-wrap: nowrap; }

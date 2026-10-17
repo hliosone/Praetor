@@ -1,0 +1,44 @@
+<view class="stage">
+  <view wx:if="{{loading}}" class="muted">{{t.common.loading}}</view>
+  <view wx:if="{{error}}" class="card error">{{error}}</view>
+
+  <block wx:if="{{!loading}}">
+    <view class="card panel">
+      <view class="label">{{t.approve.title}}</view>
+      <view class="what">{{what}}</view>
+      <view wx:for="{{others}}" wx:key="*this" class="small muted">+ {{item}}</view>
+      <view class="label gap">{{t.approve.why}}</view>
+      <view>{{why}}</view>
+      <view wx:if="{{ok}}" class="pill asked gap">{{t.approve.expires}} {{left}}</view>
+    </view>
+
+    <view wx:if="{{refuse}}" class="card error" aria-role="alert">{{refuse}}</view>
+    <view wx:if="{{resultText}}" class="card"><text class="pill {{result === 'executed' ? 'signed' : result === 'pending' ? 'asked' : 'refused'}}">{{resultText}}</text></view>
+    <view wx:if="{{noSoter}}" class="notice">{{t.approve.noSoter}}</view>
+
+    <view class="actions" wx:if="{{ok}}">
+      <button wx:if="{{mode}}" class="primary" bindtap="approve" disabled="{{busy}}" loading="{{busy}}">{{mode === 'facial' ? t.approve.approveFacial : t.approve.approveFingerPrint}}</button>
+      <button class="danger" bindtap="reject" disabled="{{busy}}">{{t.approve.reject}}</button>
+    </view>
+    <view wx:if="{{busy}}" class="muted small center">{{t.approve.working}}</view>
+
+    <view class="card">
+      <view class="row between" bindtap="toggleDetails">
+        <text class="label">{{t.approve.details}}</text>
+        <text class="muted">{{showDetails ? '−' : '+'}}</text>
+      </view>
+      <block wx:if="{{showDetails}}">
+        <view class="small muted gap">{{t.approve.digest}}</view>
+        <view class="mono">{{digest}}</view>
+        <view class="small muted gap">{{t.common.account}}</view>
+        <view class="mono">{{details.account}}</view>
+        <view class="small muted gap">{{t.approve.callHash}}</view>
+        <view class="mono">{{details.callHash}}</view>
+        <view class="small muted gap">{{t.approve.nonce}}</view>
+        <view class="mono">{{details.nonce}}</view>
+        <view class="small muted gap">{{t.approve.expiresAt}}</view>
+        <view class="mono">{{details.expiresAt}}</view>
+      </block>
+    </view>
+  </block>
+</view>

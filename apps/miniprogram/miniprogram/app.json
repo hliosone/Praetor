@@ -1,0 +1,22 @@
+{
+  "pages": [
+    "pages/home/home",
+    "pages/approve/approve",
+    "pages/link/link",
+    "pages/chat/chat",
+    "pages/activity/activity",
+    "pages/payments/payments",
+    "pages/settings/settings",
+    "pages/support/support"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#050506",
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "Praetor",
+    "backgroundColor": "#050506",
+    "backgroundTextStyle": "light"
+  },
+  "networkTimeout": { "request": 120000 },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

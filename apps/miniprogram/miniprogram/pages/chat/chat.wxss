@@ -1,0 +1,8 @@
+.thread { display: flex; flex-direction: column; min-height: 50vh; }
+.bubble { padding: 10px 14px; border-radius: 14px; max-width: 80%; margin-bottom: 10px; white-space: pre-wrap; }
+.bubble.me { align-self: flex-end; background: var(--ink); color: var(--paper); }
+.bubble.agent { align-self: flex-start; background: var(--sheet); border: 1px solid var(--hairline); }
+.tool { font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 13px; color: var(--graphite); margin-top: 6px; }
+.chips { margin: 12px 0; }
+.composer { flex-wrap: nowrap; }
+.grow { flex: 1; min-width: 0; }

@@ -1,0 +1,24 @@
+<view class="stage">
+  <view class="card panel">
+    <view class="h2">{{t.link.title}}</view>
+    <view wx:if="{{stage === 'scan'}}" class="muted">{{t.link.intro}}</view>
+
+    <block wx:if="{{stage === 'confirm'}}">
+      <view class="label">{{t.link.confirmTitle}}</view>
+      <view class="mono account">{{account}}</view>
+    </block>
+
+    <view wx:if="{{stage === 'waiting'}}" class="notice">{{t.link.waiting}}</view>
+    <view wx:if="{{stage === 'linked'}}"><text class="pill signed">{{t.link.linked}}</text></view>
+  </view>
+
+  <view wx:if="{{refuse}}" class="card error" aria-role="alert">{{refuse}}</view>
+  <view wx:if="{{error}}" class="card error">{{error}}</view>
+  <view wx:if="{{stage === 'confirm' && !mode}}" class="notice">{{t.approve.noSoter}}</view>
+
+  <view class="actions">
+    <button wx:if="{{stage === 'scan'}}" class="primary" bindtap="scan">{{t.link.scan}}</button>
+    <button wx:if="{{stage === 'confirm' && mode}}" class="primary" bindtap="confirm" disabled="{{busy}}" loading="{{busy}}">{{mode === 'facial' ? t.link.confirmFacial : t.link.confirmFingerPrint}}</button>
+    <button wx:if="{{stage === 'linked'}}" class="primary" bindtap="goHome">{{t.common.back}}</button>
+  </view>
+</view>

@@ -6,7 +6,7 @@ FinTechathon 2026（深圳，微众银行 x 清华五道口），国际赛道，
 
 一个 AI 智能体管理您的投资组合（USDC、代币化黄金和白银），并从 **Base Sepolia** 上的 ERC-4337 智能账户自主支付账单。账户发出的每一笔调用都要经过链上的 **Mandate hook（授权委托钩子）**：它执行您的规则和银行的限额，默认拒绝；任何异常操作都需要您用 Face ID 确认（通行密钥 passkey，或微信内的 SOTER）。由银行、监管机构和运营方组成的 **FISCO BCOS** 联盟链掌握权力：身份（WeIdentity）、获准资产、制裁名单、智能体状态，以及只能追加的审计日志。联盟的决定以成员签名的形式到达 Base，由钩子自行验证，经 **WeCross** 传输，并由一个中继器（relayer）作为看门狗。智能体的密钥保存在 **TEE** 中（Phala dstack，Intel TDX）。监管者一个签名即可在合约层面冻结智能体（监管冻结）；放宽则需要三分之二成员签名。
 
-![首页：3D 手机显示向 Café Lumen 批准 300 USDC](docs/screens/landing.png)
+![首页：3D 手机显示向 Café Lumen 批准 300 USDC](docs/screens/web/landing-1440.png)
 
 ## 五句话看懂演示
 

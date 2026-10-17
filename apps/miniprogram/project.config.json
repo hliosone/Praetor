@@ -1,0 +1,24 @@
+{
+  "description": "Praetor mini program (spec 07). Set the AppID of your mini program test account in DevTools (Details > Basic info); never transpile lib/protocol.js (docs/MANUAL.md section 5).",
+  "appid": "touristappid",
+  "projectname": "praetor",
+  "miniprogramRoot": "miniprogram/",
+  "compileType": "miniprogram",
+  "libVersion": "3.0.0",
+  "setting": {
+    "urlCheck": false,
+    "es6": false,
+    "enhance": false,
+    "postcss": false,
+    "minified": false,
+    "babelSetting": {
+      "ignore": ["lib/protocol.js"],
+      "disablePlugins": [],
+      "outputPath": ""
+    },
+    "ignoreUploadUnusedFiles": true
+  },
+  "packOptions": { "ignore": [], "include": [] },
+  "condition": {},
+  "editorSetting": { "tabIndent": "insertSpaces", "tabSize": 2 }
+}

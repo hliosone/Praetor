@@ -11,7 +11,7 @@ import { prepareAccount } from '@praetor/userop';
 import { createApiApp } from './app.js';
 import { clients, UpstreamError } from './clients.js';
 import { Rotation } from './rotation.js';
-import { MySqlApiStore, MySqlApprovalStore, MySqlProposalStore } from './mysql.js';
+import { MySqlApiStore, MySqlApprovalStore, MySqlMpBindingStore, MySqlProposalStore } from './mysql.js';
 import { StandingOrders, type Directory } from './standing-orders.js';
 import { Audit, type AuditRow } from './audit.js';
 import { balanceAt, camt053, camtErrors, statementEntries } from './statement.js';
@@ -21,6 +21,8 @@ import { Onboarding } from './onboarding.js';
 import { OwnerActions } from './owner-actions.js';
 import { Approvals } from './approvals.js';
 import { WechatLink } from './wechat-link.js';
+import { MpSessions } from './mp-session.js';
+import { mpWechatConfig } from './wechat.js';
 import { apiRoutes, internalRoutes, mpRoutes } from './routes.js';
 
 const env = z.object({
@@ -105,7 +107,12 @@ const approvals = new Approvals({
     return { success: r.ok && j.success === true, txHash: j.txHash ?? null };
   },
 });
-const link = new WechatLink({ ownerActions, publicUrl: env.PUBLIC_URL, attester: c.attester });
+// Mini program sign-in (spec 05): MP_APPID / MP_SECRET, or the local fake with SOTER_FAKE_TENCENT=1 (refused in prod).
+const mpWechat = mpWechatConfig(process.env);
+const bindingOf = async (account: Address) => (await pub.readContract({ address: d.mandateHook, abi: MandateHookAbi, functionName: 'bindingOf', args: [account] })) as Hex;
+const mpSessions = new MpSessions({ secret: env.SESSION_SECRET, appId: mpWechat.appId, code2session: mpWechat.resolve, bindings: new MySqlMpBindingStore(conn.runner), bindingOf });
+if (!mpWechat.resolve) log.warn('mini program sign-in disabled: set MP_APPID and MP_SECRET (or SOTER_FAKE_TENCENT=1 locally)');
+const link = new WechatLink({ ownerActions, publicUrl: env.PUBLIC_URL, attester: c.attester, onLinked: (x) => mpSessions.linked(x.openidHash, x.account, x.bindingHash) });
 async function standingOrdersDirectory(): Promise<Directory> {
   const r = await fetch(`${env.PAYOUT_PARTNER_URL}/merchants`, { signal: AbortSignal.timeout(5000) });
   if (!r.ok) throw new Error(`payout partner: ${r.status}`);
@@ -168,7 +175,10 @@ const statement = async (account: Address, fromMs: number, toMs: number) => {
 // The owner's views (chain reads) and the console's relay to the member services (staff sessions required for writes).
 const reader = accountReader(pub as never, d);
 const views = new Views({ reader, tokens: { usdc: d.usdc, txau: d.txau, txag: d.txag } });
-const config = { chainId: d.chainId, domainName: d.domainName, mandateHook: d.mandateHook, usdc: d.usdc, txau: d.txau, txag: d.txag, deskSpreadBps: 30 };
+const config = {
+  chainId: d.chainId, domainName: d.domainName, mandateHook: d.mandateHook, usdc: d.usdc, txau: d.txau, txag: d.txag, deskSpreadBps: 30,
+  treasuryDesk: d.treasuryDesk, payoutRail: d.payoutRail,
+};
 const MEMBERS = { bank: env.BANK_URL, regulator: env.REGULATOR_URL, operator: env.OPERATOR_URL } as const;
 const member: MemberCall = async (role, method, path, body, session) => {
   const r = await fetch(`${MEMBERS[role]}${path}`, {
@@ -208,10 +218,11 @@ const app = createApiApp({
       if (r.status !== 204) throw new UpstreamError('mcp', r.status, await r.text());
     },
     agentKeyOf,
+    bindingOf, onWechatUnlinked: (account) => mpSessions.unlinked(account),
   }),
   mount: (a, h) => {
     const mp = express.Router();
-    mpRoutes(mp, h, link);
+    mpRoutes(mp, h, { link, sessions: mpSessions, approvals, views, standingOrders, runner: c.runner, config });
     a.use('/mp', mp);
     const internal = express.Router();
     internal.use(express.json());

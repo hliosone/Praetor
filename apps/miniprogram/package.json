@@ -1,0 +1,16 @@
+{
+  "name": "@praetor/miniprogram",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build-protocol.mjs",
+    "test": "vitest run",
+    "tunnel": "node scripts/set-api-base.mjs"
+  },
+  "devDependencies": {
+    "@noble/hashes": "1.8.0",
+    "@praetor/protocol": "workspace:*",
+    "esbuild": "0.28.2",
+    "viem": "2.57.5",
+    "vitest": "3.2.7"
+  }
+}

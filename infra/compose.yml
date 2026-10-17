@@ -411,6 +411,12 @@ services:
       ATTESTER_HMAC_API: ${ATTESTER_HMAC_API}
       INTERNAL_TOKEN_AGENT: ${INTERNAL_TOKEN_AGENT}
       INTERNAL_TOKEN_API: ${INTERNAL_TOKEN_API}
+      # Mini program sign-in (spec 05: code2Session, read access only); the fake is refused in prod.
+      PRAETOR_ENV: ${PRAETOR_ENV}
+      MP_APPID: ${MP_APPID}
+      MP_SECRET: ${MP_SECRET}
+      WECHAT_API_BASE: ${WECHAT_API_BASE}
+      SOTER_FAKE_TENCENT: ${SOTER_FAKE_TENCENT}
     volumes:
       - ./deployments:/app/infra/deployments:ro
     depends_on:

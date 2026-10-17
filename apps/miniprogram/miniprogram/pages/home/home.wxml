@@ -1,0 +1,69 @@
+<view class="stage">
+  <view wx:if="{{loading}}" class="muted">{{t.common.loading}}</view>
+  <view wx:if="{{error}}" class="card error">{{error}}</view>
+
+  <block wx:if="{{!loading && !linked}}">
+    <view class="card panel">
+      <view class="h2">{{t.home.linkTitle}}</view>
+      <view class="muted">{{t.home.linkText}}</view>
+      <view class="actions"><button class="primary" bindtap="goLink">{{t.home.scan}}</button></view>
+    </view>
+  </block>
+
+  <block wx:if="{{linked}}">
+    <view wx:if="{{frozen}}" class="banner" aria-role="alert">
+      <view>{{t.status.frozenBanner}}</view>
+      <view class="small">{{t.status.frozenText}}</view>
+    </view>
+
+    <view class="card panel">
+      <view class="row between">
+        <text class="label">{{t.home.total}}</text>
+        <view><text class="pill {{pill.cls}}">{{pill.label}}</text></view>
+      </view>
+      <view class="big">{{total}}</view>
+      <view class="muted small">{{pill.heartbeat}}</view>
+      <view class="row rings">
+        <canvas type="2d" id="rings" class="rings-canvas"></canvas>
+        <view class="legend">
+          <view wx:for="{{assets}}" wx:key="symbol" class="small">
+            <text class="dot {{item.symbol}}"></text>{{item.symbol}} {{item.weight}}
+            <text wx:if="{{item.demo}}" class="muted"> ({{t.common.demoPrice}})</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="h2">{{t.home.pending}}</view>
+      <view wx:if="{{!pending.length}}" class="muted">{{t.home.pendingNone}}</view>
+      <view wx:for="{{pending}}" wx:key="id" class="item row between" data-id="{{item.id}}" bindtap="openApproval">
+        <view class="grow">
+          <view>{{item.text}}</view>
+          <view class="small muted">{{item.why}}</view>
+        </view>
+        <text class="pill asked">{{t.home.open}}</text>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="h2">{{t.home.decisions}}</view>
+      <view wx:if="{{!decisions.length}}" class="muted">{{t.home.decisionsNone}}</view>
+      <view wx:for="{{decisions}}" wx:key="tx" class="item row between">
+        <view class="grow">
+          <view>{{item.text}}</view>
+          <view class="small muted">{{item.tierText}}<text wx:if="{{item.amount}}"> · {{item.amount}} USD</text></view>
+        </view>
+        <text class="pill {{item.cls}}">{{item.tier}}</text>
+      </view>
+    </view>
+
+    <view class="actions">
+      <button class="primary" bindtap="goChat">{{t.home.chat}}</button>
+      <button bindtap="goActivity">{{t.home.activity}}</button>
+      <button bindtap="goPayments">{{t.home.payments}}</button>
+    </view>
+  </block>
+
+  <view class="actions"><button bindtap="goSettings">{{t.home.settings}}</button></view>
+</view>

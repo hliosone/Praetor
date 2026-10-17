@@ -3,6 +3,7 @@
 // attester TEE proves it; the owner confirms with the passkey; the bank co-signs; the hook stores the binding.
 import { describe, it, expect, beforeAll } from 'vitest';
 import { MandateHookAbi } from '@praetor/chain';
+import { keccak256 } from 'viem';
 import { bindingHash, digest, praetorDomain, soterChallenge } from '@praetor/protocol';
 import { fakeSoterSignature } from '@praetor/soter-attester';
 import { bootstrapConsortium, activateSoterAttester, pub, setDemoPrices, stack, type Stack } from '../../scripts/demo/lib.js';
@@ -11,7 +12,9 @@ import { WebClient, onboardViaApi } from '../../scripts/demo/web.js';
 let s: Stack;
 let web: WebClient;
 const tag = Date.now().toString(36);
-const mp = (path: string, body?: unknown) => fetch(`http://10.88.0.80:3200/mp${path}`, { method: body ? 'POST' : 'GET', headers: { 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }).then(async (r) => ({ status: r.status, body: await r.json() }));
+const mp = (path: string, body?: unknown, token?: string) => fetch(`http://10.88.0.80:3200/mp${path}`, {
+  method: body ? 'POST' : 'GET', headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: body ? JSON.stringify(body) : undefined,
+}).then(async (r) => ({ status: r.status, body: await r.json() }));
 
 beforeAll(async () => {
   s = stack();
@@ -37,6 +40,25 @@ describe('F2 link WeChat', () => {
     expect((await web.ok('POST', `/api/wechat/link/${id}/confirm`, { assertion: web.assert(start.digest) })).success).toBe(true);
     const binding = await pub(s).readContract({ address: s.base.mandateHook, abi: MandateHookAbi, functionName: 'bindingOf', args: [web.account!] });
     expect(binding).toBe(bindingHash({ mpAppId: 'wx-fake-local', openid: `openid-of-${code}`, uid: `uid-${tag}`, cpuId: `cpu-${tag}` }));
+  }, 300_000);
+
+  it('spec 05: signed in with a wx.login code, the mini program links under its session, then reads the account', async () => {
+    // Local code2Session fakes (api and attester) both answer openid-of-<code>: one code stands for one WeChat user.
+    const code = `f2c-${tag}`;
+    const guest = await mp('/session', { code });
+    expect(guest).toMatchObject({ status: 200, body: { account: null } });
+    const start = await web.ok('POST', '/api/wechat/link/start');
+    const id = new URL(start.qr).searchParams.get('id')!;
+    const view = (await mp(`/link/${id}`)).body;
+    expect(keccak256(view.linkNonce)).toBe(view.ownerAction.payloadHash);
+    const resultJSON = JSON.stringify({ raw: soterChallenge(view.digest), counter: 1, uid: `uid-c-${tag}`, cpu_id: `cpu-c-${tag}` });
+    const scan = await mp(`/link/${id}/soter`, { code, resultJSON, resultJSONSignature: fakeSoterSignature(`openid-of-${code}`, resultJSON), authMode: 'facial' }, guest.body.token);
+    expect(scan.status).toBe(200);
+    expect((await web.ok('POST', `/api/wechat/link/${id}/confirm`, { assertion: web.assert(start.digest) })).success).toBe(true);
+    const signed = await mp('/session', { code });
+    expect(String(signed.body.account).toLowerCase()).toBe(web.account!.toLowerCase());
+    expect((await mp('/portfolio', undefined, signed.body.token)).status).toBe(200);
+    expect((await mp('/portfolio', undefined, guest.body.token)).status).toBe(403);
   }, 300_000);
 
   it('failure: a SOTER result over another digest is refused by the attester', async () => {

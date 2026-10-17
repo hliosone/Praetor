@@ -6,7 +6,7 @@ FinTechathon 2026 (Shenzhen, WeBank x Tsinghua PBCSF), International Track, Topi
 
 An AI agent manages your portfolio (USDC, tokenized gold and silver) and pays your bills on its own, from an ERC-4337 smart account on **Base Sepolia**. Every call the account makes passes an on-chain **Mandate hook** that applies your rules and the bank's caps, default deny; anything unusual asks you for Face ID (a passkey, or SOTER inside WeChat). A **FISCO BCOS** consortium of a bank, a regulator and an operator holds the authority: identity (WeIdentity), approved assets, sanctions, the agent's status and an append-only audit log. Its decisions reach Base as member signatures the hook verifies itself, carried by **WeCross** with a relayer as watchdog. The agent's key lives in a **TEE** (Phala dstack, Intel TDX). One regulator signature freezes the agent at contract level; loosening needs two of three.
 
-![The landing page: the 3D phone shows an approval of 300 USDC to Café Lumen](docs/screens/landing.png)
+![The landing page: the 3D phone shows an approval of 300 USDC to Café Lumen](docs/screens/web/landing-1440.png)
 
 ## The demo in five lines
 

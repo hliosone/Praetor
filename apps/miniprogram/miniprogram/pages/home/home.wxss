@@ -1,0 +1,5 @@
+.rings { margin-top: 12px; flex-wrap: nowrap; }
+.rings-canvas { width: 180px; height: 180px; flex-shrink: 0; }
+.legend { padding-left: 8px; }
+.legend > view { margin-bottom: 6px; }
+.grow { flex: 1; min-width: 0; }

@@ -40,7 +40,8 @@ All 264 packages of the production tree are MIT (231), ISC (16), Apache-2.0 (10)
 | drizzle-orm | 0.44.7 | Apache-2.0 | `packages/db`, member-kit, bundler |
 | mysql2 | 3.15.3 | MIT | `packages/db` |
 | @modelcontextprotocol/sdk | 1.30.1 | MIT | mcp (server), payout-partner (stdio client of the Alipay+ MCP server) |
-| @noble/curves, @noble/hashes | 1.9.1, 1.8.0 | MIT | protocol, member-kit (P-256, hashing) |
+| @noble/curves, @noble/hashes | 1.9.1, 1.8.0 | MIT | protocol, member-kit (P-256, hashing); @noble/hashes' keccak is bundled into `apps/miniprogram/miniprogram/lib/protocol.js` with its licence comment |
+| esbuild | 0.28.2 | MIT | build tool of the mini program bundle (M14) |
 | @simplewebauthn/server | 13.3.3 | MIT | api (passkey registration and sign-in) |
 | @simplewebauthn/browser | 13.2.2 | MIT | web app |
 | @phala/dstack-sdk | 0.5.8 | Apache-2.0 | agent-signer, soter-attester |
