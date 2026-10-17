@@ -41,3 +41,7 @@ spikes/**/downloads/
 spikes/V2-fisco/sm_cert.cnf
 spikes/V3-weid/scenario/out/
 infra/deployments/*-it.json
+
+# The coding assistant's local instructions and settings stay on the build machine
+CLAUDE.md
+.claude/

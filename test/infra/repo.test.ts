@@ -8,16 +8,23 @@ describe('docs skeleton (spec 09)', () => {
   const required = [
     'docs/PROGRESS.md', 'docs/DECISIONS.md', 'docs/BLOCKERS.md', 'docs/QUESTIONS.md', 'docs/MANUAL.md',
     'docs/PREEXISTING.md', 'docs/PHASE0.md', 'docs/EVIDENCE.md', 'docs/ARCHITECTURE.md', 'docs/security/README.md',
-    'docs/zh-CN/README.md', 'docs/screens/README.md', 'THIRD_PARTY_LICENSES.md', 'NOTICE', 'README.md', 'CLAUDE.md',
+    'docs/zh-CN/README.md', 'docs/screens/README.md', 'THIRD_PARTY_LICENSES.md', 'NOTICE', 'README.md',
   ];
   for (const f of required) it(`has ${f}`, () => expect(existsSync(root + f)).toBe(true));
 });
 
 describe('assistant attribution is off (build prompt, commits)', () => {
-  it('sets empty commit and PR attribution in .claude/settings.json', () => {
+  // The assistant's settings are local to the build machine (git-ignored): checked when present, the tracked
+  // commit-msg hook below is what enforces the rule on every clone.
+  it.runIf(existsSync(root + '.claude/settings.json'))('sets empty commit and PR attribution in the local .claude/settings.json', () => {
     const s = JSON.parse(readFileSync(root + '.claude/settings.json', 'utf8'));
     expect(s.attribution).toMatchObject({ commit: '', pr: '' });
     expect(s.includeCoAuthoredBy).toBe(false);
+  });
+
+  it('keeps the assistant instructions and settings out of git', () => {
+    const lines = readFileSync(root + '.gitignore', 'utf8').split('\n');
+    expect(lines).toEqual(expect.arrayContaining(['CLAUDE.md', '.claude/']));
   });
 
   it('installs the commit-msg hook from scripts/git-hooks through make setup', () => {
