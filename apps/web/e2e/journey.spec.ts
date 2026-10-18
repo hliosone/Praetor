@@ -5,7 +5,7 @@
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { erc20Abi, type Address, type Hex } from 'viem';
 import { MandateHookAbi } from '@praetor/chain';
-import { soterChallenge } from '@praetor/protocol';
+import { soterChallenge, standingOrdersEventsAbi } from '@praetor/protocol';
 import {
   activateSoterAttester, bootstrapConsortium, ensureDeskLiquidity, fund, labelAddress, lastAgentTurn, pub, scriptAgent, setDemoPrices, shockPrice, stack,
   waitFor, waitHeartbeat, type Stack,
@@ -170,7 +170,10 @@ test('F7 standing order: rent to a merchant (owner + bank), paid when due throug
   const row = page.locator('tbody tr', { hasText: 'Kowloon Lettings' }).first();
   await expect(row).toBeVisible({ timeout: 30_000 });
   await row.getByRole('button', { name: 'Pay now if due' }).click();
-  await expect(page.getByText('Paid.')).toBeVisible({ timeout: 180_000 });
+  // The scheduler triggers due orders every few seconds: it may pay before the click ("Not due yet."). Either way the
+  // payment is on Base.
+  await expect(page.getByText(/^(Paid\.|Not due yet\.)$/)).toBeVisible({ timeout: 180_000 });
+  await waitFor('the rent paid on Base', async () => (await pub(s).getLogs({ address: s.base.standingOrders, event: standingOrdersEventsAbi[2], args: { account }, fromBlock: BigInt(s.base.deployBlock) })).length > 0, 120_000);
   await shoot(page, 'payments');
 });
 
