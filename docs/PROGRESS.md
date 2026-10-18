@@ -33,7 +33,7 @@ Single source of truth for where the build stands. After a context reset: read `
 - [x] M10 standing orders, payout partner, Alipay+/WeChat Pay mocks (gate: e2e F7)
 - [x] M11 audit writer, anchors, verify, camt.053 (gate: e2e F8, XSD)
 - [x] M12 WeCross router + EVM stub, watchdog (gate: integration + e2e F9 with `BRIDGE=wecross`): integration 16/16 files and e2e 41/41 on a fresh fork, WeCross the transport, 2026-10-17 23:30 UTC
-- [ ] M13 web app, Phone3D, i18n, PWA, sandbox, console (gate: Playwright F1 to F9, screenshots, axe)
+- [x] M13 web app, Phone3D, i18n, PWA, sandbox, console (gate: Playwright F1 to F9, screenshots, axe): journey F1 to F10, sandbox, 34 screenshots with axe, 15/15 green on 2026-10-18; the sandbox is the interim one (D48, D73), web push in (M13 PWA)
 - [x] M14 mini program (gate: logic tests, MANUAL steps) (built by a parallel agent, D44; phone steps in MANUAL 5)
 - [ ] M15 F10 + Guomi smoke + whole suite (gate: e2e F1 to F10 on fork)
 - [ ] M16 live run + red team (gate: EVIDENCE.md, "N attacks, 0 executed")
@@ -62,3 +62,4 @@ Single source of truth for where the build stands. After a context reset: read `
 | M15 Guomi smoke (agent) | 2026-10-17 19:24 | 2026-10-17 20:27 | 63 min |
 | M17 (agent) | 2026-10-17 19:24 | 2026-10-17 20:11 | 47 min |
 | M12 | 2026-10-17 17:26 | 2026-10-17 23:30 | 6 h 04 min (WeCross plus the fixes its gate found: watchdog clock, anchor resumption, early delivery records) |
+| M13 | 2026-10-17 17:30 | 2026-10-18 00:18 | 6 h 48 min (overlapping M12; plus the console's shared proposals, client digest checks, sandbox, push) |
