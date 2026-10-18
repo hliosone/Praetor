@@ -147,6 +147,30 @@ describe('explain', () => {
     expect(r.structured).toMatchObject({ reasons: ['OVER_AUTO_CAP'], tier: 'T2_HUMAN' });
     expect(sent).toHaveLength(0);
   });
+
+  it('a T2 verdict (UNKNOWN_PAYEE) tells the model to submit for the owner\'s approval, never that it is final (issue #4)', async () => {
+    verdict = { reason: Reason.UNKNOWN_PAYEE, tier: Tier.T2_HUMAN };
+    const r = await tools().explain({ type: 'pay', payee: '0x00000000000000000000000000000000000beef1', amount: '300' });
+    expect(r.text).toMatch(/needs the owner's approval: UNKNOWN_PAYEE \(T2_HUMAN\)/);
+    expect(r.text).toMatch(/submit it with pay and the same arguments to create an approval request/);
+    expect(r.text).not.toMatch(/would be refused|refusal is final/i);
+    expect(r.structured).toMatchObject({ next: 'submit_for_approval' });
+    expect(r.isError).toBeFalsy();
+    expect(sent).toHaveLength(0);
+  });
+
+  it('a T0 verdict is the only one called final', async () => {
+    verdict = { reason: Reason.SANCTIONED, tier: Tier.T0_NEVER };
+    const r = await tools().explain({ type: 'pay', payee: BAD, amount: '5000' });
+    expect(r.text).toMatch(/would be refused: SANCTIONED \(T0_NEVER\)\. This refusal is final/);
+    expect(r.structured).toMatchObject({ next: 'stop' });
+  });
+
+  it('an OK verdict says it would be done autonomously', async () => {
+    const r = await tools().explain({ type: 'rebalance', sell: 'tXAU', buy: 'USDC', amountUsd: '650' });
+    expect(r.text).toMatch(/would be done autonomously \(T1\)\. Nothing was sent/);
+    expect(r.structured).toMatchObject({ next: 'submit', reasons: [] });
+  });
 });
 
 describe('get_mandate and get_status', () => {

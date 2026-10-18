@@ -23,10 +23,15 @@ describe('opencode.json per account', () => {
 });
 
 describe('prompts', () => {
-  it('AGENTS.md says money moves only through the tools, refusals are final, and to answer in the user language', () => {
+  it('AGENTS.md says money moves only through the tools, only T0 refusals are final, and to answer in the user language', () => {
     expect(AGENTS_MD).toMatch(/only through the praetor tools/i);
-    expect(AGENTS_MD).toMatch(/refusal is final/i);
+    expect(AGENTS_MD).toMatch(/Only a T0 refusal is final/);
+    expect(AGENTS_MD).not.toMatch(/A refusal is final unless/);
     expect(AGENTS_MD).toMatch(/中文/);
+  });
+  it('AGENTS.md: a T2 dry run (e.g. UNKNOWN_PAYEE) means submit so the owner can approve, not stop (issue #4)', () => {
+    expect(AGENTS_MD).toMatch(/T2[\s\S]*UNKNOWN_PAYEE[\s\S]*is not a refusal: submit the same action/);
+    expect(AGENTS_MD).toMatch(/Never stop at such a dry run/);
   });
   it('a band wake names the weights, the bands and today\'s rebalances', () => {
     const m = wakeMessage('BAND', { weights: { tXAU: 3610 }, bands: { tXAU: { minBps: 2000, maxBps: 3500 } }, rebalancesToday: 0, maxRebalancesPerDay: 1 });
