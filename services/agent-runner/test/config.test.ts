@@ -46,6 +46,11 @@ describe('prompts', () => {
     // The limits stay: no retry, no split, no way around a limit, for T0 and T2 alike.
     expect(md).toMatch(/Never retry an action with other amounts, payees or a different split, and never try to get around a limit, whether it was refused or waits for the owner/);
   });
+  it('AGENTS.md: a freeze or restriction is stated with who can lift it, never with a guessed cause (#6)', () => {
+    expect(md).toMatch(/If the account is frozen or restricted, say so \(this account or every account, as get_status shows\) and who can lift it/);
+    expect(md).toMatch(/the consortium \(bank, regulator, operator\), where one member can freeze or restrict and lifting needs two of the three; the owner cannot/);
+    expect(md).toMatch(/Never give a cause that no tool returned: if no tool says why, say you do not know/);
+  });
   it('AGENTS.md has no em dash', () => {
     expect(AGENTS_MD).not.toContain(String.fromCharCode(0x2014));
   });
