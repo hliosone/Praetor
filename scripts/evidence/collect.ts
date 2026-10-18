@@ -16,6 +16,11 @@ export type Run = { env: string; startedAt: string; flows: Flow[] };
 const root = new URL('../../', import.meta.url);
 const SCAN = 'https://sepolia.basescan.org';
 
+/** A flow note (often the model's own words) as one Markdown line, without the em dashes the repository refuses. */
+export function noteLine(n: string): string {
+  return n.replace(/\s*\u2014\s*/g, ', ').replace(/\s+/g, ' ').trim();
+}
+
 /** The Base events of one flow, grouped by transaction: the events touching its accounts, plus anchors. */
 export function baseRows(logs: (Log & { decoded: { eventName: string; args: Record<string, unknown> } })[], accounts: Address[]) {
   const mine = new Set(accounts.map((a) => a.toLowerCase()));
@@ -62,7 +67,7 @@ async function main(envName: string) {
     logs.sort((a, b) => Number(a.blockNumber! - b.blockNumber!) || a.logIndex! - b.logIndex!);
     const rows = baseRows(logs, f.accounts);
     out.push(`## ${f.id} · ${f.title}`, '');
-    for (const n of f.notes ?? []) out.push(`- ${n}`);
+    for (const n of f.notes ?? []) out.push(`- ${noteLine(n)}`);
     if (f.notes?.length) out.push('');
     out.push('| Base transaction | Events |', '|---|---|');
     for (const r of rows) out.push(`| [\`${r.tx.slice(0, 18)}...\`](${SCAN}/tx/${r.tx}) | ${r.events.join(', ')} |`);

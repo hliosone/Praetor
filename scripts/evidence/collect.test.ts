@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Address } from 'viem';
 import { Reason } from '@praetor/protocol';
-import { baseRows } from './collect.js';
+import { baseRows, noteLine } from './collect.js';
 
 const ME = '0x00000000000000000000000000000000000c0ffe' as Address;
 const OTHER = '0x00000000000000000000000000000000000b0b0b' as Address;
@@ -21,5 +21,11 @@ describe('evidence rows', () => {
       { tx: '0x03', events: ['Anchored'] },
       { tx: '0x04', events: ['OwnerActionApplied'] },
     ]);
+  });
+});
+
+describe('flow notes', () => {
+  it('keeps what the model said on one line and without em dashes (the repository refuses them)', () => {
+    expect(noteLine('agent: waiting for the owner \u2014 request `abc`\n\nthen done')).toBe('agent: waiting for the owner, request `abc` then done');
   });
 });
