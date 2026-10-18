@@ -29,6 +29,9 @@ setup: ## Install the commit-msg hook and dependencies
 	pnpm install --frozen-lockfile
 
 up: ## Start the local stack (waits for healthchecks; deploys the contracts on a fresh fork)
+	@# Bind-mounted output directories: Docker would create missing ones as root, which vite and wecross-setup cannot write.
+	mkdir -p apps/web/dist infra/wecross/generated
+	@for d in apps/web/dist infra/wecross/generated; do [ -w "$$d" ] || { echo "$$d is not writable (created by Docker as root?): sudo chown -R $$(id -u):$$(id -g) $$d" >&2; exit 1; }; done
 	bash scripts/dev/compose-env.sh
 	bash infra/fisco/gen.sh
 	$(MAKE) --no-print-directory fisco-image
