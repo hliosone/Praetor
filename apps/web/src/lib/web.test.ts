@@ -35,6 +35,14 @@ describe('web app logic', () => {
     expect(Object.keys(zh).sort()).toEqual(Object.keys(en).sort());
   });
 
+  it('words the five suitability questions and their three answers in both languages', () => {
+    for (const table of [en, zh] as Record<string, string>[]) {
+      for (let q = 1; q <= 5; q++) {
+        for (const k of [`onb.q${q}`, `onb.q${q}.a0`, `onb.q${q}.a1`, `onb.q${q}.a2`]) expect(table[k], k).toMatch(/\S/);
+      }
+    }
+  });
+
   it('turns a DER signature into (r, s) with a low s, as the member services require', () => {
     const r = 0x1234n;
     const low = 0x5678n;
