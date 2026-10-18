@@ -146,11 +146,11 @@ td.mono, td .mono { white-space: nowrap; }
 .hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); align-items: center; gap: 2rem; min-height: 72vh; }
 .hero h1 { font-size: clamp(2.4rem, 6vw, var(--s-72)); line-height: 1.02; }
 .hero .lede { font-size: var(--s-19); color: var(--graphite); }
-.stage { height: min(68vh, 560px); position: relative; }
+.stage { height: min(68vh, 560px); position: relative; min-width: 0; overflow: hidden; }
 .pillars .card h3 { font-size: var(--s-19); }
 .steps { counter-reset: step; }
 .steps .card::before { counter-increment: step; content: counter(step); display: inline-grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; border: 1px solid var(--hairline); font-weight: 750; margin-bottom: 0.6rem; }
-@media (max-width: 820px) { .hero { grid-template-columns: 1fr; } .stage { height: 420px; } }
+@media (max-width: 820px) { .hero { grid-template-columns: minmax(0, 1fr); } .stage { height: 420px; } }
 
 /* ---------------------------------------------------------------- flat phone (no WebGL) */
 

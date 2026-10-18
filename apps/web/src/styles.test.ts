@@ -25,6 +25,13 @@ describe('phone width (#3)', () => {
     expect(decl('body', 'overflow-wrap'), 'body').toBe('break-word');
   });
 
+  it('the landing hero shrinks after a resize: a 3D canvas keeps its pixel width, and a 1fr column will not go below it', () => {
+    // Found by the 390 px check after the 1440 px screenshot (a phone turned from landscape to portrait does the same).
+    expect(decl('.hero', 'grid-template-columns')).toBe('minmax(0, 1fr)');
+    expect(decl('.stage', 'min-width')).toBe('0');
+    expect(decl('.stage', 'overflow')).toBe('hidden');
+  });
+
   it('grid columns never ask for more than the width they have, and grid or row children may shrink', () => {
     expect(decl('.grid.two', 'grid-template-columns')).toBe('repeat(auto-fit, minmax(min(320px, 100%), 1fr))');
     expect(decl('.grid.three', 'grid-template-columns')).toBe('repeat(auto-fit, minmax(min(240px, 100%), 1fr))');

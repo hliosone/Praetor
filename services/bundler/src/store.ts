@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, sql, asc } from 'drizzle-orm';
 import type { Address, Hex } from 'viem';
 import type { connect } from '@praetor/db';
 import { accounts, userops, refusals } from '@praetor/db/bundler';
@@ -37,8 +37,9 @@ export class MySqlStore implements Store {
     return (await this.db.select().from(accounts).where(eq(accounts.address, key(a)))).length > 0;
   }
 
+  /** Oldest first: without an order MySQL returns them by address, and the console's "newest 200" lost new accounts. */
   async accounts(): Promise<Address[]> {
-    return (await this.db.select().from(accounts)).map((r) => r.address as Address);
+    return (await this.db.select().from(accounts).orderBy(asc(accounts.registeredAt), asc(accounts.address))).map((r) => r.address as Address);
   }
 
   async register(a: Address) {

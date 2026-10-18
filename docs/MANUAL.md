@@ -212,6 +212,8 @@ Fixed and re-tested on 2026-10-18: the web tools, and the built-in tools whose p
 
 Done on 2026-10-18 (D96): the evidence flows C0 to F8 ran on Base Sepolia within this budget, with Pyth prices, the real model and WeCross; [EVIDENCE.md](EVIDENCE.md) lists 10 flows (F6 twice: its first attempt failed on the old agent instructions and was re-run on the same account after D93, with `scripts/evidence/live-run.ts --resume <tag> --only F6`) with 21 BaseScan links to Base transactions and the FISCO calls.
 
+**Back to the fork after a live session:** run `make up` then `make reset-fork` before any fork suite (D97: the operator's audit store follows one AuditLog, and old test accounts would keep the scheduler busy).
+
 ## 11. Web push on a phone (M13, PWA)
 
 | | |
