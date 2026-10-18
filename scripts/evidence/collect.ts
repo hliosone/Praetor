@@ -40,7 +40,7 @@ async function main(envName: string) {
   const d = loadDeployments(new URL(`infra/deployments/${envName}.json`, root).pathname);
   const fiscoFile = JSON.parse(readFileSync(new URL(`infra/deployments/fisco-${envName === 'base-sepolia' ? 'live' : 'local'}.json`, root), 'utf8')) as Record<string, string>;
   const live = envName === 'base-sepolia';
-  const base = createPublicClient({ chain: baseSepolia, transport: http(live ? (process.env.BASE_LIVE_RPC_URL ?? 'https://sepolia.base.org') : (process.env.ANVIL_URL ?? 'http://127.0.0.1:18545')) });
+  const base = createPublicClient({ chain: baseSepolia, transport: http(live ? (process.env.BASE_LIVE_RPC_URL ?? 'https://base-sepolia-rpc.publicnode.com') : (process.env.ANVIL_URL ?? 'http://127.0.0.1:18545')) });
   const fisco = createPublicClient({ transport: http(process.env.FISCO_RPC_URL_HOST ?? 'http://10.88.1.10:8545') });
   const sources: [Address, Abi][] = [
     [d.mandateHook, mandateHookEventsAbi], [d.refusalLog, refusalLogEventsAbi], [d.standingOrders, standingOrdersEventsAbi],

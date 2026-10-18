@@ -52,7 +52,7 @@ describe('infra/compose.prod.yml', () => {
 describe('infra/live.env (M16, D74)', () => {
   const live = read('infra/live.env');
   it('runs on Base Sepolia with the live deployments at production intervals, and holds no secret', () => {
-    for (const l of ['CHAIN_MODE=live', 'BASE_RPC_URL=https://sepolia.base.org', 'DEPLOYMENTS_FILE=infra/deployments/base-sepolia.json', 'FISCO_DEPLOYMENTS_FILE=infra/deployments/fisco-live.json', 'DOMAIN_NAME=Praetor', 'HEARTBEAT_INTERVAL_S=300']) expect(live).toContain(l);
+    for (const l of ['CHAIN_MODE=live', 'BASE_RPC_URL=https://base-sepolia-rpc.publicnode.com', 'DEPLOYMENTS_FILE=infra/deployments/base-sepolia.json', 'FISCO_DEPLOYMENTS_FILE=infra/deployments/fisco-live.json', 'DOMAIN_NAME=Praetor', 'HEARTBEAT_INTERVAL_S=300']) expect(live).toContain(l);
     expect(live).not.toMatch(/[0-9a-fA-F]{40,}/);
   });
 

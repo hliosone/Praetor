@@ -40,7 +40,7 @@ export function stack(over: Partial<Stack> = {}): Stack {
     env,
     set: live ? 'LIVE' : 'LOCAL',
     base: loadDeployments(`${root}infra/deployments/${live ? 'base-sepolia' : 'fork'}.json`),
-    baseRpc: live ? (env.BASE_LIVE_RPC_URL || 'https://sepolia.base.org') : (process.env.ANVIL_URL ?? 'http://127.0.0.1:18545'),
+    baseRpc: live ? (env.BASE_LIVE_RPC_URL || 'https://base-sepolia-rpc.publicnode.com') : (process.env.ANVIL_URL ?? 'http://127.0.0.1:18545'),
     bundler: process.env.BUNDLER_URL ?? 'http://10.88.0.10:3010',
     members: { bank: 'http://10.88.0.21:3020', regulator: 'http://10.88.0.22:3020', operator: 'http://10.88.0.23:3020' },
     signer: process.env.AGENT_SIGNER_URL_HOST ?? 'http://10.88.0.50:3050',
