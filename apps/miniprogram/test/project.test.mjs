@@ -82,6 +82,12 @@ describe('pages', () => {
         }
       }
     });
+
+    it(`${name}: no {{t.*}} string with a {placeholder} (WXML cannot fill it: the page builds it with t())`, () => {
+      for (const expr of wxml.matchAll(/\{\{([^}]*)\}\}/g)) {
+        for (const k of expr[1].matchAll(/\bt\.([A-Za-z0-9_.]+)/g)) expect(flatEn[k[1]], `t.${k[1]} in ${p}.wxml`).not.toMatch(/\{\w+\}/);
+      }
+    });
   }
 });
 

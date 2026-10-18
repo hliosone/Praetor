@@ -89,7 +89,7 @@ describe('approve (F6 step 5a)', () => {
     const wx = fakeWx({ api });
     await launch(wx);
     const p = await start(page('approve'), { id: 'a1' });
-    expect(p.data).toMatchObject({ ok: true, refuse: '', what: `Pay 300 USDC to ${'0x1111111111111111111111111111111111111111'}`, why: 'The payee is not in your mandate', left: '15:00', mode: 'facial', digest: v.digest });
+    expect(p.data).toMatchObject({ ok: true, refuse: '', what: `Pay 300 USDC to ${'0x1111111111111111111111111111111111111111'}`, why: 'The payee is not in your mandate', expires: 'Expires in 15:00', mode: 'facial', digest: v.digest });
     await p.approve();
     await settle();
     const soter = wx.named('startSoterAuthentication');
@@ -114,6 +114,17 @@ describe('approve (F6 step 5a)', () => {
     await p.approve();
     expect(wx.named('startSoterAuthentication')).toHaveLength(0);
     expect(posted).toHaveLength(0);
+  });
+
+  it('the expiry pill reads as one sentence in Chinese too, and the countdown keeps it filled', async () => {
+    const wx = fakeWx({ api: approveApi(approvalView()).api, language: 'zh_CN' });
+    await launch(wx);
+    const p = await start(page('approve'), { id: 'a1' });
+    expect(p.data.expires).toBe('15:00 后过期');
+    p.expiresAt = String(Number(p.expiresAt) - 61);
+    p.tick();
+    expect(p.data.expires).toMatch(/^\d+:\d\d 后过期$/);
+    expect(p.data.expires).not.toBe('15:00 后过期');
   });
 
   it('a phone without Face ID or fingerprint for WeChat: points to the passkey in the web app', async () => {
