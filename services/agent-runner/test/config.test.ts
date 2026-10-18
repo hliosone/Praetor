@@ -53,6 +53,10 @@ describe('prompts', () => {
     expect(md).toMatch(/the consortium \(bank, regulator, operator\), where one member can freeze or restrict and lifting needs two of the three; the owner cannot/);
     expect(md).toMatch(/Never give a cause that no tool returned: if no tool says why, say you do not know/);
   });
+  it('AGENTS.md: RESTRICTED while get_status shows ACTIVE is the owner\'s pause or a key recovery, not the consortium (#6)', () => {
+    // The hook also restricts on the owner's PAUSE_AGENT and a pending recovery (DecisionLib._env), which statusOf omits.
+    expect(md).toMatch(/A RESTRICTED reason while get_status shows ACTIVE comes from the owner \(the agent is paused\) or a pending key recovery, not from the consortium/);
+  });
   it('AGENTS.md: spending is quoted from get_mandate, never estimated (#7)', () => {
     expect(md).toMatch(/Numbers come from the tools: quote what was spent from get_mandate and balances from get_portfolio\. Never estimate or add up amounts yourself/);
   });
