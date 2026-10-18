@@ -125,10 +125,11 @@ export function Onboarding() {
           {step === 'suitability' && (
             <>
               <p>{t('onb.answers')}</p>
+              {/* The bank scores each answer 0 (cautious) to 2 (risk-seeking): the options keep that order. */}
               {QUESTIONS.map((q, i) => (
-                <label className="field" key={q}>{`${i + 1}.`}
+                <label className="field" key={q}>{`${i + 1}. ${t(`onb.${q}`)}`}
                   <select value={answers[i]} onChange={(e) => setAnswers(answers.map((a, j) => (j === i ? Number(e.target.value) : a)))}>
-                    <option value={0}>Prudent</option><option value={1}>Balanced</option><option value={2}>Bold</option>
+                    {[0, 1, 2].map((a) => <option key={a} value={a}>{t(`onb.${q}.a${a}`)}</option>)}
                   </select>
                 </label>
               ))}

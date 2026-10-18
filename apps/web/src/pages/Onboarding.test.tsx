@@ -4,6 +4,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { I18nProvider } from '../i18n/index.js';
+import en from '../i18n/en.json';
+import zh from '../i18n/zh-CN.json';
 
 const ACCOUNT = '0x00000000000000000000000000000000000c0ffe';
 const KEY = '0x00000000000000000000000000000000000a9e01';
@@ -91,5 +93,42 @@ describe('Onboarding resumes where the account stands (issue #1)', () => {
     show();
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('bank'));
     expect(screen.queryByLabelText('Email')).toBeNull();
+  });
+});
+
+describe('the five suitability questions (issue #2)', () => {
+  const EN = en as Record<string, string>;
+  const ZH = zh as Record<string, string>;
+  const KEYS = [1, 2, 3, 4, 5].flatMap((q) => [`onb.q${q}`, `onb.q${q}.a0`, `onb.q${q}.a1`, `onb.q${q}.a2`]);
+
+  it('asks each question in words, its answers from cautious (0) to bold (2) as the bank scores them', async () => {
+    signedIn('suitability');
+    show();
+    await screen.findByRole('button', { name: 'Save my profile' });
+    const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
+    expect(selects).toHaveLength(5);
+    selects.forEach((s, i) => {
+      const q = `onb.q${i + 1}`;
+      expect(s.closest('label')!.textContent).toContain(`${i + 1}. ${EN[q]}`);
+      expect([...s.options].map((o) => [o.value, o.textContent])).toEqual([0, 1, 2].map((a) => [String(a), EN[`${q}.a${a}`]]));
+    });
+  });
+
+  it('every question and answer has its wording in English and in Chinese', () => {
+    for (const k of KEYS) {
+      expect(EN[k]?.trim(), k).toBeTruthy();
+      expect(ZH[k]?.trim(), k).toBeTruthy();
+      expect(ZH[k], k).not.toBe(EN[k]);
+    }
+  });
+
+  it('sends the chosen answers to the bank for scoring', async () => {
+    signedIn('suitability', { 'POST /onboarding/suitability': () => ({ riskProfile: 'balanced' }) });
+    show();
+    await screen.findByRole('button', { name: 'Save my profile' });
+    fireEvent.change(screen.getAllByRole('combobox')[1]!, { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save my profile' }));
+    await screen.findByRole('button', { name: 'Create my agent in the TEE' });
+    expect(api).toHaveBeenCalledWith('POST', '/onboarding/suitability', { answers: [1, 2, 1, 1, 1] });
   });
 });
