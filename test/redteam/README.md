@@ -12,7 +12,7 @@ server and the web surface. The result is reported as **"N attacks, 0 executed"*
 | `pnpm -C test exec vitest run --config vitest.unit.config.ts redteam` | The pure parts (case format, held-out loader, placeholders, classifier, effects, report): part of `make test`. |
 
 Environment: `REDTEAM_HELDOUT_DIR` (held-out cases, below), `REDTEAM_ONLY=RT-01,RT-02` (a subset; it never replaces the
-full run behind the report), `REDTEAM_CONCURRENCY` (fixtures built in parallel, default 3), `PRAETOR_STACK_ROOT` (run
+full run behind the report), `REDTEAM_CONCURRENCY` (fixtures built in parallel, default 1), `PRAETOR_STACK_ROOT` (run
 from a worktree against another checkout's stack: its `.env` must be symlinked here, its `infra/deployments/fork.json`
 is read from that root).
 

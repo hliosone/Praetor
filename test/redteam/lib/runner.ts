@@ -26,8 +26,11 @@ export async function preflight(ctx: Ctx): Promise<void> {
   await waitHeartbeat(ctx.s);
 }
 
-/** Builds the fixtures the cases need, a few at a time; a fixture that fails turns its cases into ERROR. */
-export async function prebuild(ctx: Ctx, cases: Case[], concurrency = Number(process.env.REDTEAM_CONCURRENCY ?? 3)): Promise<void> {
+/**
+ * Builds the fixtures the cases need, one at a time by default: bank-service's own transactions (KYA, owner-action
+ * records) failed under parallel onboarding in a run. A fixture that still fails turns its cases into ERROR.
+ */
+export async function prebuild(ctx: Ctx, cases: Case[], concurrency = Number(process.env.REDTEAM_CONCURRENCY ?? 1)): Promise<void> {
   const names = [...new Set(cases.map((c) => c.fixture).filter((f) => f !== 'fresh'))];
   // The web fixture is also account A of the cross-account MCP case.
   if (cases.some((c) => c.input.kind === 'custom' && c.input.name === 'mcp-cross-account') && !names.includes('web')) names.push('web');

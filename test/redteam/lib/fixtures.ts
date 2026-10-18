@@ -68,7 +68,13 @@ export class Fixtures {
     const key = name === 'fresh' ? `${driver}:fresh:${caseId}` : `${driver}:${name}`;
     let f = this.built.get(key);
     if (!f) {
-      f = this.build(name, driver, key);
+      // One retry under a new label: a member-service hiccup must not cost a whole group of cases.
+      f = this.build(name, driver, key).catch(async (e: unknown) => {
+        await new Promise((r) => setTimeout(r, 5000));
+        return this.build(name, driver, `${key}-retry`).catch((e2: unknown) => {
+          throw new Error(`${errText(e)}; retry: ${errText(e2)}`);
+        });
+      });
       f.catch(() => undefined);
       this.built.set(key, f);
     }
