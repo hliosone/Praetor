@@ -33,6 +33,26 @@ describe('audit verification (spec 06 F8 step 4)', () => {
     expect(v.mismatchAt).toBeUndefined();
   });
 
+  it('an entry appended on FISCO while the stored entries are read is no mismatch (FISCO is read first)', async () => {
+    // The operator stores an entry before appending it to FISCO: entries read after FISCO's head cover it.
+    let fiscoSeq = 29;
+    const rows = chain.map((e) => ({ ...e }));
+    const audit = new Audit({
+      entries: async (from, limit) => { const out = rows.filter((r) => r.seq >= from).slice(0, limit); fiscoSeq = 30; return out; },
+      fisco: {
+        latest: async () => ({ seq: BigInt(fiscoSeq), head: chain[fiscoSeq - 1]!.head }),
+        headAt: async (seq) => (seq === 0n ? ZERO_HASH : chain[Number(seq) - 1]!.head),
+      },
+      anchor: { latest: async () => ({ seq: 2n, head: chain[19]!.head, fiscoBlock: 77n }) },
+    });
+    expect(await audit.verify()).toMatchObject({ verified: true, entries: 30, fisco: { seq: 29, match: true } });
+  });
+
+  it('entries missing from the store, behind FISCO, are a mismatch', async () => {
+    const v = await setup({ rows: chain.slice(0, 25).map((e) => ({ ...e })), fiscoSeq: 30 }).audit.verify();
+    expect(v.verified).toBe(false);
+  });
+
   it('a tampered entry is found: Mismatch at #n', async () => {
     const rows = chain.map((e) => ({ ...e }));
     rows[11] = { ...rows[11]!, amountUsd6: '999' };

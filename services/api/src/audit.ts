@@ -35,6 +35,9 @@ export class Audit {
   }
 
   async verify() {
+    // FISCO's head first: the operator stores each entry before appending it to FISCO, so the entries read next cover
+    // that head even if the log grows meanwhile (reading FISCO second reported a race as a mismatch).
+    const fisco = await this.d.fisco.latest();
     const rows = await this.all();
     // Recompute from the JSON alone: stored hashes and heads are not trusted.
     const heads: Hex[] = [ZERO_HASH];
@@ -48,7 +51,6 @@ export class Audit {
       heads.push(nextHead(heads[seq - 1]!, h));
     }
     const recomputed = heads.length - 1;
-    const fisco = await this.d.fisco.latest();
     const upTo = Math.min(Number(fisco.seq), recomputed);
     const fiscoHeadAt = (k: number) => (k === Number(fisco.seq) ? Promise.resolve(fisco.head) : this.d.fisco.headAt(BigInt(k)));
     let fiscoMatch = Number(fisco.seq) <= recomputed && heads[upTo] === (await fiscoHeadAt(upTo));
