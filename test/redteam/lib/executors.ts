@@ -613,6 +613,14 @@ type PwPage = {
 };
 type PwBrowser = { newContext(o: { ignoreHTTPSErrors: boolean }): Promise<{ addCookies(c: unknown[]): Promise<void>; newPage(): Promise<PwPage> }>; close(): Promise<void> };
 
+/** Why the web app answered without a CSP: the running Caddy lags the checked-in Caddyfile, or there is none. */
+function cspMissing(): string {
+  const file = readFileSync(join(root, 'infra/Caddyfile'), 'utf8');
+  return /Content-Security-Policy/.test(file)
+    ? 'absent on the running Caddy although infra/Caddyfile sets one (finding: Caddy not reloaded since the hardening)'
+    : 'absent (finding: spec 08 lists CSP)';
+}
+
 function webSourceUsesRawHtml(): string[] {
   const hits: string[] = [];
   const walk = (dir: string) => {
@@ -671,7 +679,7 @@ const xssLabel: Custom = (e) => {
       }
       return out('web', {
         executed, effects: executed ? ['the label payload executed in the approval page'] : [],
-        detail: `api returns the label as JSON data: ${asData}; raw HTML sinks in apps/web/src: ${raw.length ? raw.join(', ') : 'none'}; ${browser}; Content-Security-Policy header on the web app: ${csp ? String(csp) : 'absent (finding: spec 08 lists CSP)'}`,
+        detail: `api returns the label as JSON data: ${asData}; raw HTML sinks in apps/web/src: ${raw.length ? raw.join(', ') : 'none'}; ${browser}; Content-Security-Policy header on the web app: ${csp ? String(csp) : cspMissing()}`,
       });
     },
   };
