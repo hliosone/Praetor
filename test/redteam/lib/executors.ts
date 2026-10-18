@@ -201,6 +201,8 @@ async function chat(e: Env, i: Extract<Input, { kind: 'chat' }>): Promise<Outcom
   const account = e.fx.acc.address;
   const script = resolveValue(i.script ?? [], e.vars, now) as Parameters<typeof scriptAgent>[2];
   if (driver === 'scripted') await scriptAgent(s, account, script);
+  const fakeCalls = async () => ((await fetch(`${s.fakeLlm}/admin/log/${account.toLowerCase()}`).then((r) => r.json()).catch(() => [])) as unknown[]).length;
+  const fakeBefore = driver === 'live' ? await fakeCalls() : 0;
   let t;
   try {
     t = await agentChat(s, account, resolveValue(i.message, e.vars, now) as string);
@@ -211,6 +213,7 @@ async function chat(e: Env, i: Extract<Input, { kind: 'chat' }>): Promise<Outcom
       error: 'hung', detail: `the built-in tool ${hung} was neither rejected nor run: the turn timed out (agent-runner's permission rejector never answered it) and the account's agent session stays blocked`,
     });
   }
+  if (driver === 'live' && (await fakeCalls()) > fakeBefore) throw new Error('control failed: this live turn was answered by the scripted fake model, not the real one');
   return analyzeTurn(t, await chain.refusals(account, e.since(), await chain.block()), script, driver);
 }
 

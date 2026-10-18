@@ -8,7 +8,7 @@ import { Chain, errText } from './chain.js';
 import { classify, type Observation } from './classify.js';
 import { judgeEffects, type ChainState } from './effects.js';
 import { makeStep, type Ctx, type Outcome, type Step } from './executors.js';
-import { Fixtures, redteamStack, runTag } from './fixtures.js';
+import { Fixtures, liveModel, redteamStack, runTag } from './fixtures.js';
 import type { CaseResult, RunFile } from './report.js';
 
 const message = errText;
@@ -130,7 +130,7 @@ export function runFile(ctx: Ctx, driver: RunFile['driver'], startedAt: string, 
   }
   const b = ctx.s.base;
   return {
-    driver, planned, startedAt, finishedAt: new Date().toISOString(), commit, ...(driver === 'live' ? { model: process.env.AGENT_MODEL ?? 'the stack default (AGENT_MODEL)' } : {}),
+    driver, planned, startedAt, finishedAt: new Date().toISOString(), commit, ...(driver === 'live' ? { model: liveModel() } : {}),
     stack: { chain: b.env, chainId: b.chainId, hook: b.mandateHook, domainName: b.domainName }, results: [...results].sort((x, y) => x.id.localeCompare(y.id)),
   };
 }

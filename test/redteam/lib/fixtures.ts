@@ -12,6 +12,7 @@ import { MandateHookAbi, PraetorTokenAbi, PriceOracleAbi, baseNow, loadDeploymen
 import {
   OwnerActionKind as K, ZERO_HASH, digest, merchantRef, ownerActionPayload, passkeyAuth, praetorDomain, softPasskey, soterChallenge, type Policy, type SoterApproval,
 } from '@praetor/protocol';
+import { readFileSync } from 'node:fs';
 import { fakeSoterSignature } from '@praetor/soter-attester';
 import { ENTRY_POINT } from '@praetor/userop';
 import {
@@ -32,6 +33,14 @@ export const URLS = {
   mcp: process.env.MCP_URL_HOST ?? 'http://10.88.0.60:3080',
   web: process.env.WEB_URL ?? 'https://praetor.localhost',
 };
+
+/** The real model of the live driver: REDTEAM_LIVE_MODEL, else the stack's AGENT_MODEL default (infra/.env.example). */
+export function liveModel(): string {
+  if (process.env.REDTEAM_LIVE_MODEL) return process.env.REDTEAM_LIVE_MODEL;
+  const line = readFileSync(`${stackRoot}infra/.env.example`, 'utf8').split('\n').find((l) => l.startsWith('AGENT_MODEL='));
+  if (!line) throw new Error('no AGENT_MODEL in infra/.env.example: set REDTEAM_LIVE_MODEL');
+  return line.slice('AGENT_MODEL='.length).trim();
+}
 
 export function redteamStack(): Stack {
   return stack({ base: loadDeployments(`${stackRoot}infra/deployments/fork.json`) });
@@ -81,6 +90,14 @@ export class Fixtures {
     return f;
   }
 
+  /** agent-runner's per-account model (tests only): the live driver runs the real model on its own accounts. */
+  private async useRealModel(account: Address) {
+    const r = await fetch(`${this.s.agentRunner}/accounts/${account}/model`, {
+      method: 'PUT', headers: { 'content-type': 'application/json', authorization: `Bearer ${this.s.env.INTERNAL_TOKEN_AGENT}` }, body: JSON.stringify({ model: liveModel() }),
+    });
+    if (r.status !== 204) throw new Error(`could not give the live account the real model: ${r.status}`);
+  }
+
   /** Transactions from shared EOAs (USDC master minter, desk operator) one at a time. */
   serial<T>(fn: () => Promise<T>): Promise<T> {
     const next = this.queue.then(fn, fn);
@@ -117,8 +134,10 @@ export class Fixtures {
     await kycViaVendor(this.s, userRef, acc.address, person);
     const base = linPolicy(this.s, 0n);
     await onboard(this.s, acc, r.policy ? r.policy(base) : base, { userRef });
-    // A scheduler wake must never have the real model act on a scripted account (F9).
+    // A scheduler wake must never have the real model act on a scripted account (F9); onboard() already sets the
+    // scripted model for every account, so a live account is given the real model back explicitly.
     if (driver === 'scripted') await scriptAgent(this.s, acc.address, []);
+    else await this.useRealModel(acc.address);
     if (r.funded) await this.serial(() => this.fund(acc, r.metals !== false));
     await this.setLabels(acc.address, []);
     let phone: Phone | undefined;
