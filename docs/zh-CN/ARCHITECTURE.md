@@ -12,7 +12,7 @@ Praetor 是一个智能体钱包（FinTechathon 2026，国际赛道，赛题 F�
 - **有界（Bounded）**：账户发出的每一笔调用都要经过链上的 **Mandate hook**，它执行用户的规则和银行的上限，默认拒绝。任何异常操作都需要所有者的 Face ID（passkey，或微信内的 SOTER）。
 - **受监管（Regulated）**：由银行、监管方、运营方组成的 **FISCO BCOS** 联盟链掌握身份、获准资产、制裁名单、智能体状态以及只追加的审计日志。其决定以成员签名的形式到达 Base，由 hook 自行验证。监管方一个签名即可冻结智能体；放宽需要三分之二。
 
-本文档是面向评委的技术文档：先给出全景图，再介绍核心算法、安全设计和部署。它描述 2026-10-18 时实际构建的代码，此时 Web 应用、小程序、智能体密钥轮换与恢复（F10）、Base Sepolia 部署以及生产 compose 均已加入；第 7 节列出仍待完成的里程碑关卡（D85）。构建与 `spec/` 不一致之处，引用 [DECISIONS.md](../DECISIONS.md) 中的条目。英文版：[ARCHITECTURE.md](../ARCHITECTURE.md)。安全证据：[SELF_ASSESSMENT.md](SELF_ASSESSMENT.md)（英文版 [security/SELF_ASSESSMENT.md](../security/SELF_ASSESSMENT.md)）。
+本文档是面向评委的技术文档：先给出全景图，再介绍核心算法、安全设计和部署。它描述 2026-10-18 时实际构建的代码，此时 Web 应用、小程序、智能体密钥轮换与恢复（F10）、Base Sepolia 部署以及生产 compose 均已加入，红队测试、M18 演练和实链上的 Pyth 喂价也已完成（D86 至 D90）；第 7 节列出仍待完成的里程碑关卡（D85）。构建与 `spec/` 不一致之处，引用 [DECISIONS.md](../DECISIONS.md) 中的条目。英文版：[ARCHITECTURE.md](../ARCHITECTURE.md)。安全证据：[SELF_ASSESSMENT.md](SELF_ASSESSMENT.md)（英文版 [security/SELF_ASSESSMENT.md](../security/SELF_ASSESSMENT.md)）。
 
 ## 1. 系统全景图
 
@@ -287,7 +287,7 @@ flowchart LR
 
 - **唤醒。** scheduler 不持有任何密钥。每 `PRICE_CHECK_INTERVAL_S`（以及 DEMO 价格事件发生时立即）它读取每个账户的权重，当某资产超出其区间 10 bps 以上且当天仍有再平衡次数时唤醒智能体，在冷却期内每个账户的每种突破最多唤醒一次（D36）。监控不产生费用；大模型只在唤醒或对话时运行。
 - **托管。** Praetor 为每个用户托管智能体：agent-runner 为每个唤醒的账户启动一个 `opencode serve`（最多 `AGENT_MAX_ACTIVE` = 8 个，淘汰最久未使用的空闲实例，空闲 30 分钟后停止）。模型为 `opencode/deepseek-v4.1-flash-free`（来自 `AGENT_MODEL`）。
-- **工具锁定**（D15）。OpenCode 的配置为 `permission: {"*": "ask", "praetor_*": "allow"}`，runner 在每一轮中拒绝所有权限请求，因此内置工具（shell、文件、网页）永远不会运行。按账户的 MCP bearer 只通过环境变量替换到达 OpenCode，绝不写入文件。agent-runner 位于独立的 `agent` 网络上。
+- **工具锁定**（D15）。OpenCode 的配置为 `permission: {"*": "ask", "praetor_*": "allow"}`，runner 在每一轮中拒绝所有权限请求，因此内置工具（shell、文件、网页）永远不会运行。`webfetch`、`websearch`、`glob`、`grep`、`lsp` 和 `question` 在配置中被禁用，OpenCode 不会提供它们；若某个轮次无法列出待处理的权限，它会立即停止并中止会话（D86、D88）。按账户的 MCP bearer 只通过环境变量替换到达 OpenCode，绝不写入文件。agent-runner 位于独立的 `agent` 网络上。
 - **MCP 服务器。** 十个工具：`get_portfolio`、`get_mandate`、`get_status`、`get_activity`、`explain`、`pay`、`rebalance`、`get_approval`、`propose_standing_order`、`trigger_standing_order`。**没有任何工具接受账户参数**：账户来自 bearer。`pay` 和 `rebalance` 先用 `checkBatch` 试运行，然后总是提交，因此拒绝会作为证据记录在链上；T2 结果会为所有者发起审批请求。没有任何工具读取 KYC 数据（I9）。
 - **接入任意智能体。** 外部 MCP 客户端（例如 claude.ai）通过 OAuth 2.1 接入，支持动态客户端注册和 PKCE S256（代码移植自 BSA Sentry）；用户以其 Praetor 会话表示同意。它们的操作仍然经过 TEE 中的智能体密钥和 hook。
 - **签名。** agent-signer 只为 mcp 签名，只签链 84532、EntryPoint v0.7 上的 `execute` userOps，绝不以账户自身为目标，每个账户每小时最多 120 次；它自行计算 userOpHash。mcp 给出 Base 上持有的该账户智能体密钥（`kyaOf`），agent-signer 在最多 16 个版本中找到对应的密钥版本，因此 mcp 从不知道版本号，轮换也无需它做任何改动（D47）。
@@ -314,7 +314,7 @@ flowchart LR
 
 ### 4.12 价格与资金台
 
-`PriceOracle` 保存 tXAU 和 tXAG 的 8 位小数美元价格（USDC 固定为 1）。设置了 `PYTH_API_KEY` 时，oracle-feeder 推送 Pyth Hermes 价格，否则推送标记为 `DEMO` 的预置价格（D13）；每次更新最多变动 25 %，hook 拒绝使用早于 `maxPriceAge`（4 天，贵金属周末不交易）的价格进行交易。演示冲击（`pnpm shock --asset XAU --pct 20`）是一个 DEMO 价格，feeder 会保持它 `DEMO_HOLD_S`。`TreasuryDesk` 以预言机价格加减 30 bps 点差兑换 USDC 和贵金属，卖出时铸造、买回时销毁。tXAU 和 tXAG 是我们自研的 ERC-3643 代币：只能在允许国家中已验证的身份之间转账。
+`PriceOracle` 保存 tXAU 和 tXAG 的 8 位小数美元价格（USDC 固定为 1）。只有同时设置了 `PYTH_API_KEY` 且 `CHAIN_MODE=live` 时，oracle-feeder 才推送 Pyth Hermes 价格（每 5 分钟一次请求，同时获取两种价格，D89）；否则（在分叉上始终如此）推送标记为 `DEMO` 的预置价格（D13）；每次更新最多变动 25 %，hook 拒绝使用早于 `maxPriceAge`（4 天，贵金属周末不交易）的价格进行交易。演示冲击（`pnpm shock --asset XAU --pct 20`）是一个 DEMO 价格，feeder 会保持它 `DEMO_HOLD_S`。`TreasuryDesk` 以预言机价格加减 30 bps 点差兑换 USDC 和贵金属，卖出时铸造、买回时销毁。tXAU 和 tXAG 是我们自研的 ERC-3643 代币：只能在允许国家中已验证的身份之间转账。
 
 ### 4.13 智能体密钥轮换、设备与所有者恢复（F10）
 
@@ -364,7 +364,7 @@ sequenceDiagram
 - **登录**（D50）。`wx.login` 给出一个 code；`POST /mp/session` 让 api 自行调用 code2Session，并只保留 `keccak256(openid)`。bearer 令牌有效期 2 小时，绝不等同于 Web 会话，并且只有在 LINK_WECHAT 之后记录的绑定仍与 Base 上的 `bindingOf(account)` 一致时才指向该账户，每次登录和每次请求都会检查（D81），因此解绑或恢复（会清除 Base 上的绑定）都会立即结束其会话。
 - **路由**（D51、D53）。`/mp` 为已绑定的用户提供所有者的读取接口、智能体对话、拒绝、SOTER 审批和 F2 绑定，不提供任何所有者操作：解绑、新增定期付款和修改策略会复制 Web 应用的链接，由 passkey 在那里签名。任何响应都不包含所有者的邮箱或 KYC 数据。
 - **手机端的检查**（D52、D54）。在 SOTER 签署审批之前，手机解码每笔调用，重新计算 call hash 和 Tier2Approval 摘要，并签署它自己计算的摘要；对于绑定，它要求操作为 LINK_WECHAT 且 `payloadHash = keccak256(abi.encode(linkNonce))`。摘要代码是由 `src/protocol.mjs` 生成的 `lib/protocol.js`，并用黄金向量校验。
-- **状态。** 逻辑测试在 `make test` 中（替代 DevTools 构建）；在手机上，它以调试模式运行在微信测试账号下（[MANUAL.md](../MANUAL.md) 第 5 节，[TESTER.md](../TESTER.md)）。
+- **状态。** 逻辑测试在 `make test` 中（替代 DevTools 构建）；在手机上，它以调试模式运行在微信测试账号下（[MANUAL.md](../MANUAL.md) 第 5 节，[TESTER.md](../TESTER.md)）。2026-10-18 团队在 iPhone 上通过了以下步骤：绑定、SOTER Face ID 审批（手机与 Web 应用显示相同的摘要）、重放的审批在链上被拒、监管冻结、解绑以及中文界面；Android 指纹尚未测试。
 
 ### 4.16 通知与 Web 推送
 
@@ -392,9 +392,9 @@ spec 00 中独立的沙盒部署（域名 `Praetor-sandbox`，SANDBOX 密钥集�
 
 **本地即小型生产环境**（spec 11）：一个 Docker Compose 文件（`infra/compose.yml`），profile 包括 `core`、`chain`、`wecross`、`agent`、`tee-sim`、`mocks`、`dev`；所有拉取的镜像都以 digest 固定；每个长期运行的服务都有健康检查。只有 Caddy 对外发布端口（80 和 443；anvil 另外在回环地址 18545 上监听，供 Foundry 使用）。三个网络隔离了不应互通的部分：`praetor`（10.88.0.0/16）、`identity`（WeIdentity 只与银行、MySQL 和一个 FISCO 节点相连，D29）以及 `agent`（agent-runner 与 mcp、scheduler、api 和仅测试用的假大模型，D35）。MySQL 为每个服务提供一个数据库和一个用户。Base 以带 P-256 预编译的 Base Sepolia anvil 分叉运行（`--network optimism`），它会重试公共 RPC，并每 20 秒把状态转储到一个卷中（D45）；FISCO 以四个出块节点运行，使用我们基于 sha256 固定的 3.17.1 发行版自建的镜像；TEE 运行在 dstack 模拟器上。
 
-**实链模式**（M16，D74、D75）。`make up LIVE=1` 会加入 `infra/live.env`：整个栈使用 `LIVE_` 密钥在 Base Sepolia 上运行，不启动 anvil，使用 `infra/deployments/base-sepolia.json`（MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`，在区块 48253270 以域名 `Praetor` 部署），`DEMO_SCALE=100`，心跳与价格检查采用生产间隔。FISCO 仍是本地链，由 `LOCAL` 密钥集治理（`FISCO_KEYSET=LOCAL`），其上另有一个绑定到线上 hook 的联盟部署（`infra/deployments/fisco-live.json`）；Base 信任的每一把密钥都来自 `LIVE_` 密钥集。实链预算很小：`scripts/deploy/fund-live.ts` 把部署者的测试网 ETH 分发给需要支付 gas 的账户（不加 `--send` 时只是试运行），一次带 0.004 ETH paymaster 押金的部署共花费约 0.0045 ETH。`scripts/evidence/live-run.ts` 用真实模型运行证据流程，`scripts/evidence/collect.ts` 根据链上数据写入 [EVIDENCE.md](../EVIDENCE.md)；截至本次提交，证据尚未采集。
+**实链模式**（M16，D74、D75）。`make up LIVE=1` 会加入 `infra/live.env`：整个栈使用 `LIVE_` 密钥在 Base Sepolia 上运行，不启动 anvil，使用 `infra/deployments/base-sepolia.json`（MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`，在区块 48253270 以域名 `Praetor` 部署），`DEMO_SCALE=100`，心跳与价格检查采用生产间隔，XAU 与 XAG 使用来自 Pyth Hermes 的真实价格（`FEED_INTERVAL_S=300`，D89）。FISCO 仍是本地链，由 `LOCAL` 密钥集治理（`FISCO_KEYSET=LOCAL`），其上另有一个绑定到线上 hook 的联盟部署（`infra/deployments/fisco-live.json`）；Base 信任的每一把密钥都来自 `LIVE_` 密钥集。实链预算很小：`scripts/deploy/fund-live.ts` 把部署者的测试网 ETH 分发给需要支付 gas 的账户（不加 `--send` 时只是试运行），一次带 0.004 ETH paymaster 押金的部署共花费约 0.0045 ETH。`scripts/evidence/live-run.ts` 用真实模型运行证据流程，`scripts/evidence/collect.ts` 根据链上数据写入证据；实链证据见 [EVIDENCE.md](../EVIDENCE.md)（M16）。
 
-**生产环境**（Phase C，与人工一起完成）：一台服务器运行整个栈，另加两台 Phala Cloud CVM（Intel TDX，dstack）运行 agent-signer 和 soter-attester，配置 `ATTESTATION_MODE=phala`，compose hash 由银行登记，机密以加密环境变量传入，并使用线上 Base Sepolia 部署。`infra/compose.prod.yml` 在同一个基础文件之上，为每个长期运行的服务加上重启策略、为所有服务加上日志轮转，不启动脚本化模型（放入 `test` profile），让 Caddy 获取真实证书（`CADDY_TLS` 为 ACME 账户邮箱，而不是 `internal`），并停用明文 HTTP 的隧道站点（其主机名永远无法解析）。`make rehearsal` 用它启动整个栈（`PRAETOR_ENV=rehearsal`），运行流程的冒烟子集，然后运行 `scripts/deploy/prod-refusals.sh`，检查每个服务在 `PRAETOR_ENV=prod` 下都拒绝其仅测试设置（I13）。在域名可用之前，手机通过 `make tunnel` 访问笔记本上的栈：一个通过明文 HTTP 连接 Caddy 的 cloudflared 快速隧道，它把 URL 写入 `.run/tunnel-url`，并把小程序的 develop 环境指向它（[TESTER.md](../TESTER.md)）。步骤：[DEPLOY.md](DEPLOY.md)（英文版 [DEPLOY.md](../DEPLOY.md)）；TEE 检查清单：[security/tee-checklist.md](../security/tee-checklist.md)。
+**生产环境**（Phase C，与人工一起完成）：一台服务器运行整个栈，另加两台 Phala Cloud CVM（Intel TDX，dstack）运行 agent-signer 和 soter-attester，配置 `ATTESTATION_MODE=phala`，compose hash 由银行登记，机密以加密环境变量传入，并使用线上 Base Sepolia 部署。`infra/compose.prod.yml` 在同一个基础文件之上，为每个长期运行的服务加上重启策略、为所有服务加上日志轮转，不启动脚本化模型（放入 `test` profile），让 Caddy 获取真实证书（`CADDY_TLS` 为 ACME 账户邮箱，而不是 `internal`），并停用明文 HTTP 的隧道站点（其主机名永远无法解析）。`make rehearsal` 用它启动整个栈（`PRAETOR_ENV=rehearsal`），运行流程的冒烟子集，然后运行 `scripts/deploy/prod-refusals.sh`，检查每个服务在 `PRAETOR_ENV=prod` 下都拒绝其仅测试设置（I13）；它已于 2026-10-18 在分叉上通过（D90）。在域名可用之前，手机通过 `make tunnel` 访问笔记本上的栈：一个通过明文 HTTP 连接 Caddy 的 cloudflared 快速隧道，它把 URL 写入 `.run/tunnel-url`，并把小程序的 develop 环境指向它（[TESTER.md](../TESTER.md)）。步骤：[DEPLOY.md](DEPLOY.md)（英文版 [DEPLOY.md](../DEPLOY.md)）；TEE 检查清单：[security/tee-checklist.md](../security/tee-checklist.md)。
 
 ## 7. 2026-10-18 时的构建状态
 
@@ -405,11 +405,11 @@ spec 00 中独立的沙盒部署（域名 `Praetor-sandbox`，SANDBOX 密钥集�
 | Base 与 FISCO 合约、协议、bundler、成员服务、身份、模拟器上的 TEE、带 MCP 的智能体、api、定期付款与出款、审计与 camt.053 | 已构建并测试；M1 至 M11 关卡已通过 |
 | WeCross 传输 | 已构建并测试（M12，关卡已通过：在全新分叉上以 `BRIDGE=wecross` 运行，集成测试 16/16 个文件、e2e 41/41，F9 的冻结经由 WeCross 送达） |
 | 带联盟控制台、收款方、设备、恢复页面、Web 推送、临时沙盒的 Web 应用 | 已构建并测试（M13，关卡已通过：Playwright 旅程 F1 至 F10 和沙盒用例 15/15，34 张 1440 与 390 px 截图，每张均经 axe 检查） |
-| 微信小程序 | 已构建（M14，关卡已通过：逻辑测试，MANUAL 步骤已编写）；手机上的步骤在 Phase C 中执行 |
+| 微信小程序 | 已构建（M14，关卡已通过：逻辑测试，MANUAL 步骤已编写）；2026-10-18 团队在 iPhone 上通过了绑定、SOTER Face ID 审批、重放的审批在链上被拒、监管冻结、解绑和中文界面（[MANUAL.md](../MANUAL.md) 第 5 节）；Android 指纹在 Phase C 中执行 |
 | 智能体密钥轮换、设备与所有者恢复（F10） | 已构建并测试（M15）；关卡已在全新分叉上通过：`test/e2e/F10-rotation-recovery.test.ts` 3/3（停止、轮换、恢复的安排与取消）以及 48 小时的 `test/warp/F10-recovery-execute.test.ts`（`executeRecovery` 之后只有新 passkey 能登录，智能体密钥被撤销） |
 | 国密（SM）配置冒烟测试 | 已运行并记录在 [SMOKE.md](../SMOKE.md) 中：11 项自检和 37 项链上检查通过；WeIdentity 场景 43 项中 39 项通过（BLOCKERS B3） |
-| Base Sepolia 部署与实链模式 | 合约已部署到 Base Sepolia，联盟已部署到 FISCO（D74、D75）；实链证据尚未采集（M16 关卡尚待完成） |
-| 红队测试套件 | 本次提交时尚未构建（`make redteam` 只是占位） |
-| 生产 compose、演练目标、生产拒绝检查、手机隧道 | 已构建（M18）；演练关卡尚待完成；云端部署属于 Phase C |
+| Base Sepolia 部署与实链模式 | 合约已部署到 Base Sepolia，联盟已部署到 FISCO（D74、D75）；仅在实链上使用来自 Pyth Hermes 的真实 XAU 与 XAG 价格，每 5 分钟一次请求（D89；分叉保留其测试设定的预置演示价格）；实链证据运行属于 M16（关卡尚待完成），其证据见 [EVIDENCE.md](../EVIDENCE.md) |
+| 红队测试套件 | 已构建，并于 2026-10-18 针对本地栈运行（[security/redteam.md](../security/redteam.md)）：脚本化运行 85 个攻击，0 个得逞；全局运行（`make redteam-global`，共享状态事后恢复）3 个攻击，0 个得逞；真实模型（经 OpenCode 调用 DeepSeek）12 个攻击，0 个得逞（3 个被系统拦截，9 个被模型拒绝；对应的脚本化用例证明系统同样会拦截这些攻击）。早先运行中的发现均未转移任何价值，已全部修复并重新测试（D86 至 D88）。留出用例通过 `REDTEAM_HELDOUT_DIR` 运行（D64），尚未运行。属于 M16 关卡，该关卡因实链证据运行仍未关闭 |
+| 生产 compose、演练目标、生产拒绝检查、手机隧道 | 已构建并完成演练（M18，关卡已通过，D90）：在分叉上以 `compose.prod.yml` 运行 `make rehearsal`，冒烟测试 F1、F5、F8 16/16（脚本化模型），五项生产拒绝检查均通过。未演练：实链 Base、Phala TEE、真实证书；云端部署属于 Phase C |
 
 WeBASE 浏览器在 Phase 0（V9）中得到验证，但不属于该栈（削减清单，D4）。
