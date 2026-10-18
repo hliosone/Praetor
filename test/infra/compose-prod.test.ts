@@ -37,6 +37,12 @@ describe('infra/compose.prod.yml', () => {
     expect(read('infra/Caddyfile')).toContain('tls {$CADDY_TLS:internal}');
   });
 
+  it('runs each prod refusal without a network, beside the running stack: a second copy cannot take the service\'s fixed IP', () => {
+    const ref = parse(read('infra/compose.refusals.yml'), { customTags: [{ tag: '!reset', resolve: () => null } as never] }) as { services: Record<string, { network_mode?: string }> };
+    for (const svc of ['bank', 'agent-signer', 'soter-attester', 'agent-runner', 'api']) expect(ref.services[svc]?.network_mode, svc).toBe('none');
+    expect(read('scripts/deploy/prod-refusals.sh')).toContain('-f infra/compose.refusals.yml');
+  });
+
   it('has a rehearsal target that runs the smoke suite and the prod refusals', () => {
     const mk = read('Makefile');
     expect(mk).toMatch(/^rehearsal:[\s\S]*?PROD=1[\s\S]*?e2e-smoke[\s\S]*?prod-refusals\.sh/m);
