@@ -4,7 +4,7 @@ Single source of truth for where the build stands. After a context reset: read `
 
 ## Now
 
-**Phase B in progress** (go received 2026-10-17 07:02 UTC, no answers: all QUESTIONS defaults apply, D3). M0 to M15 and M17 are closed on the local fork. The human funded the LIVE deployer and treasury on 2026-10-17 (B1 resolved for live, budget D74); the contracts are on Base Sepolia. Left: the red team on the fork and the live evidence run (M16), the rehearsal (M18). Resume at the first unchecked item below.
+**Phase B done** (go received 2026-10-17 07:02 UTC, no answers: all QUESTIONS defaults apply, D3). M0 to M18 are closed: the build and every gate on the local fork, the red team (100 attacks, 0 executed), the live evidence run on Base Sepolia (D96) and the production rehearsal (D90). The teammate's iPhone issues #1 to #11 are fixed. Next: Phase C with the human, from step 1 of `docs/MANUAL.md`.
 
 ## Phase 0 (2026-10-17 03:30 to 04:30 UTC)
 
@@ -36,7 +36,7 @@ Single source of truth for where the build stands. After a context reset: read `
 - [x] M13 web app, Phone3D, i18n, PWA, sandbox, console (gate: Playwright F1 to F9, screenshots, axe): journey F1 to F10, sandbox, 34 screenshots with axe, 15/15 green on 2026-10-18; the sandbox is the interim one (D48, D73), web push in (M13 PWA)
 - [x] M14 mini program (gate: logic tests, MANUAL steps) (built by a parallel agent, D44; phone steps in MANUAL 5)
 - [x] M15 F10 + Guomi smoke + whole suite (gate: e2e F1 to F10 on fork): e2e 41/41 with F10 3/3 (rotation, stop, recovery scheduled and cancelled), the web journey F1 to F10 15/15, the 48 h warp (`executeRecovery`: only the new passkey signs in, the agent key revoked) and the Guomi smoke (agent), all on fresh forks, 2026-10-18 00:35 UTC
-- [x] M16 live run + red team (gate: EVIDENCE.md, "N attacks, 0 executed"): red team 85 scripted, 3 global and 12 real-model attacks, 0 executed (`docs/security/redteam.md`); the evidence flows C0 to F8 on Base Sepolia with Pyth prices, 21 transactions in `docs/EVIDENCE.md` (D96), 2026-10-18 05:35 UTC
+- [x] M16 live run + red team (gate: EVIDENCE.md, "N attacks, 0 executed"): red team 85 scripted, 3 global and 12 real-model attacks, 0 executed (`docs/security/redteam.md`); the evidence flows C0 to F8 on Base Sepolia with Pyth prices, 14 distinct Base transactions (21 links) in `docs/EVIDENCE.md` (D96), 2026-10-18 05:35 UTC
 - [x] M17 security pack + docs EN/中文 (parallel agent, D44; refreshed at the end of Phase B)
 - [x] M18 deployment rehearsal (gate: smoke on `compose.prod.yml`): `make rehearsal` on the fork, smoke F1, F5, F8 16/16 and the five prod refusals, 2026-10-18 04:50 UTC (D90); the cloud deployment is Phase C
 
