@@ -7,7 +7,7 @@ import { decodeEventLog, getAddress, parseAbi, type Address, type Hex, type Publ
 import { privateKeyToAccount } from 'viem/accounts';
 import { baseClients, IdentityRegistryAbi } from '@praetor/chain';
 import { resolveKey } from '@praetor/config';
-import { MandateRegistryAbi } from '@praetor/fisco-client';
+import { MandateRegistryAbi, oneAtATime } from '@praetor/fisco-client';
 import { digest, praetorDomain, POLICY_ABI, ZERO_HASH, type AuditEntry, type OwnerAction, type Policy } from '@praetor/protocol';
 import { startMember, type MemberContext } from '@praetor/member-kit';
 import type { Request, Response, NextFunction } from 'express';
@@ -146,9 +146,11 @@ export function startBank(env: Record<string, string | undefined> = process.env)
     now: async () => (await publicClient.getBlock()).timestamp,
     schedule: async (a, payload, bankSigs) => {
       if (!walletClient) throw new Error('DESK_OPERATOR_KEY missing: the bank cannot send the recovery');
-      const hash = await walletClient.writeContract({ address: ctx.base.mandateHook, abi: MandateHookAbi, functionName: 'scheduleRecovery', args: [a, payload, bankSigs], account: walletClient.account!, chain: walletClient.chain });
-      if ((await publicClient.waitForTransactionReceipt({ hash })).status !== 'success') throw new Error('scheduleRecovery reverted');
-      return hash;
+      return oneAtATime(walletClient.account!.address, async () => {
+        const hash = await walletClient.writeContract({ address: ctx.base.mandateHook, abi: MandateHookAbi, functionName: 'scheduleRecovery', args: [a, payload, bankSigs], account: walletClient.account!, chain: walletClient.chain });
+        if ((await publicClient.waitForTransactionReceipt({ hash })).status !== 'success') throw new Error('scheduleRecovery reverted');
+        return hash;
+      });
     },
     notify: async (account, text) => { console.log(JSON.stringify({ channel: 'bank-notice', account, text })); },
   });
@@ -284,12 +286,15 @@ function routes(r: import('express').Router, ctx: MemberContext, d: Deps) {
 async function registerIdentity(d: Deps, ctx: MemberContext, account: Address, identityHash: Hex, country: string): Promise<Hex | null> {
   const verified = await d.publicClient.readContract({ address: ctx.base.identityRegistry, abi: IdentityRegistryAbi, functionName: 'isVerified', args: [account] });
   if (verified) return null;
-  const tx = await d.desk.writeContract({
-    address: ctx.base.identityRegistry, abi: IdentityRegistryAbi, functionName: 'registerIdentity',
-    args: [account, identityHash, `0x${Buffer.from(country).toString('hex')}` as Hex], account: d.desk.account!, chain: d.desk.chain,
+  // Parallel onboardings send from the same desk account: one at a time, or two read the same nonce.
+  return oneAtATime(d.desk.account!.address, async () => {
+    const tx = await d.desk.writeContract({
+      address: ctx.base.identityRegistry, abi: IdentityRegistryAbi, functionName: 'registerIdentity',
+      args: [account, identityHash, `0x${Buffer.from(country).toString('hex')}` as Hex], account: d.desk.account!, chain: d.desk.chain,
+    });
+    await d.publicClient.waitForTransactionReceipt({ hash: tx });
+    return tx;
   });
-  await d.publicClient.waitForTransactionReceipt({ hash: tx });
-  return tx;
 }
 
 function mandateCheckedIn(logs: readonly { address: Address; data: Hex; topics: readonly Hex[] }[], at: Address) {
