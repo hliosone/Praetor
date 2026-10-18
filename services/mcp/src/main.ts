@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { encodeFunctionData, type Address, type Hex } from 'viem';
 import { MandateHookAbi, StandingOrdersAbi, baseClients, baseNow, loadDeployments } from '@praetor/chain';
 import { connect, loadMigrations, migrate } from '@praetor/db';
+import { BASESCAN_SEPOLIA, explorerFor } from '@praetor/protocol';
 import { createMcpApp } from './app.js';
 import { apiApprovals, apiProposals, chainReader, dbLabels, submitter } from './ports.js';
 import { MySqlTokenStore } from './store.js';
@@ -26,7 +27,8 @@ const env = z.object({
   AGENT_SUBNET: z.string().default('10.90.0.10/32'),
   PUBLIC_URL: z.string().url().default('https://praetor.localhost'),
   SESSION_SECRET: z.string().min(32),
-  EXPLORER_URL: z.string().url().default('https://sepolia.basescan.org'),
+  EXPLORER_URL: z.string().url().default(BASESCAN_SEPOLIA),
+  CHAIN_MODE: z.enum(['fork', 'live']).default('fork'),
   PORT: z.coerce.number().int().default(3080),
 }).parse(process.env);
 
@@ -45,7 +47,7 @@ const bundlerTx = async (to: Address, data: Hex) => {
 const reader = chainReader(publicClient as never, d);
 const ports: Ports = {
   tokens: { usdc: d.usdc, txau: d.txau, txag: d.txag, desk: d.treasuryDesk },
-  explorer: env.EXPLORER_URL,
+  explorer: explorerFor(env.CHAIN_MODE, env.EXPLORER_URL),
   reader,
   submit: submitter({ bundlerUrl: env.BUNDLER_URL, bundlerToken: env.INTERNAL_TOKEN_BUNDLER, signerUrl: env.AGENT_SIGNER_URL, signerSecret: env.SIGNER_HMAC_MCP, agentKeyOf: async (a) => (await reader.kya(a)).agentKey }),
   approvals: apiApprovals(env.API_URL, env.INTERNAL_TOKEN_API),

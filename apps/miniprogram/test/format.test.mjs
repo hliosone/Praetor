@@ -35,8 +35,11 @@ describe('format', () => {
 
   it('addresses: full, or shortened for lists; Base Sepolia transaction links', () => {
     expect(f.shortAddress('0x00000000000000000000000000000000000c0ffe')).toBe('0x0000…0ffe');
-    expect(f.txUrl(`0x${'ab'.repeat(32)}`)).toBe(`https://sepolia.basescan.org/tx/0x${'ab'.repeat(32)}`);
-    expect(f.txUrl('nope')).toBe('');
+    expect(f.txUrl(`0x${'ab'.repeat(32)}`, 'https://sepolia.basescan.org')).toBe(`https://sepolia.basescan.org/tx/0x${'ab'.repeat(32)}`);
+    expect(f.txUrl('nope', 'https://sepolia.basescan.org')).toBe('');
+    // No explorer on the local fork (issue #9): no link at all.
+    expect(f.txUrl(`0x${'ab'.repeat(32)}`, null)).toBe('');
+    expect(f.txUrl(`0x${'ab'.repeat(32)}`)).toBe('');
   });
 
   it('dates from Base seconds, as YYYY-MM-DD in UTC', () => {

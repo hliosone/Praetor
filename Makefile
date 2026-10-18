@@ -18,7 +18,7 @@ PROFILES := $(filter-out dev,$(PROFILES))
 endif
 PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 
-.PHONY: help setup install up down ps logs smoke-sm test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-web e2e-smoke rehearsal tunnel-stop e2e-live redteam redteam-live redteam-global slither deploy-contracts deploy-fisco tunnel reset-fork up-base
+.PHONY: help setup install up down ps logs smoke-sm test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-web e2e-smoke rehearsal tunnel-stop e2e-live redteam redteam-live redteam-global slither deploy-contracts deploy-fisco tunnel reset-fork up-base up-stack
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -29,16 +29,24 @@ setup: ## Install the commit-msg hook and dependencies
 	pnpm install --frozen-lockfile
 
 up: ## Start the local stack (waits for healthchecks; deploys the contracts on a fresh fork)
+	@# Bind-mounted host dirs made here first: Docker would create them root-owned, then vite and wecross-setup fail.
+	mkdir -p apps/web/dist infra/wecross/generated
 	bash scripts/dev/compose-env.sh
+	@# A sub-make, so ENV_FILES (expanded when the Makefile is read) includes the .run/compose.env just written.
+	$(MAKE) --no-print-directory up-stack
+
+up-stack:
 	bash infra/fisco/gen.sh
 	$(MAKE) --no-print-directory fisco-image
 	$(MAKE) --no-print-directory up-base
 	bash scripts/dev/sync-fork-time.sh
 	bash scripts/dev/ensure-fork-deploy.sh
 	pnpm -s --filter @praetor/web build
-	$(COMPOSE) $(PROFILE_FLAGS) up -d --wait --build
+	@# Started without --wait first: the bridge-relayer is healthy only once scripts/wecross/up.sh has wired the outbox.
+	$(COMPOSE) $(PROFILE_FLAGS) up -d --build
 	@if [ -f .run/deployments-changed ]; then $(COMPOSE) $(PROFILE_FLAGS) restart bundler bank regulator operator bridge-relayer && rm .run/deployments-changed; fi
-	@case " $(PROFILES) " in *" wecross "*) bash scripts/wecross/up.sh ;; esac
+	@case " $(PROFILES) " in *" wecross "*) COMPOSE="$(COMPOSE) $(PROFILE_FLAGS)" bash scripts/wecross/up.sh ;; esac
+	$(COMPOSE) $(PROFILE_FLAGS) up -d --wait
 
 reset-fork: ## Fresh anvil fork, contracts and consortium redeployed, services restarted
 	$(COMPOSE) --profile dev rm -sf anvil
@@ -48,8 +56,13 @@ reset-fork: ## Fresh anvil fork, contracts and consortium redeployed, services r
 fisco-image: ## Build the FISCO node image once (the nodes never rebuild it: see infra/compose.yml)
 	@docker image inspect praetor/fisco-bcos:3.17.1 >/dev/null 2>&1 || docker build -t praetor/fisco-bcos:3.17.1 infra/fisco
 
+FISCO_NODES = fisco-node0 fisco-node1 fisco-node2 fisco-node3
+# The FISCO nodes start here: ensure-fork-deploy.sh deploys the consortium on them before the rest of the stack.
 up-base:
-	$(COMPOSE) --profile core $(if $(LIVE),,--profile dev) up -d --wait $(if $(LIVE),,anvil) mysql caddy
+	$(COMPOSE) --profile core $(if $(LIVE),,--profile dev) $(if $(filter chain,$(PROFILES)),--profile chain) up -d --wait $(if $(LIVE),,anvil) mysql caddy $(if $(filter chain,$(PROFILES)),$(FISCO_NODES))
+	@# A single-file bind mount keeps the inode it started with, so after a git pull Caddy still serves the old
+	@# Caddyfile (a reload reads the same stale file): recreate it when the file it sees differs from the repo's.
+	@$(COMPOSE) --profile core exec -T caddy cat /etc/caddy/Caddyfile | cmp -s - infra/Caddyfile || { echo "caddy: infra/Caddyfile changed, recreating"; $(COMPOSE) --profile core up -d --wait --no-deps --force-recreate caddy; }
 	@# The init script only runs on an empty volume; it is idempotent, so rerun it to add new service databases.
 	$(COMPOSE) exec -T mysql bash /docker-entrypoint-initdb.d/01-databases.sh
 

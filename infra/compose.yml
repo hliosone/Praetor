@@ -457,6 +457,8 @@ services:
       OA_APPID: ${OA_APPID}
       # Web push (VAPID keys from .env); the subscriptions are read from the api.
       API_URL: http://api:3200
+      # No explorer link on the fork (issue #9).
+      CHAIN_MODE: ${CHAIN_MODE}
       VAPID_PUBLIC: ${VAPID_PUBLIC}
       VAPID_PRIVATE: ${VAPID_PRIVATE}
       VAPID_SUBJECT: ${VAPID_SUBJECT}
@@ -520,6 +522,8 @@ services:
       PUBLIC_URL: ${PUBLIC_URL}
       SESSION_SECRET: ${SESSION_SECRET}
       API_URL: http://api:3200
+      # No explorer link on the fork (issue #9).
+      CHAIN_MODE: ${CHAIN_MODE}
     volumes:
       - ./deployments:/app/infra/deployments:ro
     depends_on:

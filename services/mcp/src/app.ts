@@ -55,7 +55,7 @@ export function buildMcpServer(account: Address, ports: Ports): McpServer {
   const usd = z.string().describe('USD amount, e.g. "12.50"');
   const asset = z.enum(['USDC', 'tXAU', 'tXAG']);
   s.registerTool('get_portfolio', { title: 'Portfolio', description: 'Balances, USD values, weights against the bands of the mandate, prices (says when they are demo prices).', inputSchema: {} }, async () => out(await t.getPortfolio()));
-  s.registerTool('get_mandate', { title: 'Mandate', description: "The owner's rules in plain words: caps, budgets, known payees (with names), bands, rebalancing limits.", inputSchema: {} }, async () => out(await t.getMandate()));
+  s.registerTool('get_mandate', { title: 'Mandate', description: "The owner's rules in plain words: caps, budgets and what the hook counted as spent today (owner-approved payments included), known payees (with names), bands, rebalancing limits.", inputSchema: {} }, async () => out(await t.getMandate()));
   s.registerTool('get_status', { title: 'Status', description: 'Whether the account is active, restricted or frozen, the operator heartbeat, KYA validity.', inputSchema: {} }, async () => out(await t.getStatus()));
   s.registerTool('get_activity', { title: 'Activity', description: 'Recent decisions and refusals with transaction links.', inputSchema: { limit: z.number().int().min(1).max(50).optional() } }, async ({ limit }) => out(await t.getActivity(limit ?? 10)));
   s.registerTool('explain', {

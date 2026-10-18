@@ -9,7 +9,7 @@
       <view wx:for="{{others}}" wx:key="*this" class="small muted">+ {{item}}</view>
       <view class="label gap">{{t.approve.why}}</view>
       <view>{{why}}</view>
-      <view wx:if="{{ok}}" class="pill asked gap">{{t.approve.expires}} {{left}}</view>
+      <view wx:if="{{ok}}" class="pill asked gap">{{leftText}}</view>
     </view>
 
     <view wx:if="{{refuse}}" class="card error" aria-role="alert">{{refuse}}</view>

@@ -4,7 +4,7 @@
 // data (I9): nothing here reads any.
 import { encodeFunctionData, erc20Abi, getAddress, isAddress, type Address, type Hex } from 'viem';
 import { TreasuryDeskAbi } from '@praetor/chain';
-import { PriceSource, REASONS, STATUSES, TIERS, Reason, Tier, type Policy } from '@praetor/protocol';
+import { PriceSource, REASONS, STATUSES, TIERS, Reason, Tier, txText, type Policy } from '@praetor/protocol';
 
 export type Call = { to: Address; value: bigint; data: Hex };
 export type Verdict = { reason: number; tier: number; callHash: Hex };
@@ -14,7 +14,8 @@ export type ActivityItem = { kind: 'decision' | 'refusal'; reason: string; tier:
 
 export type Ports = {
   tokens: { usdc: Address; txau: Address; txag: Address; desk: Address };
-  explorer: string;
+  /** Explorer base URL; null on the local fork, where tx are shown as hashes (issue #9). */
+  explorer: string | null;
   reader: {
     balances(account: Address): Promise<Record<string, bigint>>;
     price(token: Address): Promise<PriceInfo>;
@@ -60,6 +61,20 @@ export function parseUsd6(s: string): bigint | null {
   return v > 0n ? v : null;
 }
 
+/**
+ * What the hook has counted today (issue #7), so the agent never adds up activity itself. Read from the hook's counters
+ * (spentOf): every payment it allowed in the current UTC day of Base time (timestamp / 86400), the ones the owner approved
+ * included. The user's daily budget is a T2 limit (spec 00, spec 03 A11): above it the owner approves each payment, and
+ * those still count, so the total can pass the budget by design. The bank's daily cap (T0) is the hard limit.
+ */
+export function spentLine(policy: Policy, caps: { daily: bigint }, spent: { day: bigint; month: bigint; count: bigint }, now: bigint): string {
+  const day = new Date(Number(now) * 1000).toISOString().slice(0, 10);
+  const head = `Spent today (${day} UTC, Base time): ${usd(spent.day)} USDC against the ${usd(policy.dailyBudget)} USDC daily budget, ${spent.count} agent payments; ${usd(spent.month)} of ${usd(policy.monthlyBudget)} in this 30-day period. Owner-approved payments count too.`;
+  return spent.day >= policy.dailyBudget
+    ? `${head} The daily budget is used up: any further payment today needs the owner's approval, and the bank's daily cap of ${usd(caps.daily)} USD is the hard limit (${usd(caps.daily > spent.day ? caps.daily - spent.day : 0n)} left).`
+    : `${head} ${usd(policy.dailyBudget - spent.day)} USDC left before the owner must approve.`;
+}
+
 export class PraetorTools {
   constructor(private readonly account: Address, private readonly p: Ports) {}
 
@@ -77,7 +92,7 @@ export class PraetorTools {
     return l === this.p.tokens.txau.toLowerCase() ? 'tXAU' : l === this.p.tokens.txag.toLowerCase() ? 'tXAG' : 'USDC';
   }
 
-  private tx = (h: Hex | null) => (h ? `${this.p.explorer}/tx/${h}` : 'no transaction');
+  private tx = (h: Hex | null) => (h ? txText(this.p.explorer, h) : 'no transaction');
 
   async getPortfolio(): Promise<ToolResult> {
     const [balances, policy] = await Promise.all([this.p.reader.balances(this.account), this.p.reader.policy(this.account)]);
@@ -110,7 +125,7 @@ export class PraetorTools {
   async getMandate(): Promise<ToolResult> {
     const [policy, kya, labels] = await Promise.all([this.p.reader.policy(this.account), this.p.reader.kya(this.account), this.p.labels(this.account)]);
     if (!policy) return { text: 'No mandate is set: every action is refused until the owner sets one.', structured: { policy: null } };
-    const caps = await this.p.reader.caps(this.account);
+    const [caps, spent, now] = await Promise.all([this.p.reader.caps(this.account), this.p.reader.spent(this.account), this.p.reader.now()]);
     const payees = policy.payees.map((a) => ({ address: a, label: labels[a.toLowerCase()] ?? null }));
     const lines = [
       `Payments: up to ${usd(policy.autoCap)} USDC without asking; above that the owner approves; never above ${usd(policy.hardCap)} USDC.`,
@@ -119,9 +134,10 @@ export class PraetorTools {
       `Bands: ${policy.bands.map((b) => `${this.symbolOf(b.token)} ${pct(b.minBps)} to ${pct(b.maxBps)} (target ${pct(b.targetBps)})`).join(', ')}.`,
       `Rebalancing: at most ${policy.maxRebalancesPerDay} per day, ${usd(policy.maxTradeUsd)} USD per trade, slippage ${pct(policy.maxSlippageBps)}.`,
       `Bank limits for this risk profile: ${usd(caps.perTx)} USD per transaction, ${usd(caps.daily)} per day.`,
+      spentLine(policy, caps, spent, now),
       `Agent key valid until ${new Date(Number(kya.validUntil) * 1000).toISOString().slice(0, 10)}.`,
     ];
-    return { text: lines.join('\n'), structured: { autoCap: usd(policy.autoCap), hardCap: usd(policy.hardCap), payees, bands: policy.bands.map((b) => ({ symbol: this.symbolOf(b.token), ...b, token: undefined })), maxRebalancesPerDay: policy.maxRebalancesPerDay } };
+    return { text: lines.join('\n'), structured: { autoCap: usd(policy.autoCap), hardCap: usd(policy.hardCap), payees, bands: policy.bands.map((b) => ({ symbol: this.symbolOf(b.token), ...b, token: undefined })), maxRebalancesPerDay: policy.maxRebalancesPerDay, spentToday: usd(spent.day), dailyBudget: usd(policy.dailyBudget), bankDailyCap: usd(caps.daily) } };
   }
 
   async getStatus(): Promise<ToolResult> {

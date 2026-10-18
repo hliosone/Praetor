@@ -34,8 +34,9 @@ function shortAddress(a) {
   return typeof a === 'string' && a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : String(a);
 }
 
-function txUrl(hash) {
-  return /^0x[0-9a-fA-F]{64}$/.test(String(hash)) ? `https://sepolia.basescan.org/tx/${hash}` : '';
+/** The explorer link of a transaction; '' without an explorer: the api sends none on the local fork (issue #9). */
+function txUrl(hash, explorer) {
+  return explorer && /^0x[0-9a-fA-F]{64}$/.test(String(hash)) ? `${explorer}/tx/${hash}` : '';
 }
 
 /** A Base timestamp (seconds) as YYYY-MM-DD, UTC. */

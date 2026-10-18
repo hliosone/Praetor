@@ -10,6 +10,7 @@ import { api, type Activity, type ApprovalView, type Prepared } from '../lib/api
 import { assertDigest, signAndSubmit, signUp } from '../lib/passkey.js';
 import { installAgent, type MandateDraft, type NewAgent } from '../lib/agent.js';
 import { defaultPolicy, policyFromJson, type Config } from '../lib/policy.js';
+import { TxLink, useExplorer } from '../components/TxLink.js';
 
 // Listed by the consortium bootstrap (scripts/demo/lib.ts DEMO_SANCTIONED): the prompt-injection target.
 const SANCTIONED = '0x2AdFBB4aF4dE13aeD4a5c90dC8bC09951a9EFB23';
@@ -35,6 +36,7 @@ export function Sandbox() {
   const [lines, setLines] = useState<Line[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const explorer = useExplorer();
   const log = (l: Line) => setLines((x) => [l, ...x]);
   const run = (fn: () => Promise<void>) => async () => {
     setBusy(true);
@@ -132,7 +134,7 @@ export function Sandbox() {
               <thead><tr><th>{t('sandbox.scenario')}</th><th>{t('sandbox.outcome')}</th><th>{t('common.tx')}</th></tr></thead>
               <tbody>
                 {lines.map((l, i) => (
-                  <tr key={i}><td>{l.what}</td><td>{l.outcome}</td><td>{l.tx ? <a className="mono" href={`https://sepolia.basescan.org/tx/${l.tx}`} target="_blank" rel="noopener">{l.tx.slice(0, 10)}</a> : ''}</td></tr>
+                  <tr key={i}><td>{l.what}</td><td>{l.outcome}</td><td>{l.tx ? <TxLink hash={l.tx} explorer={explorer} /> : ''}</td></tr>
                 ))}
               </tbody>
             </table>

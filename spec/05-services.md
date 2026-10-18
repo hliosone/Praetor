@@ -102,7 +102,9 @@ TLS to `api.weixin.qq.com` terminates inside the CVM (Node's HTTPS with the syst
 Reuse BSA Sentry `apps/server/src/{mcp,oauth,auth}.ts` (MCP over streamable HTTP, OAuth 2.1 with metadata discovery, dynamic client registration, PKCE; tested with claude.ai). Every token is bound to **one account**; tools take **no account parameter**.
 ```
 get_portfolio()            balances, USD values, weights vs bands, prices (+ "demo price" flag)
-get_mandate()              policy in plain words + caps + tier thresholds
+get_mandate()              policy in plain words + caps + tier thresholds + spent today from the hook's
+                           counters (spentOf, UTC day of Base time, owner-approved payments included: the
+                           user's daily budget is a T2 limit, so the total may pass it; the bank cap is T0)
 get_status()               effective status, heartbeat, pause, KYA validity
 get_activity(limit)        recent decisions with tx links and reasons
 explain(action)            dry-run: hook.check() for a proposed pay/rebalance → reason + tier, no tx

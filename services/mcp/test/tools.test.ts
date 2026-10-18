@@ -77,6 +77,12 @@ describe('pay', () => {
     expect(r.text).toContain(`https://sepolia.basescan.org/tx/0x${'bb'.repeat(32)}`);
   });
 
+  it('on the local fork (no explorer) reports the hash marked local, never a Basescan link (issue #9)', async () => {
+    const r = await new PraetorTools(ACCOUNT, { ...ports(), explorer: null }).pay({ payee: 'Café Lumen', amount: '12.50' });
+    expect(r.text).toContain(`tx 0x${'bb'.repeat(32)} (local fork, no public explorer)`);
+    expect(r.text).not.toContain('basescan');
+  });
+
   it('a payee name resolves to its exact label first, a unique partial name to its label, an ambiguous one to nothing (red team D62)', async () => {
     const BISTRO = '0x00000000000000000000000000000000000b1570' as Address;
     const LUMEN = '0x000000000000000000000000000000000001ee11' as Address;
@@ -169,8 +175,20 @@ describe('get_mandate and get_status', () => {
     const m = await tools().getMandate();
     expect(m.text).toMatch(/up to 200.00 USDC without asking/);
     expect(m.text).toMatch(/Café Lumen/);
+    expect(m.text).toMatch(/Spent today \(2027-01-15 UTC, Base time\): 0.00 USDC against the 500.00 USDC daily budget/);
+    expect(m.text).toMatch(/500.00 USDC left before the owner must approve/);
     const st = await tools().getStatus();
     expect(st.text).toMatch(/ACTIVE/);
+  });
+
+  it('reports the hook\'s own spent-today, owner-approved payments included, even above the budget (issue #7)', async () => {
+    // Four owner-approved T2 payments the same UTC day: 250 + 260 + 270 + 280 = 1,060 USDC against a 500 budget.
+    const p = ports();
+    const m = await new PraetorTools(ACCOUNT, { ...p, reader: { ...p.reader, spent: async () => ({ day: 1_060_000_000n, month: 1_060_000_000n, count: 4n, rebalances: 0n }) } }).getMandate();
+    expect(m.text).toMatch(/Spent today \(2027-01-15 UTC, Base time\): 1060.00 USDC against the 500.00 USDC daily budget, 4 agent payments/);
+    expect(m.text).toMatch(/Owner-approved payments count too/);
+    expect(m.text).toMatch(/needs the owner's approval, and the bank's daily cap of 2000.00 USD is the hard limit \(940.00 left\)/);
+    expect(m.structured).toMatchObject({ spentToday: '1060.00', dailyBudget: '500.00', bankDailyCap: '2000.00' });
   });
 });
 

@@ -154,6 +154,7 @@ module.exports = {
     title: '动态',
     none: '还没有决策。',
     copyTx: '复制交易链接',
+    localFork: '本地分叉链交易：无公开浏览器',
   },
   payments: {
     title: '定期付款',
