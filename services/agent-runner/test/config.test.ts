@@ -31,10 +31,23 @@ describe('opencode.json per account', () => {
 });
 
 describe('prompts', () => {
+  // The prompt wraps its lines: phrases are matched with the line breaks folded.
+  const md = AGENTS_MD.replace(/\s+/g, ' ');
   it('AGENTS.md says money moves only through the tools, refusals are final, and to answer in the user language', () => {
     expect(AGENTS_MD).toMatch(/only through the praetor tools/i);
     expect(AGENTS_MD).toMatch(/refusal is final/i);
     expect(AGENTS_MD).toMatch(/中文/);
+  });
+  it('AGENTS.md: a payment the user asked for that needs the owner (T2) is submitted with pay so the owner gets the request; only a T0 refusal is final (#4)', () => {
+    expect(md).toMatch(/needs the owner's approval \(T2: a new payee, above the amount you may pay alone/);
+    expect(md).toMatch(/call pay \(or rebalance\) once: that is what sends the owner the approval request/);
+    expect(md).toMatch(/A dry run that says the owner must approve is not a refusal/);
+    expect(md).toMatch(/Only a T0 refusal is final: nobody can approve it/);
+    // The limits stay: no retry, no split, no way around a limit, for T0 and T2 alike.
+    expect(md).toMatch(/Never retry an action with other amounts, payees or a different split, and never try to get around a limit, whether it was refused or waits for the owner/);
+  });
+  it('AGENTS.md has no em dash', () => {
+    expect(AGENTS_MD).not.toContain(String.fromCharCode(0x2014));
   });
   it('a band wake names the weights, the bands and today\'s rebalances', () => {
     const m = wakeMessage('BAND', { weights: { tXAU: 3610 }, bands: { tXAU: { minBps: 2000, maxBps: 3500 } }, rebalancesToday: 0, maxRebalancesPerDay: 1 });
