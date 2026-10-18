@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { decodeFunctionData, erc20Abi, getAddress, type Address, type Hex } from 'viem';
 import { TreasuryDeskAbi } from '@praetor/chain';
-import { Reason, Tier, PriceSource, type Policy } from '@praetor/protocol';
+import { Reason, Status, Tier, PriceSource, type Policy } from '@praetor/protocol';
 import { PraetorTools, type Ports } from '../src/tools.js';
 
 const ACCOUNT = '0x00000000000000000000000000000000000c0ffe' as Address;
@@ -180,6 +180,35 @@ describe('get_mandate and get_status', () => {
     expect(m.text).toMatch(/Café Lumen/);
     const st = await tools().getStatus();
     expect(st.text).toMatch(/ACTIVE/);
+  });
+});
+
+describe('get_status on a freeze (issue #6)', () => {
+  const withStatus = (account: number, global: number) => {
+    const p = ports();
+    p.reader.status = async () => ({ effective: Math.max(account, global), account, global, heartbeatValidUntil: 1_800_000_900n });
+    return new PraetorTools(ACCOUNT, p);
+  };
+
+  it('an account freeze: who set it, who can loosen it, and that no reason is recorded', async () => {
+    const r = await withStatus(Status.FROZEN, Status.ACTIVE).getStatus();
+    expect(r.text).toMatch(/Status: FROZEN/);
+    expect(r.text).toMatch(/consortium .* on this account/);
+    expect(r.text).toMatch(/two of its three members must sign/);
+    expect(r.text).toMatch(/No reason is recorded on-chain: do not guess one/);
+    expect(r.structured).toMatchObject({ status: 'FROZEN', source: 'account', reasonRecorded: false });
+  });
+
+  it('a global freeze says it applies to every account', async () => {
+    const r = await withStatus(Status.ACTIVE, Status.FROZEN).getStatus();
+    expect(r.text).toMatch(/for every account/);
+    expect(r.structured).toMatchObject({ status: 'FROZEN', source: 'global' });
+  });
+
+  it('an active account carries no freeze lines', async () => {
+    const r = await withStatus(Status.ACTIVE, Status.ACTIVE).getStatus();
+    expect(r.text).not.toMatch(/consortium|reason/i);
+    expect(r.structured).toMatchObject({ status: 'ACTIVE', source: null });
   });
 });
 

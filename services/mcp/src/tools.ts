@@ -4,7 +4,7 @@
 // so the owner can approve, only a T0 refusal is final. Results never carry KYC data (I9): nothing here reads any.
 import { encodeFunctionData, erc20Abi, getAddress, isAddress, type Address, type Hex } from 'viem';
 import { TreasuryDeskAbi } from '@praetor/chain';
-import { PriceSource, REASONS, STATUSES, TIERS, Reason, Tier, type Policy } from '@praetor/protocol';
+import { PriceSource, REASONS, STATUSES, TIERS, Reason, Status, Tier, type Policy } from '@praetor/protocol';
 
 export type Call = { to: Address; value: bigint; data: Hex };
 export type Verdict = { reason: number; tier: number; callHash: Hex };
@@ -129,9 +129,24 @@ export class PraetorTools {
     const effective = STATUSES[st.effective] ?? 'UNKNOWN';
     const heartbeat = st.heartbeatValidUntil > now ? 'fresh' : 'stale (autonomous actions are paused until the operator heartbeat returns)';
     const kyaOk = kya.validUntil > now;
+    // Where a FROZEN or RESTRICTED status comes from is on-chain (this account's attestation or the global one); why it
+    // was set is not. Say who set it and who can loosen it, and say there is no recorded reason so the model does not
+    // invent one (issue #6).
+    const source = st.effective === Status.ACTIVE ? null : st.global !== Status.ACTIVE && st.global >= st.account ? 'global' : 'account';
+    const lines = [`Status: ${effective}`];
+    if (source) {
+      lines.push(
+        source === 'global'
+          ? `Set by the consortium (bank, regulator, operator) for every account, not for this account alone.`
+          : `Set by the consortium (bank, regulator, operator) on this account.`,
+        `Only the consortium can loosen it: two of its three members must sign. Neither the owner nor the agent can.`,
+        `No reason is recorded on-chain: do not guess one.`,
+      );
+    }
+    lines.push(`Heartbeat: ${heartbeat}`, `KYA: ${kyaOk ? 'valid' : 'expired'}`);
     return {
-      text: [`Status: ${effective}`, `Heartbeat: ${heartbeat}`, `KYA: ${kyaOk ? 'valid' : 'expired'}`].join('\n'),
-      structured: { status: effective, heartbeatFresh: st.heartbeatValidUntil > now, kyaValid: kyaOk },
+      text: lines.join('\n'),
+      structured: { status: effective, source, reasonRecorded: false, loosenedBy: source ? 'consortium (2 of 3 members)' : null, heartbeatFresh: st.heartbeatValidUntil > now, kyaValid: kyaOk },
     };
   }
 

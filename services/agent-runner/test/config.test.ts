@@ -41,6 +41,10 @@ describe('prompts', () => {
     expect(AGENTS_MD).toMatch(/T2[\s\S]*UNKNOWN_PAYEE[\s\S]*is not a refusal: submit the same action/);
     expect(AGENTS_MD).toMatch(/Never stop at such a dry run/);
   });
+  it('AGENTS.md: report a freeze with who set it and who can loosen it, never a guessed reason (issue #6)', () => {
+    expect(AGENTS_MD).toMatch(/frozen or restricted[\s\S]*who can loosen it/);
+    expect(AGENTS_MD).toMatch(/Never\s+guess why/);
+  });
   it('a band wake names the weights, the bands and today\'s rebalances', () => {
     const m = wakeMessage('BAND', { weights: { tXAU: 3610 }, bands: { tXAU: { minBps: 2000, maxBps: 3500 } }, rebalancesToday: 0, maxRebalancesPerDay: 1 });
     expect(m).toMatch(/tXAU 36.1%/);
