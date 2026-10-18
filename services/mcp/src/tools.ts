@@ -141,19 +141,24 @@ export class PraetorTools {
     return { text: items.map((i) => `${i.kind === 'refusal' ? 'Refused' : 'Done'}: ${i.reason} (${i.tier}) ${this.tx(i.txHash)}`).join('\n'), structured: { items } };
   }
 
-  private async resolvePayee(payee: string): Promise<Address | null> {
+  /** An address, the payee whose label is the name, or the only payee whose label contains it; else why not. */
+  private async resolvePayee(payee: string): Promise<Address | string> {
     if (isAddress(payee)) return getAddress(payee);
-    const labels = await this.p.labels(this.account);
+    const labels = Object.entries(await this.p.labels(this.account));
     const want = payee.trim().toLowerCase();
-    const hit = Object.entries(labels).find(([, l]) => l.toLowerCase() === want || l.toLowerCase().includes(want));
-    return hit ? getAddress(hit[0]) : null;
+    const exact = labels.find(([, l]) => l.toLowerCase() === want);
+    if (exact) return getAddress(exact[0]);
+    const partial = labels.filter(([, l]) => l.toLowerCase().includes(want));
+    if (partial.length === 1) return getAddress(partial[0]![0]);
+    if (partial.length > 1) return `several payees match "${payee}": ${partial.map(([, l]) => l).join(', ')}; use the full name or the address`;
+    return `unknown payee "${payee}": use an address or a payee name from get_mandate`;
   }
 
   private async payCalls(payee: string, amount: string): Promise<{ calls: Call[]; to: Address; amount6: bigint } | string> {
     const amount6 = parseUsd6(amount);
     if (amount6 === null) return 'amount must be a positive number of USDC with at most 6 decimals';
     const to = await this.resolvePayee(payee);
-    if (!to) return `unknown payee "${payee}": use an address or a payee name from get_mandate`;
+    if (!isAddress(to)) return to;
     const data = encodeFunctionData({ abi: erc20Abi, functionName: 'transfer', args: [to, amount6] });
     return { calls: [{ to: this.p.tokens.usdc, value: 0n, data }], to, amount6 };
   }
@@ -240,8 +245,9 @@ export class PraetorTools {
     let payee: Address | undefined;
     let to = `merchant ${a.merchant}`;
     if (a.payee) {
-      payee = (await this.resolvePayee(a.payee)) ?? undefined;
-      if (!payee) return { text: `unknown payee "${a.payee}": use an address or a payee name from get_mandate`, isError: true };
+      const hit = await this.resolvePayee(a.payee);
+      if (!isAddress(hit)) return { text: hit, isError: true };
+      payee = hit;
       to = (await this.p.labels(this.account))[payee.toLowerCase()] ?? payee;
     }
     const summary = `${usd(amount)} USDC ${a.period} to ${to}`;
