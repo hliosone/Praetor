@@ -1,10 +1,10 @@
 // The Praetor tools (spec 05) behind the MCP server, for one account (a token is bound to one account; no tool
 // takes an account). Every action goes through the hook: explain() is its dry run, pay() and rebalance() always submit,
-// so a refusal lands on-chain as evidence (I11) and the text tells the model it is final. Results never carry KYC
-// data (I9): nothing here reads any.
+// so a refusal lands on-chain as evidence (I11). The texts tell the model what comes next: a T2 verdict means submit
+// so the owner can approve, only a T0 refusal is final. Results never carry KYC data (I9): nothing here reads any.
 import { encodeFunctionData, erc20Abi, getAddress, isAddress, type Address, type Hex } from 'viem';
 import { TreasuryDeskAbi } from '@praetor/chain';
-import { PriceSource, REASONS, STATUSES, TIERS, Reason, Tier, type Policy } from '@praetor/protocol';
+import { PriceSource, REASONS, STATUSES, TIERS, Reason, Status, Tier, type Policy } from '@praetor/protocol';
 
 export type Call = { to: Address; value: bigint; data: Hex };
 export type Verdict = { reason: number; tier: number; callHash: Hex };
@@ -129,9 +129,24 @@ export class PraetorTools {
     const effective = STATUSES[st.effective] ?? 'UNKNOWN';
     const heartbeat = st.heartbeatValidUntil > now ? 'fresh' : 'stale (autonomous actions are paused until the operator heartbeat returns)';
     const kyaOk = kya.validUntil > now;
+    // Where a FROZEN or RESTRICTED status comes from is on-chain (this account's attestation or the global one); why it
+    // was set is not. Say who set it and who can loosen it, and say there is no recorded reason so the model does not
+    // invent one (issue #6).
+    const source = st.effective === Status.ACTIVE ? null : st.global !== Status.ACTIVE && st.global >= st.account ? 'global' : 'account';
+    const lines = [`Status: ${effective}`];
+    if (source) {
+      lines.push(
+        source === 'global'
+          ? `Set by the consortium (bank, regulator, operator) for every account, not for this account alone.`
+          : `Set by the consortium (bank, regulator, operator) on this account.`,
+        `Only the consortium can loosen it: two of its three members must sign. Neither the owner nor the agent can.`,
+        `No reason is recorded on-chain: do not guess one.`,
+      );
+    }
+    lines.push(`Heartbeat: ${heartbeat}`, `KYA: ${kyaOk ? 'valid' : 'expired'}`);
     return {
-      text: [`Status: ${effective}`, `Heartbeat: ${heartbeat}`, `KYA: ${kyaOk ? 'valid' : 'expired'}`].join('\n'),
-      structured: { status: effective, heartbeatFresh: st.heartbeatValidUntil > now, kyaValid: kyaOk },
+      text: lines.join('\n'),
+      structured: { status: effective, source, reasonRecorded: false, loosenedBy: source ? 'consortium (2 of 3 members)' : null, heartbeatFresh: st.heartbeatValidUntil > now, kyaValid: kyaOk },
     };
   }
 
@@ -198,8 +213,16 @@ export class PraetorTools {
     if (typeof built === 'string') return { text: built, isError: true };
     const v = await this.p.reader.check(this.account, built.calls);
     const w = this.worst(v);
-    const verdict = w.reason === Reason.OK ? 'would be done autonomously (T1)' : `would be refused: ${reasonName(w.reason)} (${tierName(w.tier)})`;
-    return { text: `Dry run: this ${a.type} ${verdict}. Nothing was sent.`, structured: { reasons: v.map((x) => reasonName(x.reason)).filter((r) => r !== 'OK'), tier: tierName(w.tier) } };
+    const reasons = v.map((x) => reasonName(x.reason)).filter((r) => r !== 'OK');
+    const tool = a.type === 'pay' ? 'pay' : 'rebalance';
+    // What to do next depends on the tier, not on the reason: a T2 reason is lifted by the owner's approval, so the
+    // model must submit to open the request (issue #4). Only T0 is final.
+    const [verdict, next] =
+      w.reason === Reason.OK ? ['would be done autonomously (T1).', 'submit'] as const
+      : w.tier === Tier.T2_HUMAN ? [`needs the owner's approval: ${reasonName(w.reason)} (${tierName(w.tier)}). This is not a final refusal: submit it with ${tool} and the same arguments to create an approval request for the owner, then tell the user it is waiting for them.`, 'submit_for_approval'] as const
+      : w.tier === Tier.T0_NEVER ? [`would be refused: ${reasonName(w.reason)} (${tierName(w.tier)}). This refusal is final: no approval can lift it. Do not retry it another way; tell the user.`, 'stop'] as const
+      : [`would be refused: ${reasonName(w.reason)} (${tierName(w.tier)}). An approval request cannot lift it. Do not retry it another way; tell the user.`, 'stop'] as const;
+    return { text: `Dry run: this ${a.type} ${verdict} Nothing was sent.`, structured: { reasons, tier: tierName(w.tier), next } };
   }
 
   /** Submit, whatever the dry run says: a refused op lands as evidence (I11). */

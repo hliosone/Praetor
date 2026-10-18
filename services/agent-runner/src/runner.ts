@@ -1,5 +1,6 @@
 // One agent turn on an account's OpenCode instance: the permission rejector starts before the message is sent (a
-// pending request would otherwise hang the turn) and rejects every built-in tool call (Q34).
+// pending request would otherwise hang the turn) and rejects every built-in tool call (Q34). It also rejects any
+// pending `question` (OpenCode's ask-the-user tool, denied in opencode.json): the chat cannot show one (issue #5).
 import type { Instance, InstanceManager } from './instances.js';
 
 export type ToolStep = { tool: string; status: string; input: unknown; output: unknown };
@@ -36,7 +37,7 @@ export class Runner {
     const sep = path.includes('?') ? '&' : '?';
     const signal = stop ? AbortSignal.any([AbortSignal.timeout(timeoutMs), stop]) : AbortSignal.timeout(timeoutMs);
     const r = await fetch(`${i.base}${path}${sep}directory=${encodeURIComponent(i.project)}`, {
-      method, headers: { authorization: i.auth, 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), signal,
+      method, headers: body === undefined ? { authorization: i.auth } : { authorization: i.auth, 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), signal,
     });
     if (!r.ok) throw new Error(`opencode ${method} ${path}: ${r.status}`);
     return r.json();
@@ -60,6 +61,8 @@ export class Runner {
           return;
         }
         for (const p of pending) await this.call(i, 'POST', `/permission/${p.id}/reply`, { reply: 'reject' }).catch(() => undefined);
+        const questions = (await this.call(i, 'GET', '/question').catch(() => [])) as { id: string }[];
+        for (const q of Array.isArray(questions) ? questions : []) await this.call(i, 'POST', `/question/${q.id}/reject`).catch(() => undefined);
         await new Promise((r) => setTimeout(r, 200));
       }
     })();

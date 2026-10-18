@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { decodeFunctionData, erc20Abi, getAddress, type Address, type Hex } from 'viem';
 import { TreasuryDeskAbi } from '@praetor/chain';
-import { Reason, Tier, PriceSource, type Policy } from '@praetor/protocol';
+import { Reason, Status, Tier, PriceSource, type Policy } from '@praetor/protocol';
 import { PraetorTools, type Ports } from '../src/tools.js';
 
 const ACCOUNT = '0x00000000000000000000000000000000000c0ffe' as Address;
@@ -162,6 +162,30 @@ describe('explain', () => {
     expect(r.structured).toMatchObject({ reasons: ['OVER_AUTO_CAP'], tier: 'T2_HUMAN' });
     expect(sent).toHaveLength(0);
   });
+
+  it('a T2 verdict (UNKNOWN_PAYEE) tells the model to submit for the owner\'s approval, never that it is final (issue #4)', async () => {
+    verdict = { reason: Reason.UNKNOWN_PAYEE, tier: Tier.T2_HUMAN };
+    const r = await tools().explain({ type: 'pay', payee: '0x00000000000000000000000000000000000beef1', amount: '300' });
+    expect(r.text).toMatch(/needs the owner's approval: UNKNOWN_PAYEE \(T2_HUMAN\)/);
+    expect(r.text).toMatch(/submit it with pay and the same arguments to create an approval request/);
+    expect(r.text).not.toMatch(/would be refused|refusal is final/i);
+    expect(r.structured).toMatchObject({ next: 'submit_for_approval' });
+    expect(r.isError).toBeFalsy();
+    expect(sent).toHaveLength(0);
+  });
+
+  it('a T0 verdict is the only one called final', async () => {
+    verdict = { reason: Reason.SANCTIONED, tier: Tier.T0_NEVER };
+    const r = await tools().explain({ type: 'pay', payee: BAD, amount: '5000' });
+    expect(r.text).toMatch(/would be refused: SANCTIONED \(T0_NEVER\)\. This refusal is final/);
+    expect(r.structured).toMatchObject({ next: 'stop' });
+  });
+
+  it('an OK verdict says it would be done autonomously', async () => {
+    const r = await tools().explain({ type: 'rebalance', sell: 'tXAU', buy: 'USDC', amountUsd: '650' });
+    expect(r.text).toMatch(/would be done autonomously \(T1\)\. Nothing was sent/);
+    expect(r.structured).toMatchObject({ next: 'submit', reasons: [] });
+  });
 });
 
 describe('get_mandate and get_status', () => {
@@ -171,6 +195,35 @@ describe('get_mandate and get_status', () => {
     expect(m.text).toMatch(/Café Lumen/);
     const st = await tools().getStatus();
     expect(st.text).toMatch(/ACTIVE/);
+  });
+});
+
+describe('get_status on a freeze (issue #6)', () => {
+  const withStatus = (account: number, global: number) => {
+    const p = ports();
+    p.reader.status = async () => ({ effective: Math.max(account, global), account, global, heartbeatValidUntil: 1_800_000_900n });
+    return new PraetorTools(ACCOUNT, p);
+  };
+
+  it('an account freeze: who set it, who can loosen it, and that no reason is recorded', async () => {
+    const r = await withStatus(Status.FROZEN, Status.ACTIVE).getStatus();
+    expect(r.text).toMatch(/Status: FROZEN/);
+    expect(r.text).toMatch(/consortium .* on this account/);
+    expect(r.text).toMatch(/two of its three members must sign/);
+    expect(r.text).toMatch(/No reason is recorded on-chain: do not guess one/);
+    expect(r.structured).toMatchObject({ status: 'FROZEN', source: 'account', reasonRecorded: false });
+  });
+
+  it('a global freeze says it applies to every account', async () => {
+    const r = await withStatus(Status.ACTIVE, Status.FROZEN).getStatus();
+    expect(r.text).toMatch(/for every account/);
+    expect(r.structured).toMatchObject({ status: 'FROZEN', source: 'global' });
+  });
+
+  it('an active account carries no freeze lines', async () => {
+    const r = await withStatus(Status.ACTIVE, Status.ACTIVE).getStatus();
+    expect(r.text).not.toMatch(/consortium|reason/i);
+    expect(r.structured).toMatchObject({ status: 'ACTIVE', source: null });
   });
 });
 

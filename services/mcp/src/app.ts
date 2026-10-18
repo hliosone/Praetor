@@ -56,20 +56,20 @@ export function buildMcpServer(account: Address, ports: Ports): McpServer {
   const asset = z.enum(['USDC', 'tXAU', 'tXAG']);
   s.registerTool('get_portfolio', { title: 'Portfolio', description: 'Balances, USD values, weights against the bands of the mandate, prices (says when they are demo prices).', inputSchema: {} }, async () => out(await t.getPortfolio()));
   s.registerTool('get_mandate', { title: 'Mandate', description: "The owner's rules in plain words: caps, budgets, known payees (with names), bands, rebalancing limits.", inputSchema: {} }, async () => out(await t.getMandate()));
-  s.registerTool('get_status', { title: 'Status', description: 'Whether the account is active, restricted or frozen, the operator heartbeat, KYA validity.', inputSchema: {} }, async () => out(await t.getStatus()));
+  s.registerTool('get_status', { title: 'Status', description: 'Whether the account is active, restricted or frozen, who set it (this account or every account) and who can loosen it, the operator heartbeat, KYA validity. It never gives a reason for a freeze: none is recorded, so do not guess one.', inputSchema: {} }, async () => out(await t.getStatus()));
   s.registerTool('get_activity', { title: 'Activity', description: 'Recent decisions and refusals with transaction links.', inputSchema: { limit: z.number().int().min(1).max(50).optional() } }, async ({ limit }) => out(await t.getActivity(limit ?? 10)));
   s.registerTool('explain', {
-    title: 'Dry run', description: 'Asks the on-chain mandate whether a payment or a rebalance would pass, and why not. Sends nothing.',
+    title: 'Dry run', description: 'Asks the on-chain mandate whether a payment or a rebalance would pass, and why not. Sends nothing. A verdict that needs the owner\'s approval (T2) is not a refusal: submit the action with pay or rebalance to create the approval request. Only a T0 refusal is final.',
     inputSchema: { type: z.enum(['pay', 'rebalance']), payee: z.string().optional(), amount: usd.optional(), sell: asset.optional(), buy: asset.optional(), amountUsd: usd.optional() },
   }, async (a) => out(a.type === 'pay'
     ? await t.explain({ type: 'pay', payee: a.payee ?? '', amount: a.amount ?? '' })
     : await t.explain({ type: 'rebalance', sell: a.sell ?? '', buy: a.buy ?? '', amountUsd: a.amountUsd ?? '' })));
   s.registerTool('pay', {
-    title: 'Pay', description: 'Pays USDC to a payee (address, or a name from get_mandate). The mandate decides: done, waiting for the owner (approval requested), or blocked for good.',
+    title: 'Pay', description: 'Pays USDC to a payee (address, or a name from get_mandate). The mandate decides: done, waiting for the owner (approval requested: submitting is how an approval request is created, e.g. for a new payee or above the auto cap), or blocked for good (T0).',
     inputSchema: { payee: z.string(), amount: usd, memo: z.string().max(140).optional() },
   }, async (a) => out(await t.pay(a)));
   s.registerTool('rebalance', {
-    title: 'Rebalance', description: 'Swaps one asset for another at the treasury desk (oracle price, slippage limit from the mandate) to bring weights back into their bands.',
+    title: 'Rebalance', description: 'Swaps one asset for another at the treasury desk (oracle price, slippage limit from the mandate) to bring weights back into their bands. Like pay: done, waiting for the owner (approval requested), or blocked for good (T0).',
     inputSchema: { sell: asset, buy: asset, amountUsd: usd },
   }, async (a) => out(await t.rebalance(a)));
   s.registerTool('get_approval', { title: 'Approval request', description: 'State of an approval request created by pay or rebalance.', inputSchema: { id: z.string().max(64) } }, async ({ id }) => out(await t.getApproval(id)));
