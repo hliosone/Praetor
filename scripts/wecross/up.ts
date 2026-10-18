@@ -9,6 +9,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { parseAbi, type Address, type Hex, type PublicClient, type WalletClient } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { BaseOutboxAbi, fiscoClients, sendFisco } from '@praetor/fisco-client';
+import { chainAccountStep } from './accounts.js';
 import { login, router } from './router.js';
 
 const root = new URL('../../', import.meta.url).pathname;
@@ -60,13 +61,14 @@ async function main() {
   }
 
   const credential = await login('org1-admin', env.WECROSS_ADMIN_PASSWORD!);
-  const ua = (await router('POST', '/auth/listAccount', {}, credential)) as { chainAccounts: { keyID: number; type: string; ext: string }[] };
+  const ua = (await router('POST', '/auth/listAccount', {}, credential)) as { chainAccounts: { keyID: number; type: string; ext: string; isDefault?: boolean }[] };
   for (const [type, k] of [['BCOS3_ECDSA_EVM', 'WECROSS_FISCO_KEY'], ['EVM', 'WECROSS_BASE_KEY']] as const) {
     const p = pems(key(k));
     // The BCOS3 stub compares ext with the lowercase address it derives from the key: store it lowercase.
     const ext = p.address.toLowerCase();
     const have = ua.chainAccounts.find((a) => a.type === type && a.ext.toLowerCase() === ext);
-    if (have?.ext === ext) continue;
+    const step = chainAccountStep(have, ext);
+    if (step === 'keep') continue;
     if (have) await router('POST', '/auth/removeChainAccount', { type, keyID: have.keyID }, credential);
     await router('POST', '/auth/addChainAccount', { type, pubKey: p.pub, secKey: p.sec, ext, isDefault: true }, credential);
     console.log(`universal account: ${type} chain account ${ext}`);
