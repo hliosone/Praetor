@@ -6,6 +6,14 @@ import { PhoneView } from '../components/PhoneView.js';
 import { Topbar } from '../components/Layout.js';
 import type { PhoneScreen } from '../components/phoneScreen.js';
 import { signIn } from '../lib/passkey.js';
+import { api } from '../lib/api.js';
+
+/** After sign-in: an account whose onboarding stopped half way goes back to it. When the step cannot be read, the
+ *  dashboard, which links back to the onboarding while the account has no policy. */
+async function landingAfterSignIn(): Promise<string> {
+  const { step } = await api<{ step: string }>('GET', '/onboarding/step').catch(() => ({ step: 'done' }));
+  return step === 'done' ? '/home' : '/start';
+}
 
 export function Landing() {
   const { t } = useI18n();
@@ -37,7 +45,7 @@ export function Landing() {
             <p className="lede">{t('landing.lede')}</p>
             <div className="row">
               <Link className="button primary" to="/start">{t('landing.start')}</Link>
-              <button onClick={() => signIn().then(() => nav('/home'), (e: Error) => setError(e.message))}>{t('landing.signin')}</button>
+              <button onClick={() => signIn().then(landingAfterSignIn).then((to) => nav(to), (e: Error) => setError(e.message))}>{t('landing.signin')}</button>
               <Link className="button" to="/sandbox">{t('landing.sandbox')}</Link>
               <Link className="button" to="/console">{t('landing.console')}</Link>
             </div>

@@ -9,7 +9,10 @@ const pk = softPasskey('onboarding', 'praetor.localhost', 'https://praetor.local
 const b64 = (h: Hex) => Buffer.from(h.slice(2), 'hex').toString('base64url');
 const HASH = `0x${'77'.repeat(32)}` as Hex;
 
-function setup(deployed = false) {
+type Held = { kyc?: string; kyaAgentKey?: Address; agentKey?: Address; policySet?: boolean };
+const ZERO = '0x0000000000000000000000000000000000000000' as Address;
+
+function setup(deployed = false, held: Held = {}) {
   const calls: string[] = [];
   const sent: Record<string, unknown>[] = [];
   // A fake of the internal clients (typed loosely: only what Onboarding calls).
@@ -18,6 +21,7 @@ function setup(deployed = false) {
     user: async () => ({ userId: 'u1', account: ACCOUNT, credIdHash: pk.credIdHash }),
     credIdHashOf: async () => pk.credIdHash,
     isDeployed: async () => deployed,
+    onChain: async () => ({ kyaAgentKey: held.kyaAgentKey ?? ZERO, agentKey: held.agentKey ?? ZERO, policySet: held.policySet ?? false }),
     firstOp: async () => ({ factory: '0x00000000000000000000000000000000000000fa' as Address, factoryData: '0x12' as Hex, callData: '0x34' as Hex }),
     now: async () => 1_800_000_000n,
     c: Object.assign(c, {
@@ -28,7 +32,7 @@ function setup(deployed = false) {
       },
       bank: {
         kycStart: async (ref: any, acc: any, m: any) => { calls.push(`kycStart:${ref}:${acc}:${m}`); return { sessionId: 's1', redirectUrl: 'https://x/kyc-mock/?session=s1' }; },
-        kycStatus: async () => ({ state: 'issued' }),
+        kycStatus: async () => ({ state: held.kyc ?? 'issued' }),
         suitability: async () => ({ state: 'issued', riskProfile: 'balanced' }),
         kyaNonce: async () => { calls.push('nonce'); return { nonce: HASH }; },
         kyaVerify: async () => { calls.push('verify'); return { agentKey: AGENT, measurement: HASH }; },
@@ -83,5 +87,28 @@ describe('F1 through the api', () => {
     expect(draft.challenge).toBe(HASH);
     await o.mandateSign(ACCOUNT, { draftId: draft.draftId, challenge: draft.challenge, agentDidHash: HASH, assertion: pk.authentication(b64(HASH)) });
     expect(calls).toEqual([`prepare-mandate:${AGENT}`, `sign-mandate:d1:${pk.credIdHash}`, `kya:${HASH}`]);
+  });
+});
+
+describe('where an interrupted onboarding resumes (#1)', () => {
+  // A tab the phone discarded during the KYC reloads with nothing in memory: the step comes from the bank and Base.
+  it('is the first step whose result is not in the bank or on Base yet', async () => {
+    const cases: [boolean, Held, string][] = [
+      [false, { kyc: 'none' }, 'account'],
+      [true, { kyc: 'none' }, 'kyc'],
+      [true, { kyc: 'pending' }, 'kyc'],
+      [true, { kyc: 'rejected' }, 'kyc'],
+      [true, { kyc: 'revoked' }, 'kyc'],
+      [true, { kyc: 'verified' }, 'suitability'],
+      [true, { kyc: 'issued' }, 'agent'],
+      [true, { kyc: 'issued', kyaAgentKey: AGENT }, 'mandate'],
+      [true, { kyc: 'issued', kyaAgentKey: AGENT, agentKey: AGENT }, 'policy'],
+      [true, { kyc: 'issued', kyaAgentKey: AGENT, agentKey: AGENT, policySet: true }, 'done'],
+    ];
+    for (const [deployed, held, step] of cases) expect(await setup(deployed, held).o.step(ACCOUNT), JSON.stringify({ deployed, held })).toBe(step);
+  });
+
+  it('a policy is the last step: an account that has one is done, even with its agent stopped since', async () => {
+    expect(await setup(true, { kyc: 'issued', kyaAgentKey: AGENT, agentKey: ZERO, policySet: true }).o.step(ACCOUNT)).toBe('done');
   });
 });
