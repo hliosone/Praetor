@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { createWalletClient, encodeFunctionData, erc20Abi, http, parseAbi, parseAbiItem, type Address, type Hex } from 'viem';
 import { baseSepolia } from 'viem/chains';
 import { AuditLogAbi, fiscoClients } from '@praetor/fisco-client';
-import { AnchorAbi, MandateHookAbi, PasskeyValidatorAbi, StandingOrdersAbi, accountReader, baseClients, baseNow, loadDeployments } from '@praetor/chain';
+import { AgentKeyValidatorAbi, AnchorAbi, MandateHookAbi, PasskeyValidatorAbi, StandingOrdersAbi, accountReader, baseClients, baseNow, loadDeployments } from '@praetor/chain';
 import { connect, loadMigrations, migrate } from '@praetor/db';
 import { prepareAccount } from '@praetor/userop';
 import { createApiApp, HttpError } from './app.js';
@@ -100,6 +100,14 @@ const onboarding = new Onboarding({
   },
   credIdHashOf,
   isDeployed: async (account) => ((await pub.getCode({ address: account })) ?? '0x') !== '0x',
+  onChain: async (account) => {
+    const [kya, [agentKey], policy] = await Promise.all([
+      reader.kya(account),
+      pub.readContract({ address: d.agentKeyValidator, abi: AgentKeyValidatorAbi, functionName: 'agentOf', args: [account] }) as Promise<readonly [Address, number, boolean]>,
+      reader.policy(account),
+    ]);
+    return { kyaAgentKey: kya.agentKey, agentKey, policySet: policy !== null };
+  },
   firstOp: async (account) => {
     const { u, p } = await userOf(account);
     const prep = await prepareAccount(pub as never, accountModules({ credIdHash: p.credIdHash as Hex, x: BigInt(p.x), y: BigInt(p.y) }), BigInt(u.saltNonce!));

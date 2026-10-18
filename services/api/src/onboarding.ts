@@ -11,12 +11,18 @@ export type OnboardingDeps = {
   /** The credIdHash of the owner's passkey that made an assertion (a rotation may be signed by a second device). */
   credIdHashOf(account: Address, credentialId: string): Promise<Hex>;
   isDeployed(account: Address): Promise<boolean>;
+  /** What Base holds for the account: its KYA's agent key, the key its AgentKeyValidator holds (zero address when
+   *  none), and whether a policy is set. */
+  onChain(account: Address): Promise<{ kyaAgentKey: Address; agentKey: Address; policySet: boolean }>;
   firstOp(account: Address): Promise<{ factory: Address; factoryData: Hex; callData: Hex }>;
   now(): Promise<bigint>;
   c: Pick<Clients, 'bundler' | 'bank' | 'signer'>;
 };
 
+export type OnboardingStep = 'account' | 'kyc' | 'suitability' | 'agent' | 'mandate' | 'policy' | 'done';
+
 const SCOPES = ['rebalance', 'pay', 'standing_orders'];
+const isZero = (a: Address) => /^0x0{40}$/.test(a);
 const KYA_VALIDITY_S = 365n * 86_400n;
 
 export class Onboarding {
@@ -24,6 +30,20 @@ export class Onboarding {
   private agents = new Map<string, Address>();
 
   constructor(private readonly d: OnboardingDeps) {}
+
+  /** Where an interrupted onboarding resumes (a tab the phone discarded during the KYC, another device): the first
+   *  step whose result is not in the bank or on Base yet. The policy is the last step, so an account that has one is
+   *  done whatever happened to its agent since. */
+  async step(account: Address): Promise<OnboardingStep> {
+    const [chain, deployed, kyc] = await Promise.all([this.d.onChain(account), this.d.isDeployed(account), this.kycStatus(account)]);
+    if (chain.policySet) return 'done';
+    if (!deployed) return 'account';
+    if (kyc.state === 'verified') return 'suitability';
+    if (kyc.state !== 'issued') return 'kyc';
+    if (isZero(chain.kyaAgentKey)) return 'agent';
+    if (isZero(chain.agentKey)) return 'mandate';
+    return 'policy';
+  }
 
   async deployPrepare(account: Address) {
     if (await this.d.isDeployed(account)) return { deployed: true as const };

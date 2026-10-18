@@ -77,6 +77,7 @@ export function apiRoutes(r: Router, h: typeof handler, session: express.Request
   r.post('/onboarding/account/deploy/submit', session, h(async (req, res) => send(res, await m.onboarding.deploySubmit(acct(res), z.object({ assertion }).parse(req.body).assertion))));
   r.post('/onboarding/kyc/start', session, h(async (req, res) => send(res, await m.onboarding.kycStart(acct(res), z.object({ method: z.enum(['vendor', 'eudi']) }).parse(req.body).method))));
   r.get('/onboarding/kyc/status', session, h(async (_req, res) => send(res, await m.onboarding.kycStatus(acct(res)))));
+  r.get('/onboarding/step', session, h(async (_req, res) => send(res, { step: await m.onboarding.step(acct(res)) })));
   r.post('/onboarding/suitability', session, h(async (req, res) => send(res, await m.onboarding.suitability(acct(res), z.object({ answers: z.array(z.number().int()).length(5) }).parse(req.body).answers))));
   r.post('/onboarding/agent/create', session, h(async (_req, res) => send(res, await m.onboarding.agentCreate(acct(res)))));
   r.post('/onboarding/kya/draft', session, h(async (_req, res) => send(res, await m.onboarding.mandateDraft(acct(res)))));
