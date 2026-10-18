@@ -30,6 +30,7 @@ POST /api/onboarding/passkey/options|verify     → passkey created; account add
 POST /api/onboarding/account/deploy             → prepares the launchpad userOp; client signs userOpHash with the passkey; → {txHash}
 POST /api/onboarding/kyc/start {method: "vendor"|"eudi"} → redirect URL (kyc-vendor-mock or EUDI request QR)
 GET  /api/onboarding/kyc/status
+GET  /api/onboarding/progress                   → {deployed, kyc, riskProfile, kyaAgentKey, agentKey, policy}: where F1 stands, read from the bank and Base (resume, DECISIONS D86)
 POST /api/onboarding/suitability {answers}      → riskProfile (scored by bank-service)
 POST /api/onboarding/agent/create               → agent address + attestation summary + agent WeID
 POST /api/onboarding/kya/sign {credentialDraft} → user signs AgentMandate (passkey over its hash); bank countersigns

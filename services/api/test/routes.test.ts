@@ -34,6 +34,15 @@ describe('payee names (spec 07 /payments)', () => {
   });
 });
 
+describe('onboarding progress (F1 resume)', () => {
+  it('reads the progress of the signed-in account only', async () => {
+    const seen: Address[] = [];
+    const { a } = app({ onboarding: { progress: async (account: Address) => { seen.push(account); return { deployed: true, kyc: { state: 'pending' } }; } } });
+    expect((await request(a).get('/api/onboarding/progress').expect(200)).body).toEqual({ deployed: true, kyc: { state: 'pending' } });
+    expect(seen).toEqual([ACCOUNT]);
+  });
+});
+
 describe('agent key rotation and revocation (F10)', () => {
   const action = (kind: number) => ({ account: ACCOUNT, action: kind, payloadHash: `0x${'11'.repeat(32)}`, nonce: '1', expiresAt: '1800000000', fiscoRef: `0x${'00'.repeat(32)}` });
   const assertion = { id: 'c', response: { clientDataJSON: 'a', authenticatorData: 'b', signature: 'c' } };

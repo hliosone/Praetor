@@ -1,6 +1,8 @@
 // The mandate (spec 07): the current policy in plain words, the bank's caps alongside, an editable form whose
-// proposal goes through the bank's FISCO check, then the owner's passkey and the bank's co-signature.
+// proposal goes through the bank's FISCO check, then the owner's passkey and the bank's co-signature. Without a policy
+// (onboarding interrupted) it sends the owner back to finish onboarding.
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { encodePolicy, OwnerActionKind as K } from '@praetor/protocol';
 import { useI18n } from '../i18n/index.js';
 import { api, usd, type Prepared } from '../lib/api.js';
@@ -31,7 +33,13 @@ export function Mandate() {
             <li>It rebalances at most {p.maxRebalancesPerDay} time(s) a day, {usd(p.maxTradeUsd)} USD each, slippage {p.maxSlippageBps / 100}%.</li>
             <li>Known payees: {p.payees.length}; merchants: {p.merchants.length}. Valid until {new Date(Number(p.validUntil) * 1000).toLocaleDateString()}.</li>
           </ul>
-        ) : <p className="muted">No policy yet.</p>}
+        ) : (
+          // No policy: the form needs one to edit, and the first one is onboarding's last step (with its agent key).
+          <>
+            <p className="muted">{t('mandate.none')}</p>
+            <Link className="button primary" to="/start">{t('onb.finish')}</Link>
+          </>
+        )}
         <h2>{t('mandate.caps')}</h2>
         <p>Per payment {usd(cur.data.caps.perTx)}, daily {usd(cur.data.caps.daily)}, monthly {usd(cur.data.caps.monthly)} USDC.</p>
       </section>

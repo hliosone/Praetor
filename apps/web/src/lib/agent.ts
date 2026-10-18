@@ -19,10 +19,16 @@ export async function installAgent(agent: NewAgent, draft: MandateDraft): Promis
     if (a?.agentKey?.toLowerCase() === agent.agentKey.toLowerCase()) break;
     await sleep(2000);
   }
+  await setAgentKey(agent.agentKey);
+}
+
+/** SET_AGENT_KEY for exactly this key (the KYA's on Base), owner + bank: the last half of installAgent, alone when
+ * onboarding resumes after the mandate reached Base. */
+export async function setAgentKey(agentKey: `0x${string}`): Promise<void> {
   const validUntil = Math.floor(Date.now() / 1000) + 90 * 86_400;
   const { account } = await api<Me>('GET', '/me');
   const p = await api<Prepared>('POST', '/owner-actions/prepare', { kind: K.SET_AGENT_KEY, validUntil });
-  const expected = ownerActionPayload({ kind: K.SET_AGENT_KEY, account, agentKey: agent.agentKey, validUntil }).payload;
+  const expected = ownerActionPayload({ kind: K.SET_AGENT_KEY, account, agentKey, validUntil }).payload;
   if (!(await signAndSubmit(p, K.SET_AGENT_KEY, expected)).success) throw new Error('the agent key was not installed');
 }
 

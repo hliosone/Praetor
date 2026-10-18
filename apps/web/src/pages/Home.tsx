@@ -7,6 +7,7 @@ import { Rings } from '../components/Rings.js';
 import { StatusPill, TierBadge } from '../components/StatusPill.js';
 import { api, usd, type Activity, type ApprovalView, type Portfolio, type Prepared, type Status } from '../lib/api.js';
 import { useLoad } from '../lib/useLoad.js';
+import { resumeStep, type Progress } from '../lib/onboarding.js';
 import { signAndSubmit } from '../lib/passkey.js';
 
 export function Home() {
@@ -15,10 +16,17 @@ export function Home() {
   const status = useLoad(() => api<Status>('GET', '/status'), [], 8000);
   const agent = useLoad(() => api<{ agentKey: string; validUntil: string; riskProfile: string; kycLevel: number; jurisdiction: string }>('GET', '/agent'), []);
   const feed = useLoad(() => api<{ items: Activity[] }>('GET', '/activity?limit=12'), [], 6000);
+  const progress = useLoad(() => api<Progress>('GET', '/onboarding/progress'), []);
   const pending = useLoad(() => api<{ approvals: ApprovalView[] }>('GET', '/approvals?state=pending'), [], 5000);
 
   return (
     <div className="stack">
+      {progress.data && resumeStep(progress.data) !== 'done' && (
+        <p className="notice row between" role="status">
+          <span>{t('onb.unfinished')}</span>
+          <Link className="button primary" to="/start">{t('onb.finish')}</Link>
+        </p>
+      )}
       <section className="grid two">
         <article className="panel stack">
           <div className="row between">

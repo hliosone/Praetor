@@ -73,6 +73,7 @@ export type RouteModules = {
 export function apiRoutes(r: Router, h: typeof handler, session: express.RequestHandler, m: RouteModules) {
   const acct = (res: Response) => res.locals.account as Address;
 
+  r.get('/onboarding/progress', session, h(async (_req, res) => send(res, await m.onboarding.progress(acct(res)))));
   r.post('/onboarding/account/deploy', session, h(async (_req, res) => send(res, await m.onboarding.deployPrepare(acct(res)))));
   r.post('/onboarding/account/deploy/submit', session, h(async (req, res) => send(res, await m.onboarding.deploySubmit(acct(res), z.object({ assertion }).parse(req.body).assertion))));
   r.post('/onboarding/kyc/start', session, h(async (req, res) => send(res, await m.onboarding.kycStart(acct(res), z.object({ method: z.enum(['vendor', 'eudi']) }).parse(req.body).method))));

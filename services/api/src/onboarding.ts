@@ -13,8 +13,12 @@ export type OnboardingDeps = {
   isDeployed(account: Address): Promise<boolean>;
   firstOp(account: Address): Promise<{ factory: Address; factoryData: Hex; callData: Hex }>;
   now(): Promise<bigint>;
+  /** What Base holds for the account: the KYA's agent key, the key installed in AgentKeyValidator, a policy. */
+  onBase(account: Address): Promise<{ kyaAgentKey: Address; agentKey: Address; agentRevoked: boolean; policy: boolean }>;
   c: Pick<Clients, 'bundler' | 'bank' | 'signer'>;
 };
+
+const ZERO = /^0x0{40}$/i;
 
 const SCOPES = ['rebalance', 'pay', 'standing_orders'];
 const KYA_VALIDITY_S = 365n * 86_400n;
@@ -51,6 +55,24 @@ export class Onboarding {
 
   async kycStatus(account: Address) {
     return this.d.c.bank.kycStatus((await this.d.user(account)).userId);
+  }
+
+  /** Where F1 stands for this account, from the bank and Base only (nothing kept by the api): the web app resumes
+   * onboarding from it after a reload (iOS Safari discards the tab while the KYC page uses the camera). */
+  async progress(account: Address) {
+    const { userId } = await this.d.user(account);
+    const deployed = await this.d.isDeployed(account);
+    const kyc = (await this.d.c.bank.kycStatus(userId)) as { state: string; reason?: string; riskProfile?: string };
+    const b = deployed ? await this.d.onBase(account) : undefined;
+    const key = (a: Address | undefined) => (a && !ZERO.test(a) ? a : null);
+    return {
+      deployed,
+      kyc: { state: kyc.state, ...(kyc.reason ? { reason: kyc.reason } : {}) },
+      riskProfile: kyc.riskProfile ?? null,
+      kyaAgentKey: key(b?.kyaAgentKey),
+      agentKey: b?.agentRevoked ? null : key(b?.agentKey),
+      policy: b?.policy ?? false,
+    };
   }
 
   async suitability(account: Address, answers: number[]) {
