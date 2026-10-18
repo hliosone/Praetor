@@ -4,7 +4,7 @@
 // data (I9): nothing here reads any.
 import { encodeFunctionData, erc20Abi, getAddress, isAddress, type Address, type Hex } from 'viem';
 import { TreasuryDeskAbi } from '@praetor/chain';
-import { PriceSource, REASONS, STATUSES, TIERS, Reason, Tier, type Policy } from '@praetor/protocol';
+import { PriceSource, REASONS, STATUSES, TIERS, Reason, Status, Tier, type Policy } from '@praetor/protocol';
 
 export type Call = { to: Address; value: bigint; data: Hex };
 export type Verdict = { reason: number; tier: number; callHash: Hex };
@@ -110,28 +110,50 @@ export class PraetorTools {
   async getMandate(): Promise<ToolResult> {
     const [policy, kya, labels] = await Promise.all([this.p.reader.policy(this.account), this.p.reader.kya(this.account), this.p.labels(this.account)]);
     if (!policy) return { text: 'No mandate is set: every action is refused until the owner sets one.', structured: { policy: null } };
-    const caps = await this.p.reader.caps(this.account);
+    const [caps, spent] = await Promise.all([this.p.reader.caps(this.account), this.p.reader.spent(this.account)]);
     const payees = policy.payees.map((a) => ({ address: a, label: labels[a.toLowerCase()] ?? null }));
     const lines = [
       `Payments: up to ${usd(policy.autoCap)} USDC without asking; above that the owner approves; never above ${usd(policy.hardCap)} USDC.`,
       `Budgets: ${usd(policy.dailyBudget)} USDC per day, ${usd(policy.monthlyBudget)} per month, at most ${policy.dailyCount} payments per day; keep at least ${usd(policy.bufferUsdc)} USDC.`,
+      // The hook's own counters (spentOf), so the model never adds amounts up itself (#7). The hook's day is
+      // block.timestamp / 1 days and its month a fixed 30-day window; an approval lifts the owner's BUDGET_EXCEEDED (T2)
+      // while the bank's cap stays T0.
+      `Spent today (UTC day on Base): ${usd(spent.day)} of the ${usd(policy.dailyBudget)} USDC daily budget, ${spent.count} of ${policy.dailyCount} daily payments; this 30-day period: ${usd(spent.month)} of ${usd(policy.monthlyBudget)}. Owner-approved payments count too, and standing orders count in the amounts (not in the payments); an owner approval can take spending past the owner's budgets, never past the bank's limits.`,
       `Known payees: ${payees.map((x) => (x.label ? `${x.label} (${x.address})` : x.address)).join(', ') || 'none'}. A new payee needs the owner.`,
       `Bands: ${policy.bands.map((b) => `${this.symbolOf(b.token)} ${pct(b.minBps)} to ${pct(b.maxBps)} (target ${pct(b.targetBps)})`).join(', ')}.`,
       `Rebalancing: at most ${policy.maxRebalancesPerDay} per day, ${usd(policy.maxTradeUsd)} USD per trade, slippage ${pct(policy.maxSlippageBps)}.`,
       `Bank limits for this risk profile: ${usd(caps.perTx)} USD per transaction, ${usd(caps.daily)} per day.`,
       `Agent key valid until ${new Date(Number(kya.validUntil) * 1000).toISOString().slice(0, 10)}.`,
     ];
-    return { text: lines.join('\n'), structured: { autoCap: usd(policy.autoCap), hardCap: usd(policy.hardCap), payees, bands: policy.bands.map((b) => ({ symbol: this.symbolOf(b.token), ...b, token: undefined })), maxRebalancesPerDay: policy.maxRebalancesPerDay } };
+    return { text: lines.join('\n'), structured: { autoCap: usd(policy.autoCap), hardCap: usd(policy.hardCap), payees, bands: policy.bands.map((b) => ({ symbol: this.symbolOf(b.token), ...b, token: undefined })), maxRebalancesPerDay: policy.maxRebalancesPerDay, spentToday: usd(spent.day), spentThisPeriod: usd(spent.month), paymentsToday: Number(spent.count) } };
   }
 
   async getStatus(): Promise<ToolResult> {
     const [st, kya, now] = await Promise.all([this.p.reader.status(this.account), this.p.reader.kya(this.account), this.p.reader.now()]);
-    const effective = STATUSES[st.effective] ?? 'UNKNOWN';
+    const name = (s: number) => STATUSES[s] ?? 'UNKNOWN';
+    const effective = name(st.effective);
     const heartbeat = st.heartbeatValidUntil > now ? 'fresh' : 'stale (autonomous actions are paused until the operator heartbeat returns)';
     const kyaOk = kya.validUntil > now;
+    // The model invented a cause for a regulator freeze (#6): say what the status stops and who can lift it (I3), and
+    // that no reason reaches the tools (a StatusAttestation carries none).
+    const tightened: string[] = [];
+    if (st.effective !== Status.ACTIVE) {
+      const set = [
+        st.account !== Status.ACTIVE ? `this account is ${name(st.account).toLowerCase()}` : null,
+        st.global !== Status.ACTIVE ? `every account is ${name(st.global).toLowerCase()} (global)` : null,
+      ].filter(Boolean).join(' and ');
+      tightened.push(
+        `Set by the consortium (bank, regulator, operator): ${set}.`,
+        st.effective === Status.FROZEN
+          ? "While frozen, no payment, rebalance or standing order can move money, the owner's own included."
+          : "While restricted, every payment or rebalance the agent makes needs the owner's approval.",
+        'Any one member can freeze or restrict; lifting or loosening needs two of the three. The owner cannot lift it.',
+        'The tools do not say why it was set: do not guess a reason.',
+      );
+    }
     return {
-      text: [`Status: ${effective}`, `Heartbeat: ${heartbeat}`, `KYA: ${kyaOk ? 'valid' : 'expired'}`].join('\n'),
-      structured: { status: effective, heartbeatFresh: st.heartbeatValidUntil > now, kyaValid: kyaOk },
+      text: [`Status: ${effective}`, ...tightened, `Heartbeat: ${heartbeat}`, `KYA: ${kyaOk ? 'valid' : 'expired'}`].join('\n'),
+      structured: { status: effective, accountStatus: name(st.account), globalStatus: name(st.global), heartbeatFresh: st.heartbeatValidUntil > now, kyaValid: kyaOk },
     };
   }
 
@@ -198,7 +220,15 @@ export class PraetorTools {
     if (typeof built === 'string') return { text: built, isError: true };
     const v = await this.p.reader.check(this.account, built.calls);
     const w = this.worst(v);
-    const verdict = w.reason === Reason.OK ? 'would be done autonomously (T1)' : `would be refused: ${reasonName(w.reason)} (${tierName(w.tier)})`;
+    // The tier, not the reason name, says whether the owner can lift it (BUDGET_EXCEEDED and BAND_BREACH have both).
+    // The T0 wording keeps "would be refused": the red-team parser must not read a dry run as an on-chain refusal.
+    // Only a payment gets the hint to submit it: an approved rebalance is never executed yet (D93).
+    const submit = a.type === 'pay' ? '. This is not a refusal: if the user asked for it, call pay to submit it, which sends the owner an approval request (WeChat or the web app)' : '';
+    const verdict = w.reason === Reason.OK
+      ? 'would be done autonomously (T1)'
+      : w.tier === Tier.T2_HUMAN
+        ? `needs the owner's approval: ${reasonName(w.reason)} (${tierName(w.tier)})${submit}`
+        : `would be refused: ${reasonName(w.reason)} (${tierName(w.tier)}). Nobody can approve it: the decision is final, do not try it another way`;
     return { text: `Dry run: this ${a.type} ${verdict}. Nothing was sent.`, structured: { reasons: v.map((x) => reasonName(x.reason)).filter((r) => r !== 'OK'), tier: tierName(w.tier) } };
   }
 

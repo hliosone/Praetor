@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { decodeFunctionData, erc20Abi, getAddress, type Address, type Hex } from 'viem';
 import { TreasuryDeskAbi } from '@praetor/chain';
-import { Reason, Tier, PriceSource, type Policy } from '@praetor/protocol';
+import { Reason, Tier, PriceSource, Status, type Policy } from '@praetor/protocol';
 import { PraetorTools, type Ports } from '../src/tools.js';
 
 const ACCOUNT = '0x00000000000000000000000000000000000c0ffe' as Address;
@@ -162,6 +162,38 @@ describe('explain', () => {
     expect(r.structured).toMatchObject({ reasons: ['OVER_AUTO_CAP'], tier: 'T2_HUMAN' });
     expect(sent).toHaveLength(0);
   });
+
+  it('T2: says calling pay asks the owner to approve it, not that it is refused or final (#4)', async () => {
+    verdict = { reason: Reason.UNKNOWN_PAYEE, tier: Tier.T2_HUMAN };
+    const r = await tools().explain({ type: 'pay', payee: '0x000000000000000000000000000000000000dEaD', amount: '300' });
+    expect(r.text).toMatch(/UNKNOWN_PAYEE \(T2_HUMAN\)/);
+    expect(r.text).toMatch(/not a refusal/i);
+    expect(r.text).toMatch(/call pay/i);
+    expect(r.text).toMatch(/approval request/i);
+    expect(r.text).toMatch(/WeChat or the web app/);
+    expect(r.text).not.toMatch(/refused|final/i);
+    expect(r.isError).toBeFalsy();
+    expect(sent).toHaveLength(0);
+    expect(requested).toHaveLength(0);
+  });
+
+  it('T2 rebalance: needs the owner, not refused, but no hint to submit it (an approved rebalance cannot be resubmitted yet, D93)', async () => {
+    verdict = { reason: Reason.REBALANCE_LIMIT, tier: Tier.T2_HUMAN };
+    const r = await tools().explain({ type: 'rebalance', sell: 'tXAU', buy: 'USDC', amountUsd: '650' });
+    expect(r.text).toMatch(/needs the owner's approval: REBALANCE_LIMIT \(T2_HUMAN\)/);
+    expect(r.text).not.toMatch(/refused|final/i);
+    expect(r.text).not.toMatch(/call rebalance/i);
+  });
+
+  it('T0: keeps "refused" and "final" for what nobody can approve', async () => {
+    verdict = { reason: Reason.SANCTIONED, tier: Tier.T0_NEVER };
+    const r = await tools().explain({ type: 'pay', payee: BAD, amount: '5000' });
+    expect(r.text).toMatch(/would be refused: SANCTIONED \(T0_NEVER\)/);
+    expect(r.text).toMatch(/final/i);
+    expect(r.text).not.toMatch(/approval request/i);
+    expect(r.structured).toMatchObject({ reasons: ['SANCTIONED'], tier: 'T0_NEVER' });
+    expect(sent).toHaveLength(0);
+  });
 });
 
 describe('get_mandate and get_status', () => {
@@ -171,6 +203,50 @@ describe('get_mandate and get_status', () => {
     expect(m.text).toMatch(/Café Lumen/);
     const st = await tools().getStatus();
     expect(st.text).toMatch(/ACTIVE/);
+  });
+});
+
+describe('get_mandate spending (#7)', () => {
+  it('quotes the hook\'s own counters (UTC day, 30-day period), approved payments included, and says an approval can pass the owner\'s budget, never the bank\'s limits', async () => {
+    const p = ports();
+    p.reader.spent = async () => ({ day: 530_000_000n, month: 1_060_000_000n, count: 2n, rebalances: 0n });
+    const m = await new PraetorTools(ACCOUNT, p).getMandate();
+    expect(m.text).toMatch(/Spent today \(UTC day on Base\): 530\.00 of the 500\.00 USDC daily budget, 2 of 10 daily payments; this 30-day period: 1060\.00 of 3000\.00\./);
+    expect(m.text).toMatch(/Owner-approved payments count too, and standing orders count in the amounts \(not in the payments\); an owner approval can take spending past the owner's budgets, never past the bank's limits\./);
+    expect(m.structured).toMatchObject({ spentToday: '530.00', spentThisPeriod: '1060.00', paymentsToday: 2 });
+  });
+});
+
+describe('get_status when the consortium tightened the account (#6)', () => {
+  const withStatus = (account: number, global: number) => {
+    const p = ports();
+    p.reader.status = async () => ({ effective: Math.max(account, global), account, global, heartbeatValidUntil: 1_800_000_900n });
+    return new PraetorTools(ACCOUNT, p).getStatus();
+  };
+
+  it('a freeze of this account: what it stops, who set it, who can lift it, and no guessed reason', async () => {
+    const r = await withStatus(Status.FROZEN, Status.ACTIVE);
+    expect(r.text).toMatch(/^Status: FROZEN/);
+    expect(r.text).toMatch(/Set by the consortium \(bank, regulator, operator\): this account is frozen\./);
+    expect(r.text).not.toMatch(/every account/);
+    expect(r.text).toMatch(/no payment, rebalance or standing order can move money, the owner's own included/);
+    expect(r.text).toMatch(/Any one member can freeze or restrict; lifting or loosening needs two of the three\. The owner cannot lift it\./);
+    expect(r.text).toMatch(/The tools do not say why it was set: do not guess a reason\./);
+    expect(r.structured).toMatchObject({ status: 'FROZEN', accountStatus: 'FROZEN', globalStatus: 'ACTIVE' });
+  });
+
+  it('a global restriction: says it covers every account and what restricted means', async () => {
+    const r = await withStatus(Status.ACTIVE, Status.RESTRICTED);
+    expect(r.text).toMatch(/^Status: RESTRICTED/);
+    expect(r.text).toMatch(/Set by the consortium \(bank, regulator, operator\): every account is restricted \(global\)\./);
+    expect(r.text).toMatch(/every payment or rebalance the agent makes needs the owner's approval/);
+    expect(r.text).toMatch(/two of the three/);
+  });
+
+  it('active: no consortium text', async () => {
+    const r = await withStatus(Status.ACTIVE, Status.ACTIVE);
+    expect(r.text).toMatch(/^Status: ACTIVE/);
+    expect(r.text).not.toMatch(/consortium/);
   });
 });
 

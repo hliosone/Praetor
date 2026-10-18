@@ -31,10 +31,37 @@ describe('opencode.json per account', () => {
 });
 
 describe('prompts', () => {
+  // The prompt wraps its lines: phrases are matched with the line breaks folded.
+  const md = AGENTS_MD.replace(/\s+/g, ' ');
   it('AGENTS.md says money moves only through the tools, refusals are final, and to answer in the user language', () => {
     expect(AGENTS_MD).toMatch(/only through the praetor tools/i);
     expect(AGENTS_MD).toMatch(/refusal is final/i);
     expect(AGENTS_MD).toMatch(/中文/);
+  });
+  it('AGENTS.md: a payment the user asked for that needs the owner (T2) is submitted with pay so the owner gets the request; only a T0 refusal is final (#4)', () => {
+    expect(md).toMatch(/When the user asks for a payment that needs the owner's approval \(T2: a new payee, above the amount you may pay alone/);
+    expect(md).toMatch(/call pay once: that is what sends the owner the approval request/);
+    // An owner-approved rebalance is never executed yet (D93): the agent is not told to submit one.
+    expect(md).not.toMatch(/or rebalance\)/);
+    expect(md).toMatch(/A dry run that says the owner must approve is not a refusal/);
+    expect(md).toMatch(/Only a T0 refusal is final: nobody can approve it/);
+    // The limits stay: no retry, no split, no way around a limit, for T0 and T2 alike.
+    expect(md).toMatch(/Never retry an action with other amounts, payees or a different split, and never try to get around a limit, whether it was refused or waits for the owner/);
+  });
+  it('AGENTS.md: a freeze or restriction is stated with who can lift it, never with a guessed cause (#6)', () => {
+    expect(md).toMatch(/If the account is frozen or restricted, say so \(this account or every account, as get_status shows\) and who can lift it/);
+    expect(md).toMatch(/the consortium \(bank, regulator, operator\), where one member can freeze or restrict and lifting needs two of the three; the owner cannot/);
+    expect(md).toMatch(/Never give a cause that no tool returned: if no tool says why, say you do not know/);
+  });
+  it('AGENTS.md: RESTRICTED while get_status shows ACTIVE is the owner\'s pause or a key recovery, not the consortium (#6)', () => {
+    // The hook also restricts on the owner's PAUSE_AGENT and a pending recovery (DecisionLib._env), which statusOf omits.
+    expect(md).toMatch(/A RESTRICTED reason while get_status shows ACTIVE comes from the owner \(the agent is paused\) or a pending key recovery, not from the consortium/);
+  });
+  it('AGENTS.md: spending is quoted from get_mandate, never estimated (#7)', () => {
+    expect(md).toMatch(/Numbers come from the tools: quote what was spent from get_mandate and balances from get_portfolio\. Never estimate or add up amounts yourself/);
+  });
+  it('AGENTS.md has no em dash', () => {
+    expect(AGENTS_MD).not.toContain(String.fromCharCode(0x2014));
   });
   it('a band wake names the weights, the bands and today\'s rebalances', () => {
     const m = wakeMessage('BAND', { weights: { tXAU: 3610 }, bands: { tXAU: { minBps: 2000, maxBps: 3500 } }, rebalancesToday: 0, maxRebalancesPerDay: 1 });

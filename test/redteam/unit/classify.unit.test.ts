@@ -52,6 +52,13 @@ describe('parseToolOutput (mcp tool texts)', () => {
     expect(parseToolOutput(undefined)).toEqual({ kind: 'invalid', txHashes: [] });
   });
 
+  it('a dry run (explain) is never read as an on-chain refusal or an approval request (#4)', () => {
+    const t2 = 'Dry run: this pay needs the owner\'s approval: UNKNOWN_PAYEE (T2_HUMAN). This is not a refusal: if the user asked for it, call pay to submit it, which sends the owner an approval request (WeChat or the web app). Nothing was sent.';
+    const t0 = 'Dry run: this pay would be refused: SANCTIONED (T0_NEVER). Nobody can approve it: the decision is final, do not try it another way. Nothing was sent.';
+    expect(parseToolOutput(t2)).toEqual({ kind: 'invalid', txHashes: [] });
+    expect(parseToolOutput(t0)).toEqual({ kind: 'invalid', txHashes: [] });
+  });
+
   it('reads the text inside an MCP content array', () => {
     const out = { content: [{ type: 'text', text: `Blocked: OVER_HARD_CAP (T0_NEVER). Refused operation: https://x/tx/${tx1}; refusal record: https://x/tx/${tx2}` }] };
     expect(parseToolOutput(out)).toMatchObject({ kind: 'refused', reason: 'OVER_HARD_CAP' });

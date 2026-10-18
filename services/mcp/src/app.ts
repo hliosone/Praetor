@@ -55,11 +55,11 @@ export function buildMcpServer(account: Address, ports: Ports): McpServer {
   const usd = z.string().describe('USD amount, e.g. "12.50"');
   const asset = z.enum(['USDC', 'tXAU', 'tXAG']);
   s.registerTool('get_portfolio', { title: 'Portfolio', description: 'Balances, USD values, weights against the bands of the mandate, prices (says when they are demo prices).', inputSchema: {} }, async () => out(await t.getPortfolio()));
-  s.registerTool('get_mandate', { title: 'Mandate', description: "The owner's rules in plain words: caps, budgets, known payees (with names), bands, rebalancing limits.", inputSchema: {} }, async () => out(await t.getMandate()));
+  s.registerTool('get_mandate', { title: 'Mandate', description: "The owner's rules in plain words: caps, budgets and what was spent today and in the 30-day period (as the hook counts it), known payees (with names), bands, rebalancing limits.", inputSchema: {} }, async () => out(await t.getMandate()));
   s.registerTool('get_status', { title: 'Status', description: 'Whether the account is active, restricted or frozen, the operator heartbeat, KYA validity.', inputSchema: {} }, async () => out(await t.getStatus()));
   s.registerTool('get_activity', { title: 'Activity', description: 'Recent decisions and refusals with transaction links.', inputSchema: { limit: z.number().int().min(1).max(50).optional() } }, async ({ limit }) => out(await t.getActivity(limit ?? 10)));
   s.registerTool('explain', {
-    title: 'Dry run', description: 'Asks the on-chain mandate whether a payment or a rebalance would pass, and why not. Sends nothing.',
+    title: 'Dry run', description: "Asks the on-chain mandate whether a payment or a rebalance would pass, needs the owner's approval (for a payment, pay then sends the owner the approval request), or would be refused for good, and why. Sends nothing and asks no one.",
     inputSchema: { type: z.enum(['pay', 'rebalance']), payee: z.string().optional(), amount: usd.optional(), sell: asset.optional(), buy: asset.optional(), amountUsd: usd.optional() },
   }, async (a) => out(a.type === 'pay'
     ? await t.explain({ type: 'pay', payee: a.payee ?? '', amount: a.amount ?? '' })
