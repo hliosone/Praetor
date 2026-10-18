@@ -725,7 +725,10 @@ const globalChange: Custom = (e, p) => ({
       });
     } else if (p.action === 'stale-prices') {
       const before = await chain.p.readContract({ address: s.base.priceOracle, abi: PriceOracleAbi, functionName: 'maxPriceAge' });
-      const owner = privateKeyToAccount(localKey(s, 'DEPLOYER_KEY'));
+      // The deployer hands the oracle to the bank's desk-operator key (PriceOracle.sol): sign with whichever owns it.
+      const ownerAddr = await chain.p.readContract({ address: s.base.priceOracle, abi: parseAbi(['function owner() view returns (address)']), functionName: 'owner' });
+      const owner = (['DEPLOYER_KEY', 'DESK_OPERATOR_KEY'] as const).map((k) => privateKeyToAccount(localKey(s, k))).find((a) => isAddressEqual(a.address, ownerAddr));
+      if (!owner) throw new Error(`PriceOracle owner ${ownerAddr} is neither the deployer nor the desk operator`);
       const { createWalletClient, http } = await import('viem');
       const { baseSepolia } = await import('viem/chains');
       const w = createWalletClient({ chain: baseSepolia, transport: http(s.baseRpc), account: owner });
