@@ -48,6 +48,8 @@ public final class EvmConnection implements Connection {
         c.setReadTimeout(60_000);
         c.setDoOutput(true);
         c.setRequestProperty("content-type", "application/json");
+        // Cloudflare in front of the public Base Sepolia RPCs refuses Java's default "Java/1.8.0_x" (error 1010).
+        c.setRequestProperty("user-agent", "praetor-evm-stub/1.0");
         try (OutputStream out = c.getOutputStream()) {
             out.write(body);
         }

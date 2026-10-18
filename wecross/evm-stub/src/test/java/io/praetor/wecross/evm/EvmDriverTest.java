@@ -40,6 +40,7 @@ public class EvmDriverTest {
     private final List<String> methods = new ArrayList<>();
     private final List<String> sentRaw = new ArrayList<>();
     private final List<String> blockRequests = new ArrayList<>();
+    private final List<String> userAgents = new ArrayList<>();
     private HttpServer server;
     private boolean revert;
     private EvmConfig config;
@@ -54,6 +55,7 @@ public class EvmDriverTest {
             }
             String m = req.get("method").asText();
             methods.add(m);
+            userAgents.add(ex.getRequestHeaders().getFirst("User-Agent"));
             ObjectNode out = json.createObjectNode();
             out.put("jsonrpc", "2.0");
             out.put("id", 1);
@@ -177,6 +179,20 @@ public class EvmDriverTest {
         assertEquals(1, sentRaw.size());
         assertEquals(Hex.encode(Keccak.hash(Hex.decode(sentRaw.get(0)))), r.getHash());
         assertEquals(java.util.Arrays.asList("eth_call", "eth_estimateGas", "eth_gasPrice", "eth_getTransactionCount", "eth_sendRawTransaction", "eth_getTransactionReceipt"), methods);
+    }
+
+    @Test
+    public void namesItselfToTheRpc_cloudflareRefusesJavasDefaultUserAgent() throws Exception {
+        // The public Base Sepolia RPCs answer "error code: 1010" to "Java/1.8.0_x" (D92).
+        EvmDriver d = new EvmDriver(5_000, 50);
+        await((cb) -> {
+            try {
+                d.asyncSendTransaction(context("inbox"), new TransactionRequest("deliver", new String[] {"Status", "0xab"}), true, new EvmConnection(config), cb);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        });
+        assertEquals(java.util.Collections.singleton("praetor-evm-stub/1.0"), new java.util.HashSet<>(userAgents));
     }
 
     @Test
