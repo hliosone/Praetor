@@ -6,11 +6,12 @@ import { parseAbiItem, type Address, type Hex } from 'viem';
 import { PriceOracleAbi, baseClients, baseNow, loadDeployments } from '@praetor/chain';
 import { resolveKey } from '@praetor/config';
 import { PriceSource } from '@praetor/protocol';
-import { PYTH_IDS, SEEDED, decide, normalisePyth, type Update } from './feeder.js';
+import { PYTH_IDS, SEEDED, decide, feedMode, normalisePyth, type Update } from './feeder.js';
 
 const env = z.object({
   BASE_RPC_URL: z.string().url(),
   DEPLOYMENTS_FILE: z.string(),
+  CHAIN_MODE: z.string().default('fork'),
   PYTH_API_KEY: z.string().default(''),
   PYTH_HERMES_URL: z.string().url().default('https://pyth.dourolabs.app/hermes'),
   DEMO_HOLD_S: z.coerce.number().int().default(600),
@@ -24,7 +25,8 @@ const { publicClient, walletClient } = baseClients(env.BASE_RPC_URL, resolveKey(
 const tokens: Record<keyof typeof PYTH_IDS, Address> = { XAU: d.txau, XAG: d.txag };
 const UPDATED = parseAbiItem('event PriceUpdated(address indexed token, int256 price8, uint64 publishTime, uint8 source)');
 const LOOKBACK = 5_000n;
-let lastTick = { at: 0, mode: env.PYTH_API_KEY ? 'pyth' : 'seeded', error: '' };
+const mode = feedMode({ pythKey: env.PYTH_API_KEY, chainMode: env.CHAIN_MODE });
+let lastTick = { at: 0, mode, error: '' };
 
 async function lastUpdate(token: Address): Promise<Update | null> {
   const head = await publicClient.getBlockNumber();
@@ -52,7 +54,7 @@ async function pythPrices(): Promise<Record<string, Update>> {
 
 async function tick() {
   const now = await baseNow(publicClient);
-  const next: Record<string, Update> = env.PYTH_API_KEY
+  const next: Record<string, Update> = mode === 'pyth'
     ? await pythPrices()
     : Object.fromEntries(Object.entries(SEEDED).map(([a, p]) => [a, { price8: p, publishTime: now, source: PriceSource.DEMO }]));
   for (const [asset, token] of Object.entries(tokens)) {

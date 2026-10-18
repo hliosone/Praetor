@@ -9,7 +9,7 @@ await setDemoPrices(s);
 await activateSoterAttester(s);
 await ensureDeskLiquidity(s);
 const lin = await createAccount(s, process.argv[2] ?? 'lin');
-await onboard(s, lin);
+await onboard(s, lin, undefined, { scripted: false });
 await fund(s, lin);
 writeFileSync(`${root}.run/seed.json`, JSON.stringify({ account: lin.address, ownerPasskeyLabel: `praetor-demo-owner-${process.argv[2] ?? 'lin'}` }, null, 2));
 console.log(`seeded ${lin.address}`);

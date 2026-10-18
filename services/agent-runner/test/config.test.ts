@@ -10,11 +10,16 @@ describe('opencode.json per account', () => {
     expect(c.permission['praetor_*']).toBe('allow');
     expect(c.model).toBe('opencode/deepseek-v4.1-flash-free');
   });
-  it('denies the interactive built-ins (question, plan mode) after the "*" rule: OpenCode takes the last match (issue #5)', () => {
+  it('takes out of the model\'s tool list the tools whose permission request can carry an undefined field, or that wait on a person (RT-84, RT-05, issue #5)', () => {
+    // OpenCode 1.19 cannot list pending permissions once one has an undefined metadata field (webfetch's timeout,
+    // glob's and grep's path), so the runner rejects nothing and the turn hangs. question waits for an answer the chat
+    // never shows; plan_enter/plan_exit switch modes. OpenCode drops a tool whose last matching rule is a "*" deny;
+    // the rule must come after the "*" ask to win. Denying every built-in tool is not possible: the free tier refuses
+    // requests without them (V6).
     const c = opencodeConfig(base);
-    expect(c.permission).toEqual({ '*': 'ask', question: 'deny', plan_enter: 'deny', plan_exit: 'deny', 'praetor_*': 'allow' });
+    expect(c.permission).toEqual({ '*': 'ask', webfetch: 'deny', websearch: 'deny', glob: 'deny', grep: 'deny', lsp: 'deny', question: 'deny', plan_enter: 'deny', plan_exit: 'deny', 'praetor_*': 'allow' });
     const keys = Object.keys(c.permission);
-    expect(keys.indexOf('question')).toBeGreaterThan(keys.indexOf('*'));
+    for (const t of ['webfetch', 'websearch', 'glob', 'grep', 'lsp', 'question', 'plan_enter', 'plan_exit']) expect(keys.indexOf(t), t).toBeGreaterThan(keys.indexOf('*'));
     expect(JSON.parse(JSON.stringify(c)).permission.question).toBe('deny');
   });
   it('passes the MCP bearer only through an env substitution: the file holds no token', () => {

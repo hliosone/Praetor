@@ -8,6 +8,12 @@ export const PYTH_IDS = {
   XAG: '0xf2fb02c32b055c805e7238d628e5e9dadef274376114eb1f012337cabe93871e',
 } as const;
 
+/** Pyth only on live Base Sepolia with a key (D89): the fork keeps the demo prices its tests set, which the oracle
+ *  could not take back after real ones (more than 25% apart). */
+export function feedMode(o: { pythKey: string; chainMode: string }): 'pyth' | 'seeded' {
+  return o.pythKey && o.chainMode === 'live' ? 'pyth' : 'seeded';
+}
+
 /** Seeded mode (Q27): the demo prices of spec 00, 8 decimals. */
 export const SEEDED = { XAU: 265_000_000_000n, XAG: 3_112_000_000n } as const;
 

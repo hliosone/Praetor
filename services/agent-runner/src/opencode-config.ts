@@ -1,12 +1,15 @@
 // Per-account OpenCode configuration and prompts (spec 05, Q34). The built-in tools stay advertised (the free tier
 // refuses requests without them, V6) but every call to them asks for permission, which the runner rejects at once;
 // only the praetor_* MCP tools run. The MCP bearer reaches OpenCode through {env:...}: the file holds no secret.
-// The interactive built-ins are denied outright (issue #5): `question` waits for an answer the chat never shows, and
-// plan_enter/plan_exit switch modes. OpenCode evaluates rules last match wins, so the denies come after "*"; a tool
-// whose last rule is a "*" deny is dropped from the request, which also stops the model calling it.
+// Some built-ins are denied outright, which takes them out of the model's tool list: OpenCode 1.19 cannot list
+// pending permissions once one carries an undefined field (webfetch's timeout, glob's and grep's path, websearch's
+// options, lsp's), so none would be rejected and the turn would hang (RT-84, RT-05); the interactive built-ins
+// (issue #5): `question` waits for an answer the chat never shows, and plan_enter/plan_exit switch modes. OpenCode
+// evaluates rules last match wins, so the denies come after "*"; a tool whose last rule is a "*" deny is dropped
+// from the request, which also stops the model calling it.
 
-/** Built-ins that would wait on a person (or change the agent's mode) instead of answering a permission request. */
-export const DENIED_TOOLS = ['question', 'plan_enter', 'plan_exit'] as const;
+/** Built-ins whose permission request breaks OpenCode's list, or that would wait on a person (or change the agent's mode). */
+export const DENIED_TOOLS = ['webfetch', 'websearch', 'glob', 'grep', 'lsp', 'question', 'plan_enter', 'plan_exit'] as const;
 
 export function opencodeConfig(o: { account: string; model: string; mcpUrl: string; fakeLlmUrl?: string }) {
   return {

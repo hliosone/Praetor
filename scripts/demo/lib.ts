@@ -271,7 +271,7 @@ export const demoPerson = (label: string) => ({ fullName: `Demo Person ${label}`
  * verified by the bank, the agent's WeID, the AgentMandate signed with the owner's passkey and countersigned, the KYA
  * the bank builds from all that, then the policy (bank check + owner + bank) and the agent key (owner + bank).
  */
-export async function onboard(s: Stack, acc: Account, policy: Policy = linPolicy(s, 0n), o: { userRef?: string; label?: string } = {}): Promise<void> {
+export async function onboard(s: Stack, acc: Account, policy: Policy = linPolicy(s, 0n), o: { userRef?: string; label?: string; scripted?: boolean } = {}): Promise<void> {
   const now = await baseNow(pub(s));
   const agent = acc.agent;
   const userRef = o.userRef ?? `seed-${acc.address.slice(2).toLowerCase()}`;
@@ -299,8 +299,9 @@ export async function onboard(s: Stack, acc: Account, policy: Policy = linPolicy
   await ownerAction(s, acc, { kind: K.SET_POLICY, account: acc.address, policy: p }, check.fiscoRef);
   await ownerAction(s, acc, { kind: K.SET_AGENT_KEY, account: acc.address, agentKey: agent, validUntil: Number(now + 2_592_000n) });
   // Automated tests: the agent runs the scripted model with nothing queued until a test queues its steps, so a band
-  // wake right after funding never has the real model act on a test account (as onboardViaApi does).
-  await scriptAgent(s, acc.address, []);
+  // wake right after funding never has the real model act on a test account (as onboardViaApi does). The demo and the
+  // real-model smoke pass scripted: false: the real model is the product.
+  if (o.scripted !== false) await scriptAgent(s, acc.address, []);
 }
 
 const fiat = parseAbi(['function masterMinter() view returns (address)', 'function configureMinter(address,uint256) returns (bool)', 'function mint(address,uint256) returns (bool)']);
@@ -335,7 +336,9 @@ export async function fund(s: Stack, acc: Account, usdc = 5_300_000_000n, xauUsd
   const p = pub(s);
   await mintUsdc(s, acc.address, usdc);
   const desk = createWalletClient({ chain: baseSepolia, transport: http(s.baseRpc), account: privateKeyToAccount(localKey(s, 'DESK_OPERATOR_KEY')) });
-  for (const [token, usd6, price] of [[s.base.txau, xauUsd6, 265_000_000_000n], [s.base.txag, xagUsd6, 3_112_000_000n]] as const) {
+  for (const [token, usd6, seeded] of [[s.base.txau, xauUsd6, 265_000_000_000n], [s.base.txag, xagUsd6, 3_112_000_000n]] as const) {
+    // On live the oracle holds Pyth prices (D89): value the metals at them, so the account starts at its targets.
+    const price = s.set === 'LIVE' ? ((await p.readContract({ address: s.base.priceOracle, abi: PriceOracleAbi, functionName: 'getPrice', args: [token] })) as readonly [bigint, bigint])[0] : seeded;
     await p.waitForTransactionReceipt({ hash: await desk.writeContract({ address: token, abi: PraetorTokenAbi, functionName: 'mint', args: [acc.address, usd6 * 10n ** 20n / price], chain: baseSepolia }) });
   }
 }

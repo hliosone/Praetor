@@ -56,6 +56,10 @@ services:
     image: caddy:2.10.2-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
     profiles: [core]
     ports: ['80:80', '443:443']
+    # The Caddyfile's hash (scripts/dev/compose-env.sh): a changed file recreates the container, since the single-file
+    # mount keeps showing the old file once git replaces it.
+    labels:
+      praetor.caddyfile-sha: ${CADDYFILE_SHA}
     environment:
       PUBLIC_HOST: ${PUBLIC_HOST}
     volumes:
@@ -478,10 +482,11 @@ services:
       BASE_RPC_URL: ${BASE_RPC_URL}
       DEPLOYMENTS_FILE: /app/${DEPLOYMENTS_FILE}
       ORACLE_FEEDER_KEY: ${ORACLE_FEEDER_KEY}
+      CHAIN_MODE: ${CHAIN_MODE}
       PYTH_API_KEY: ${PYTH_API_KEY}
       PYTH_HERMES_URL: ${PYTH_HERMES_URL}
       DEMO_HOLD_S: ${DEMO_HOLD_S}
-      FEED_INTERVAL_S: 60
+      FEED_INTERVAL_S: ${FEED_INTERVAL_S}
     volumes:
       - ./deployments:/app/infra/deployments:ro
     networks:
@@ -510,7 +515,8 @@ services:
       SIGNER_HMAC_MCP: ${SIGNER_HMAC_MCP}
       INTERNAL_TOKEN_MCP: ${INTERNAL_TOKEN_MCP}
       INTERNAL_TOKEN_API: ${INTERNAL_TOKEN_API}
-      AGENT_SUBNET: 10.90.0.0/24
+      # agent-runner's address alone: the agent network also holds the Docker host's bridge gateway (10.90.0.1).
+      AGENT_SUBNET: 10.90.0.10/32
       PUBLIC_URL: ${PUBLIC_URL}
       SESSION_SECRET: ${SESSION_SECRET}
       API_URL: http://api:3200

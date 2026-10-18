@@ -7,7 +7,7 @@ await bootstrapConsortium(s);
 await setDemoPrices(s);
 await ensureDeskLiquidity(s);
 const acc = await createAccount(s, `smoke-${Date.now()}`);
-await onboard(s, acc);
+await onboard(s, acc, undefined, { scripted: false });
 await fund(s, acc);
 await setPayeeLabels(s, acc.address, [{ address: labelAddress('cafe'), label: 'Café Lumen' }]);
 const t0 = Date.now();

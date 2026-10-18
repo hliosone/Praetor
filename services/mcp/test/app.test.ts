@@ -35,6 +35,10 @@ describe('subnet check', () => {
     expect(inSubnet('10.88.0.7', '10.90.0.0/24')).toBe(false);
     expect(inSubnet(undefined, '10.90.0.0/24')).toBe(false);
   });
+  it('a /32 admits agent-runner alone, not the Docker host\'s bridge gateway (red team D62)', () => {
+    expect(inSubnet('10.90.0.10', '10.90.0.10/32')).toBe(true);
+    expect(inSubnet('10.90.0.1', '10.90.0.10/32')).toBe(false);
+  });
 });
 
 describe('resubmission of an approved call (F6 step 8)', () => {

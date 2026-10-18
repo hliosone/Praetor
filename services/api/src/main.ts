@@ -62,6 +62,9 @@ const env = z.object({
 }).parse(process.env);
 
 const log = pino();
+// Mini program sign-in (spec 05): MP_APPID / MP_SECRET, or the local fake with SOTER_FAKE_TENCENT=1. Read before any
+// connection, so prod refuses the fake Tencent even when MySQL or the chain is unreachable (I13).
+const mpWechat = mpWechatConfig(process.env);
 const d = loadDeployments(env.DEPLOYMENTS_FILE);
 const { publicClient: pub } = baseClients(env.BASE_RPC_URL);
 const conn = connect({ host: env.MYSQL_HOST, user: 'api', password: env.MYSQL_PASSWORD_API, database: 'api' });
@@ -123,8 +126,6 @@ const approvals = new Approvals({
     return { success: r.ok && j.success === true, txHash: j.txHash ?? null };
   },
 });
-// Mini program sign-in (spec 05): MP_APPID / MP_SECRET, or the local fake with SOTER_FAKE_TENCENT=1 (refused in prod).
-const mpWechat = mpWechatConfig(process.env);
 const bindingOf = async (account: Address) => (await pub.readContract({ address: d.mandateHook, abi: MandateHookAbi, functionName: 'bindingOf', args: [account] })) as Hex;
 const mpSessions = new MpSessions({ secret: env.SESSION_SECRET, appId: mpWechat.appId, code2session: mpWechat.resolve, bindings: new MySqlMpBindingStore(conn.runner), bindingOf });
 if (!mpWechat.resolve) log.warn('mini program sign-in disabled: set MP_APPID and MP_SECRET (or SOTER_FAKE_TENCENT=1 locally)');
