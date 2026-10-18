@@ -9,3 +9,4 @@ export * from './auth.js';
 export * from './audit.js';
 export * from './events.js';
 export * from './push.js';
+export * from './explorer.js';

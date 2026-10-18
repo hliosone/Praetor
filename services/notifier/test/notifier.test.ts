@@ -15,6 +15,8 @@ describe('messages (spec 05 notifier wording)', () => {
   it('a T1 rebalance or payment is reported once', () => {
     expect(decisionText({ kind: 'rebalance', usd: '650.00', asset: 'gold', txHash: '0xbb', explorer: 'https://x' })).toBe('Agent sold 650.00 USD of gold. https://x/tx/0xbb');
     expect(decisionText({ kind: 'payment', usd: '12.50', asset: 'USDC', txHash: '0xcc', explorer: 'https://x' })).toBe('Agent paid 12.50 USDC. https://x/tx/0xcc');
+    // The local fork has no public explorer (issue #9): the hash, marked local.
+    expect(decisionText({ kind: 'payment', usd: '12.50', asset: 'USDC', txHash: '0xcc', explorer: null })).toBe('Agent paid 12.50 USDC. tx 0xcc (local fork, no public explorer)');
   });
 });
 

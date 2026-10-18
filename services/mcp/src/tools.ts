@@ -4,7 +4,7 @@
 // data (I9): nothing here reads any.
 import { encodeFunctionData, erc20Abi, getAddress, isAddress, type Address, type Hex } from 'viem';
 import { TreasuryDeskAbi } from '@praetor/chain';
-import { PriceSource, REASONS, STATUSES, TIERS, Reason, Tier, type Policy } from '@praetor/protocol';
+import { PriceSource, REASONS, STATUSES, TIERS, Reason, Tier, txText, type Policy } from '@praetor/protocol';
 
 export type Call = { to: Address; value: bigint; data: Hex };
 export type Verdict = { reason: number; tier: number; callHash: Hex };
@@ -14,7 +14,8 @@ export type ActivityItem = { kind: 'decision' | 'refusal'; reason: string; tier:
 
 export type Ports = {
   tokens: { usdc: Address; txau: Address; txag: Address; desk: Address };
-  explorer: string;
+  /** Explorer base URL; null on the local fork, where tx are shown as hashes (issue #9). */
+  explorer: string | null;
   reader: {
     balances(account: Address): Promise<Record<string, bigint>>;
     price(token: Address): Promise<PriceInfo>;
@@ -77,7 +78,7 @@ export class PraetorTools {
     return l === this.p.tokens.txau.toLowerCase() ? 'tXAU' : l === this.p.tokens.txag.toLowerCase() ? 'tXAG' : 'USDC';
   }
 
-  private tx = (h: Hex | null) => (h ? `${this.p.explorer}/tx/${h}` : 'no transaction');
+  private tx = (h: Hex | null) => (h ? txText(this.p.explorer, h) : 'no transaction');
 
   async getPortfolio(): Promise<ToolResult> {
     const [balances, policy] = await Promise.all([this.p.reader.balances(this.account), this.p.reader.policy(this.account)]);

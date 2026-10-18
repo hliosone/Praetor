@@ -77,6 +77,12 @@ describe('pay', () => {
     expect(r.text).toContain(`https://sepolia.basescan.org/tx/0x${'bb'.repeat(32)}`);
   });
 
+  it('on the local fork (no explorer) reports the hash marked local, never a Basescan link (issue #9)', async () => {
+    const r = await new PraetorTools(ACCOUNT, { ...ports(), explorer: null }).pay({ payee: 'Café Lumen', amount: '12.50' });
+    expect(r.text).toContain(`tx 0x${'bb'.repeat(32)} (local fork, no public explorer)`);
+    expect(r.text).not.toContain('basescan');
+  });
+
   it('T0: still submits (on-chain evidence), then reports a final refusal with the reason and both links', async () => {
     verdict = { reason: Reason.SANCTIONED, tier: Tier.T0_NEVER };
     const r = await tools().pay({ payee: BAD, amount: '5000' });

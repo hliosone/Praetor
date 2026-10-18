@@ -9,6 +9,7 @@ import { AuditLogAbi, fiscoClients } from '@praetor/fisco-client';
 import { AnchorAbi, MandateHookAbi, PasskeyValidatorAbi, StandingOrdersAbi, accountReader, baseClients, baseNow, loadDeployments } from '@praetor/chain';
 import { connect, loadMigrations, migrate } from '@praetor/db';
 import { prepareAccount } from '@praetor/userop';
+import { BASESCAN_SEPOLIA, explorerFor } from '@praetor/protocol';
 import { createApiApp, HttpError } from './app.js';
 import { clients, UpstreamError } from './clients.js';
 import { Rotation } from './rotation.js';
@@ -55,6 +56,7 @@ const env = z.object({
   FISCO_DEPLOYMENTS_FILE: z.string(),
   INTERNAL_TOKEN_API: z.string().min(32),
   CHAIN_MODE: z.enum(['fork', 'live']).default('fork'),
+  EXPLORER_URL: z.string().url().default(BASESCAN_SEPOLIA),
   SANDBOX_ENABLED: z.enum(['0', '1', '']).default('0').transform((v) => v === '1'),
   SANDBOX_RATE_LIMIT_PER_HOUR: z.coerce.number().int().positive().default(3),
   VAPID_PUBLIC: z.string().default(''),
@@ -196,6 +198,8 @@ const config = {
   treasuryDesk: d.treasuryDesk, payoutRail: d.payoutRail,
   // The web app subscribes its service worker to push with this key (VAPID, RFC 8292).
   vapidPublic: env.VAPID_PUBLIC,
+  // Transaction links in the web app and the mini program: null on the local fork, which no explorer knows (issue #9).
+  explorer: explorerFor(env.CHAIN_MODE, env.EXPLORER_URL),
 };
 const push = new MySqlPushStore(conn.runner);
 const MEMBERS = { bank: env.BANK_URL, regulator: env.REGULATOR_URL, operator: env.OPERATOR_URL } as const;

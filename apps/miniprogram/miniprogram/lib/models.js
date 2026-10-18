@@ -19,12 +19,14 @@ function pill(lang, status) {
   return { cls: p.cls, label: i18n.t(lang, p.key), heartbeat: i18n.t(lang, p.heartbeat.expired ? 'status.heartbeatAgo' : 'status.heartbeatLeft', { d }), frozen: p.frozen };
 }
 
-function activityRows(lang, items) {
+function activityRows(lang, items, explorer) {
   return items.map((it) => {
     const tier = badges.tierBadge(it.tier);
     return {
       cls: badges.outcome(it), tier: tier.label, tierText: i18n.t(lang, tier.key), text: reasonText(lang, it.reason),
-      amount: it.valueUsd6 ? format.usd(it.valueUsd6) : '', target: format.shortAddress(it.target), tx: it.txHash, url: format.txUrl(it.txHash),
+      amount: it.valueUsd6 ? format.usd(it.valueUsd6) : '', target: format.shortAddress(it.target), tx: it.txHash, url: format.txUrl(it.txHash, explorer),
+      // On the local fork there is no explorer to link to: the row says so instead (issue #9).
+      local: !!it.txHash && !explorer,
     };
   });
 }
@@ -44,7 +46,7 @@ function homeModel(lang, r) {
     assets: r.portfolio.assets.map((a) => ({ symbol: a.symbol, weight: format.pct(a.weightBps), value: format.usd(a.valueUsd6), demo: !!a.demoPrice })),
     pill: { cls: p.cls, label: p.label, heartbeat: p.heartbeat },
     frozen: p.frozen,
-    decisions: activityRows(lang, r.activity.items),
+    decisions: activityRows(lang, r.activity.items, r.config && r.config.explorer),
     pending: pendingRows(lang, r.approvals.approvals, r.config),
   };
 }
