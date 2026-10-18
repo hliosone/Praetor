@@ -3,6 +3,7 @@ import pino from 'pino';
 import { z } from 'zod';
 import { parseAbiItem, type Address } from 'viem';
 import { baseClients, loadDeployments } from '@praetor/chain';
+import { explorerUrl } from '@praetor/config';
 import { Tier } from '@praetor/protocol';
 import { createNotifierApp, recoveryText, refusalText, type Channel } from './app.js';
 import { webPushChannel, type PushSubscription } from './webpush.js';
@@ -16,9 +17,11 @@ const env = z.object({
   VAPID_PUBLIC: z.string().default(''),
   VAPID_PRIVATE: z.string().default(''),
   VAPID_SUBJECT: z.string().default('mailto:team@praetor.localhost'),
+  CHAIN_MODE: z.enum(['fork', 'live']).default('fork'),
   EXPLORER_URL: z.string().url().default('https://sepolia.basescan.org'),
   PORT: z.coerce.number().int().default(3210),
 }).parse(process.env);
+const explorer = explorerUrl(env);
 
 const log = pino();
 // WeChat OA template messages need the OA test account and the user's OA openid (Phase C, B2): until they are sent for
@@ -62,8 +65,8 @@ setInterval(() => {
     for (const l of logs) {
       const tier = Number(l.args.tier);
       if (tier === Tier.T2_HUMAN) continue; // approvals are notified by the api with their request
-      await notify(l.args.account as Address, 'refusal', refusalText({ reason: Number(l.args.reason), tier, target: String(l.args.target), txHash: l.transactionHash, explorer: env.EXPLORER_URL }));
+      await notify(l.args.account as Address, 'refusal', refusalText({ reason: Number(l.args.reason), tier, target: String(l.args.target), txHash: l.transactionHash, explorer }));
     }
-    for (const l of recoveries) await notify(l.args.account as Address, 'recovery', recoveryText({ executableAt: l.args.executableAt!, txHash: l.transactionHash, explorer: env.EXPLORER_URL }));
+    for (const l of recoveries) await notify(l.args.account as Address, 'recovery', recoveryText({ executableAt: l.args.executableAt!, txHash: l.transactionHash, explorer }));
   })().catch((e) => log.error({ error: (e as Error).message.split('\n')[0] }, 'watch failed'));
 }, 3000);

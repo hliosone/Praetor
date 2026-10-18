@@ -18,6 +18,16 @@ describe('messages (spec 05 notifier wording)', () => {
   });
 });
 
+describe('messages on the local fork (#9)', () => {
+  it('give the bare hash and say there is no explorer link, instead of a BaseScan page that does not exist', () => {
+    const fork = ' (local fork, no public explorer link)';
+    expect(refusalText({ reason: Reason.SANCTIONED, tier: Tier.T0_NEVER, target: '0x0000000000000000000000000000000000000bad', txHash: '0xaa', explorer: null }))
+      .toBe(`Blocked: payee on the sanctions list. 0xaa${fork}`);
+    expect(recoveryText({ executableAt: 1_800_172_800n, txHash: '0xdd', explorer: null })).toMatch(new RegExp(`passkeys\\. 0xdd \\(local fork, no public explorer link\\)$`));
+    expect(decisionText({ kind: 'payment', usd: '12.50', asset: 'USDC', txHash: '0xcc', explorer: null })).toBe(`Agent paid 12.50 USDC. 0xcc${fork}`);
+  });
+});
+
 describe('notifier API', () => {
   const sent: { channel: string; to: string; text: string }[] = [];
   const app = createNotifierApp({

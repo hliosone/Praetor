@@ -84,7 +84,7 @@ describe('infra/compose.yml', () => {
   });
 
   it('services that show transaction links know the chain mode: no BaseScan link for a fork transaction (#9)', () => {
-    for (const s of ['api', 'mcp']) {
+    for (const s of ['api', 'mcp', 'notifier']) {
       expect(compose.services[s]!.environment!.CHAIN_MODE, s).toBe('${CHAIN_MODE}');
       expect(read(`services/${s}/src/main.ts`), s).toMatch(/explorerUrl\(env\)/);
     }

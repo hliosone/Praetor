@@ -460,6 +460,8 @@ services:
       VAPID_PUBLIC: ${VAPID_PUBLIC}
       VAPID_PRIVATE: ${VAPID_PRIVATE}
       VAPID_SUBJECT: ${VAPID_SUBJECT}
+      # Transaction links in the messages: BaseScan when live, none on the fork (#9).
+      CHAIN_MODE: ${CHAIN_MODE}
     volumes:
       - ./deployments:/app/infra/deployments:ro
     networks:

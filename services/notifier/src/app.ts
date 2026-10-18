@@ -21,19 +21,22 @@ const PHRASES: Partial<Record<(typeof REASONS)[number], string>> = {
   STALE_STATUS: 'operator heartbeat missing',
 };
 
-export function refusalText(r: { reason: number; tier: number; target: string; txHash: string; explorer: string }): string {
+/** A transaction on the explorer; on the local fork (no explorer) the bare hash, since BaseScan never saw it (#9). */
+const txRef = (explorer: string | null, txHash: string) => (explorer ? `${explorer}/tx/${txHash}` : `${txHash} (local fork, no public explorer link)`);
+
+export function refusalText(r: { reason: number; tier: number; target: string; txHash: string; explorer: string | null }): string {
   const name = REASONS[r.reason];
-  return `Blocked: ${(name && PHRASES[name]) ?? name ?? 'refused'}. ${r.explorer}/tx/${r.txHash}`;
+  return `Blocked: ${(name && PHRASES[name]) ?? name ?? 'refused'}. ${txRef(r.explorer, r.txHash)}`;
 }
 
 /** A recovery the bank scheduled (F10): the 48 h delay protects the owner only if the owner hears of it in time. */
-export function recoveryText(r: { executableAt: bigint; txHash: string; explorer: string }): string {
+export function recoveryText(r: { executableAt: bigint; txHash: string; explorer: string | null }): string {
   const at = new Date(Number(r.executableAt) * 1000).toISOString().slice(0, 16).replace('T', ' ');
-  return `Recovery of your account scheduled: your passkeys will be replaced after ${at} UTC. Not you? Cancel it now in Settings with one of your passkeys. ${r.explorer}/tx/${r.txHash}`;
+  return `Recovery of your account scheduled: your passkeys will be replaced after ${at} UTC. Not you? Cancel it now in Settings with one of your passkeys. ${txRef(r.explorer, r.txHash)}`;
 }
 
-export function decisionText(d: { kind: 'rebalance' | 'payment'; usd: string; asset: string; txHash: string; explorer: string }): string {
-  return d.kind === 'rebalance' ? `Agent sold ${d.usd} USD of ${d.asset}. ${d.explorer}/tx/${d.txHash}` : `Agent paid ${d.usd} USDC. ${d.explorer}/tx/${d.txHash}`;
+export function decisionText(d: { kind: 'rebalance' | 'payment'; usd: string; asset: string; txHash: string; explorer: string | null }): string {
+  return d.kind === 'rebalance' ? `Agent sold ${d.usd} USD of ${d.asset}. ${txRef(d.explorer, d.txHash)}` : `Agent paid ${d.usd} USDC. ${txRef(d.explorer, d.txHash)}`;
 }
 
 export function createNotifierApp(d: { token: string; channels: Channel[]; outboxSize?: number }) {
