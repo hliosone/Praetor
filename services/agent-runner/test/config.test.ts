@@ -51,6 +51,9 @@ describe('prompts', () => {
     expect(md).toMatch(/the consortium \(bank, regulator, operator\), where one member can freeze or restrict and lifting needs two of the three; the owner cannot/);
     expect(md).toMatch(/Never give a cause that no tool returned: if no tool says why, say you do not know/);
   });
+  it('AGENTS.md: spending is quoted from get_mandate, never estimated (#7)', () => {
+    expect(md).toMatch(/Numbers come from the tools: quote what was spent from get_mandate and balances from get_portfolio\. Never estimate or add up amounts yourself/);
+  });
   it('AGENTS.md has no em dash', () => {
     expect(AGENTS_MD).not.toContain(String.fromCharCode(0x2014));
   });
