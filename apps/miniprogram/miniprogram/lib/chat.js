@@ -21,6 +21,8 @@ function parseSse(text) {
   return { text: '', tools: [] };
 }
 
+// No chip names a payee: a new account has none, so "Pay the café 12.50" was a dead end (issue #10). The pay chip asks
+// who the agent can pay, which get_mandate answers on any account.
 function chips(lang) {
   return ['doing', 'pay', 'rebalance'].map((key) => ({ key, text: i18n.t(lang, `chat.chips.${key}`) }));
 }

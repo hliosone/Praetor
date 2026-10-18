@@ -17,7 +17,7 @@ describe('chat', () => {
     }) });
     await launch(wx);
     const p = await start(page('chat'));
-    expect(p.data.chips.map((c) => c.text)).toEqual(['How am I doing?', 'Pay the café 12.50', 'Should I rebalance?']);
+    expect(p.data.chips.map((c) => c.text)).toEqual(['How am I doing?', 'Who can you pay without asking me?', 'Should I rebalance?']);
     await p.sendChip({ currentTarget: { dataset: { text: 'How am I doing?' } } });
     expect(asked).toEqual(['How am I doing?']);
     expect(p.data.messages).toEqual([
