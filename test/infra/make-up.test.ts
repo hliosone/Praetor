@@ -62,4 +62,15 @@ describe('make up on a fresh clone (#11)', () => {
     // A directory an earlier run left owned by root: stop with the fix instead of a vite EACCES later.
     expect(up[at + 1]).toMatch(/\[ -w "\$\$d" \]/);
   });
+
+  it('wecross-setup says why it failed: an unwritable /data, else the failing line and the build tools\' output', () => {
+    const sh = read('infra/wecross/entrypoint.sh');
+    expect(sh).toMatch(/^\s+\[ -w \/data \] \|\| \{ echo "wecross: \/data \(infra\/wecross\/generated\) is not writable/m);
+    // -E: the trap also fires inside setup(), a function. $BASH_COMMAND is the unexpanded text: no key in the log.
+    expect(sh).toMatch(/^set -Eeuo pipefail$/m);
+    expect(sh).toMatch(/^trap '[^']*\$LINENO: \$BASH_COMMAND[^']*tail -n 20 "\$LOG"[^']*' ERR$/m);
+    expect(sh).not.toMatch(/^\s*set -[a-zA-Z]*x/m);
+    // build_wecross.sh and add_chain.sh print their errors on stdout, which went to /dev/null.
+    for (const tool of ['build_wecross.sh', 'add_chain.sh']) expect(sh).toMatch(new RegExp(`bash ${tool} [^\\n]*>>"\\$LOG"$`, 'm'));
+  });
 });
