@@ -1,14 +1,15 @@
 // Onboarding (spec 06 F1, spec 07): passkey, wallet, KYC, suitability, the agent key in the TEE, the AgentMandate
 // signed with the passkey, the agent key installed, then a first policy. One primary button per step; every
-// signature is the passkey's over a digest this page shows.
+// signature is the passkey's over a digest this page shows. A signed-in account resumes at its first unfinished step,
+// which the api derives from the bank and Base: a phone may discard this tab while the KYC runs in another one.
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { encodePolicy, OwnerActionKind as K } from '@praetor/protocol';
 import { useI18n } from '../i18n/index.js';
 import { Topbar } from '../components/Layout.js';
-import { api, type Prepared } from '../lib/api.js';
+import { api, type Me, type Prepared } from '../lib/api.js';
 import { assertDigest, signAndSubmit, signUp } from '../lib/passkey.js';
-import { installAgent, type MandateDraft, type NewAgent as Agent } from '../lib/agent.js';
+import { installAgent, setAgentKey, type MandateDraft, type NewAgent as Agent } from '../lib/agent.js';
 import { defaultPolicy, policyFromJson, type Config } from '../lib/policy.js';
 
 const STEPS = ['passkey', 'account', 'kyc', 'suitability', 'agent', 'mandate', 'policy'] as const;
@@ -19,7 +20,8 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export function Onboarding() {
   const { t } = useI18n();
   const nav = useNavigate();
-  const [step, setStep] = useState<Step>('passkey');
+  // Unknown until the api says where this account stands: nothing to click before that.
+  const [step, setStep] = useState<Step>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [email, setEmail] = useState('');
@@ -29,6 +31,8 @@ export function Onboarding() {
   const [profile, setProfile] = useState<string>();
   const [agent, setAgent] = useState<Agent>();
   const [draft, setDraft] = useState<MandateDraft>();
+  // Resumed after the AgentMandate reached Base: the KYA's agent key, still to be installed.
+  const [kyaKey, setKyaKey] = useState<`0x${string}`>();
 
   const run = (fn: () => Promise<void>) => async () => {
     setBusy(true);
@@ -36,20 +40,44 @@ export function Onboarding() {
     try { await fn(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   };
 
-  // KYC: the provider decides in its own page; this page follows the decision.
+  // Without a session, onboarding starts with the passkey; with one, at the account's first unfinished step.
   useEffect(() => {
-    if (step !== 'kyc' || !kycUrl) return;
+    let live = true;
+    void (async () => {
+      const me = await api<Me>('GET', '/me').catch(() => null);
+      if (!live) return;
+      if (!me) { setStep('passkey'); return; }
+      try {
+        const { step: next } = await api<{ step: Step }>('GET', '/onboarding/step');
+        const kya = next === 'mandate' ? (await api<{ agentKey: `0x${string}` }>('GET', '/agent')).agentKey : undefined;
+        if (!live) return;
+        setAccount(me.account);
+        setKyaKey(kya);
+        setStep(next);
+      } catch (e) {
+        if (live) setError((e as Error).message);
+      }
+    })();
+    return () => { live = false; };
+  }, []);
+
+  // KYC: the provider decides in its own page, in another tab; this page follows the bank's decision, also after a
+  // reload that lost the session it started.
+  useEffect(() => {
+    if (step !== 'kyc') return;
     let live = true;
     void (async () => {
       while (live) {
         const s = await api<{ state: string; reason?: string }>('GET', '/onboarding/kyc/status').catch(() => null);
-        if (s?.state === 'verified') { setStep('suitability'); return; }
-        if (s?.state === 'rejected') { setError(`KYC rejected: ${s.reason ?? ''}`); return; }
+        if (!live) return;
+        if (s?.state === 'verified' || s?.state === 'issued') { setError(undefined); setStep(s.state === 'verified' ? 'suitability' : 'agent'); return; }
+        // The bank keeps a rejection until a new session is decided: keep following a retry.
+        if (s?.state === 'rejected') setError(`KYC rejected: ${s.reason ?? ''}`);
         await sleep(2000);
       }
     })();
     return () => { live = false; };
-  }, [step, kycUrl]);
+  }, [step]);
 
   const idx = STEPS.indexOf(step as never);
   return (
@@ -61,6 +89,7 @@ export function Onboarding() {
           {STEPS.map((s, i) => <span key={s} aria-current={s === step ? 'step' : undefined} className={step === 'done' || i < idx ? 'done' : undefined}>{t(`onb.${s}`)}</span>)}
         </div>
         <section className="panel stack" style={{ maxWidth: 680 }}>
+          {step === undefined && !error && <p className="muted" role="status">{t('common.loading')}...</p>}
           {step === 'passkey' && (
             <form className="stack" onSubmit={(e) => { e.preventDefault(); void run(async () => { const r = await signUp(email); setAccount(r.account); setStep('account'); })(); }}>
               <label className="field">{t('onb.email')}<input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" /></label>
@@ -131,6 +160,16 @@ export function Onboarding() {
               <p className="muted small">{t('onb.review')}: <span className="mono">{draft.challenge}</span></p>
               <button className="primary" disabled={busy} onClick={run(async () => {
                 await installAgent(agent, draft);
+                setStep('policy');
+              })}>{t('onb.sign')}</button>
+            </>
+          )}
+          {step === 'mandate' && !draft && kyaKey && (
+            <>
+              <p>{t('onb.installKey')}</p>
+              <dl className="small"><dt className="label">Agent key</dt><dd className="mono">{kyaKey}</dd></dl>
+              <button className="primary" disabled={busy} onClick={run(async () => {
+                await setAgentKey(kyaKey);
                 setStep('policy');
               })}>{t('onb.sign')}</button>
             </>
