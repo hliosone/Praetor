@@ -27,3 +27,13 @@ describe('repeat', () => {
     expect(runs).toBeGreaterThan(2);
   });
 });
+
+describe('repeat after a failure', () => {
+  it('retries a failed run after retryMs, not a whole interval (a live pass is 15 minutes apart)', async () => {
+    let runs = 0;
+    const stop = repeat(async () => { runs++; if (runs === 1) throw new Error('bundler not up yet'); }, 10_000, 5);
+    await new Promise((r) => setTimeout(r, 60));
+    stop();
+    expect(runs).toBe(2);
+  });
+});

@@ -14,6 +14,11 @@ export function feedMode(o: { pythKey: string; chainMode: string }): 'pyth' | 's
   return o.pythKey && o.chainMode === 'live' ? 'pyth' : 'seeded';
 }
 
+/** Seconds to the next tick: a failed one is retried within 30 s, since health needs a successful tick. */
+export function nextTickS(failed: boolean, everyS: number): number {
+  return failed ? Math.min(30, everyS) : everyS;
+}
+
 /** Seeded mode (Q27): the demo prices of spec 00, 8 decimals. */
 export const SEEDED = { XAU: 265_000_000_000n, XAG: 3_112_000_000n } as const;
 

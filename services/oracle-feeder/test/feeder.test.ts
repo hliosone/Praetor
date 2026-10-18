@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { decide, feedMode, normalisePyth, SEEDED } from '../src/feeder.js';
+import { decide, feedMode, nextTickS, normalisePyth, SEEDED } from '../src/feeder.js';
 import { PriceSource } from '@praetor/protocol';
 
 const NOW = 1_800_000_000n;
@@ -51,5 +51,13 @@ describe('feedMode (D89)', () => {
     // Real prices are more than 25% from the demo ones: the oracle would refuse the tests' demo prices after them.
     expect(feedMode({ pythKey: 'k', chainMode: 'fork' })).toBe('seeded');
     expect(feedMode({ pythKey: '', chainMode: 'live' })).toBe('seeded');
+  });
+});
+
+describe('nextTickS', () => {
+  it('retries a failed tick after 30 s at most, otherwise waits the interval (health needs a successful tick)', () => {
+    expect(nextTickS(false, 300)).toBe(300);
+    expect(nextTickS(true, 300)).toBe(30);
+    expect(nextTickS(true, 10)).toBe(10);
   });
 });

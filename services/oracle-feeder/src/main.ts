@@ -6,7 +6,7 @@ import { parseAbiItem, type Address, type Hex } from 'viem';
 import { PriceOracleAbi, baseClients, baseNow, loadDeployments } from '@praetor/chain';
 import { resolveKey } from '@praetor/config';
 import { PriceSource } from '@praetor/protocol';
-import { PYTH_IDS, SEEDED, decide, feedMode, normalisePyth, type Update } from './feeder.js';
+import { PYTH_IDS, SEEDED, decide, feedMode, nextTickS, normalisePyth, type Update } from './feeder.js';
 
 const env = z.object({
   BASE_RPC_URL: z.string().url(),
@@ -69,14 +69,16 @@ async function tick() {
 }
 
 async function loop() {
+  let failed = false;
   try {
     await tick();
     lastTick = { ...lastTick, at: Date.now(), error: '' };
   } catch (e) {
+    failed = true;
     lastTick = { ...lastTick, error: (e as Error).message.split('\n')[0]! };
     log.error({ error: lastTick.error }, 'tick failed');
   }
-  setTimeout(loop, env.FEED_INTERVAL_S * 1000);
+  setTimeout(loop, nextTickS(failed, env.FEED_INTERVAL_S) * 1000);
 }
 
 const app = express();

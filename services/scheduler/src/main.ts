@@ -71,6 +71,7 @@ async function checkAll() {
   } catch (e) {
     lastError = (e as Error).message.split('\n')[0]!;
     log.error({ error: lastError }, 'scheduler tick failed');
+    throw e;
   }
 }
 
@@ -118,7 +119,7 @@ async function standingOrders() {
 }
 void standingOrders();
 
-repeat(checkAll, env.PRICE_CHECK_INTERVAL_S * 1000);
+repeat(checkAll, env.PRICE_CHECK_INTERVAL_S * 1000, Math.min(env.PRICE_CHECK_INTERVAL_S, 30) * 1000);
 void watchDemo();
 
 const app = express();
