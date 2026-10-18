@@ -43,9 +43,10 @@ up: ## Start the local stack (waits for healthchecks; deploys the contracts on a
 	$(MAKE) --no-print-directory up-services
 
 up-services:
+	@# bridge-relayer stays unhealthy until the outbox has its WeCross hub: start the router and wire it before the wait.
+	@case " $(PROFILES) " in *" wecross "*) $(COMPOSE) $(PROFILE_FLAGS) up -d --wait --build wecross-router && COMPOSE="$(COMPOSE) $(PROFILE_FLAGS)" bash scripts/wecross/up.sh ;; esac
 	$(COMPOSE) $(PROFILE_FLAGS) up -d --wait --build
 	@if [ -f .run/deployments-changed ]; then $(COMPOSE) $(PROFILE_FLAGS) restart bundler bank regulator operator bridge-relayer && rm .run/deployments-changed; fi
-	@case " $(PROFILES) " in *" wecross "*) COMPOSE="$(COMPOSE) $(PROFILE_FLAGS)" bash scripts/wecross/up.sh ;; esac
 
 reset-fork: ## Fresh anvil fork, contracts and consortium redeployed, services restarted
 	$(COMPOSE) --profile dev rm -sf anvil

@@ -83,4 +83,16 @@ describe('make up on a fresh clone (#11)', () => {
     expect(fallback, 'COMPOSE from the environment, with a default for a run by hand').toBeTruthy();
     for (const p of ['core', 'chain', 'wecross']) expect(fallback).toContain(`--profile ${p}`);
   });
+
+  it('wires WeCross before it waits for the whole stack: bridge-relayer is unhealthy until the outbox has its hub', () => {
+    const lines = recipe('up-services');
+    const wire = indexOf(lines, /scripts\/wecross\/up\.sh/);
+    const wait = indexOf(lines, /^\$\(COMPOSE\) \$\(PROFILE_FLAGS\) up -d --wait --build$/);
+    expect(wire).toBeGreaterThanOrEqual(0);
+    expect(wire).toBeLessThan(wait);
+    // up.ts logs in to the router: compose starts it and waits for its healthcheck first.
+    expect(lines[wire]).toMatch(/\$\(COMPOSE\) \$\(PROFILE_FLAGS\) up -d --wait --build wecross-router && COMPOSE="[^"]+" bash scripts\/wecross\/up\.sh/);
+    // The members restart on new deployments after the wiring, so bridge-relayer reads an outbox that has its hub.
+    expect(wire).toBeLessThan(indexOf(lines, /deployments-changed/));
+  });
 });

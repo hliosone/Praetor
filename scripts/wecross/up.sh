@@ -1,6 +1,8 @@
 #!/bin/bash
-# After `make up` with the wecross profile: wire the outbox hub, the callback resource and the router's accounts
-# (scripts/wecross/up.ts, idempotent), then restart the router when its accounts changed (it reads them at login).
+# In `make up` with the wecross profile, once the router is up and before the rest of the stack is waited for
+# (bridge-relayer is unhealthy until the outbox has its hub): wire the outbox hub, the callback resource and the
+# router's accounts (scripts/wecross/up.ts, idempotent), then restart the router when its accounts changed (it reads
+# them at login).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 # make up passes its compose command and profile flags (prod file, live env); by hand, the profiles the wecross
