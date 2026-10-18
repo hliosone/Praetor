@@ -11,8 +11,9 @@ type Range = { fromBlock: bigint; toBlock: bigint };
 function node(head: bigint, limit: bigint) {
   const calls: Range[] = [];
   let heads = 0;
+  const headArgs: unknown[] = [];
   const client = {
-    getBlockNumber: async () => { heads++; return head; },
+    getBlockNumber: async (a?: unknown) => { heads++; headArgs.push(a); return head; },
     getLogs: async (p: Range & { address: Address }) => {
       calls.push({ fromBlock: p.fromBlock, toBlock: p.toBlock });
       if (typeof p.fromBlock !== 'bigint' || typeof p.toBlock !== 'bigint') throw new Error('expected numeric bounds');
@@ -22,7 +23,7 @@ function node(head: bigint, limit: bigint) {
       return logs;
     },
   };
-  return { client, calls, heads: () => heads };
+  return { client, calls, heads: () => heads, headArgs };
 }
 
 describe('Base log ranges (D98)', () => {
@@ -62,10 +63,12 @@ describe('bounded getLogs (D98)', () => {
     expect(n.heads()).toBe(0);
   });
 
-  it('resolves latest once, before the first window', async () => {
+  it('resolves latest once, before the first window, from the node and not from the client cache', async () => {
     const n = node(25_000n, 10_000n);
     const logs = await boundedGetLogs(n.client as unknown as PublicClient, 10_000n)({ address: ORACLE, event: UPDATED, fromBlock: 1n, toBlock: 'latest' });
     expect(n.heads()).toBe(1);
+    // A read right after a write must see the write's block, as `latest` sent to the node did (waitSynced does the same).
+    expect(n.headArgs).toEqual([{ cacheTime: 0 }]);
     expect(n.calls).toEqual([{ fromBlock: 1n, toBlock: 10_000n }, { fromBlock: 10_001n, toBlock: 20_000n }, { fromBlock: 20_001n, toBlock: 25_000n }]);
     expect(logs).toHaveLength(25);
   });

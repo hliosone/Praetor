@@ -33,7 +33,8 @@ export function boundedGetLogs<C extends LogsClient>(client: C, maxRange: bigint
   const bounded = async (p: Record<string, unknown> = {}) => {
     const { fromBlock, toBlock } = p;
     if (typeof fromBlock !== 'bigint' || !(typeof toBlock === 'bigint' || toBlock === 'latest' || toBlock === undefined)) return getLogs(p);
-    const to = typeof toBlock === 'bigint' ? toBlock : await (client.getBlockNumber as () => Promise<bigint>)();
+    // Uncached, like `latest` sent to the node: a read right after a write sees the write's block.
+    const to = typeof toBlock === 'bigint' ? toBlock : await (client.getBlockNumber as (a: { cacheTime: number }) => Promise<bigint>)({ cacheTime: 0 });
     const out: unknown[] = [];
     for (const [a, b] of logRanges(fromBlock, to, maxRange)) out.push(...(await getLogs({ ...p, fromBlock: a, toBlock: b })));
     return out;
