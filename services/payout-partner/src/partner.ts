@@ -4,7 +4,7 @@
 import { keccak256, toHex, type Hex } from 'viem';
 import { Rail } from '@praetor/protocol';
 
-export type Payout = { id: bigint; account: string; amount: bigint; rail: number; merchantRef: Hex; paymentRef: Hex };
+export type Payout = { id: bigint; account: string; amount: bigint; rail: number; merchantRef: Hex; paymentRef: Hex; withdrawn?: boolean };
 export type Merchant = { name: string; rail: number; mcc: string; region: string; id: string };
 export type PspResult = { state: 'SUCCESS' | 'FAIL' | 'UNKNOWN'; settlementRef?: string };
 export type Psp = {
@@ -36,7 +36,8 @@ export async function processPayout(p: Payout, d: PartnerDeps): Promise<'SETTLED
     await d.rail.fail(p.id, code(r.state === 'FAIL' ? 'PSP_FAILED' : 'PSP_UNKNOWN'));
     return 'FAILED';
   }
-  await d.rail.withdraw(p.id);
+  // Already withdrawn: a restart came between withdraw and settle; withdrawing again would revert forever.
+  if (!p.withdrawn) await d.rail.withdraw(p.id);
   await d.rail.settle(p.id, code(r.settlementRef ?? paymentRequestId));
   return 'SETTLED';
 }

@@ -35,6 +35,13 @@ describe('payout partner (spec 05 F7 steps 5-6)', () => {
     expect(calls).toEqual(['alipay:Kowloon Lettings (mock):120000:praetor-payout-7', 'withdraw:7', `settle:7:${keccak256(toHex('pay-123'))}`]);
   });
 
+  it('resumes a payout interrupted after its withdraw: the PSP (idempotent by request id) again, no second withdraw, then settle', async () => {
+    // A restart between withdraw and settle left it REQUESTED with the USDC taken: withdraw again reverts forever.
+    const { d, calls } = deps();
+    expect(await processPayout(payout({ withdrawn: true }), d)).toBe('SETTLED');
+    expect(calls).toEqual(['alipay:Kowloon Lettings (mock):120000:praetor-payout-7', `settle:7:${keccak256(toHex('pay-123'))}`]);
+  });
+
   it('PSP failure: fail (the rail refunds the account), never withdraws', async () => {
     const { d, calls } = deps('FAIL');
     expect(await processPayout(payout(), d)).toBe('FAILED');

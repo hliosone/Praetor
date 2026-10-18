@@ -48,9 +48,9 @@ async function tick() {
   const logs = await pub.getLogs({ address: d.payoutRail, event: REQUESTED, args: { partner }, fromBlock: from, toBlock: head });
   for (const l of logs) {
     const id = l.args.id!;
-    const p = (await pub.readContract({ address: d.payoutRail, abi: PayoutRailAbi, functionName: 'payoutOf', args: [id] })) as { state: number };
+    const p = (await pub.readContract({ address: d.payoutRail, abi: PayoutRailAbi, functionName: 'payoutOf', args: [id] })) as { state: number; withdrawn: boolean };
     if (Number(p.state) !== 1) continue; // only REQUESTED payouts
-    const result = await processPayout({ id, account: l.args.account!, amount: l.args.amount!, rail: Number(l.args.rail), merchantRef: l.args.merchantRef as Hex, paymentRef: l.args.paymentRef as Hex }, {
+    const result = await processPayout({ id, account: l.args.account!, amount: l.args.amount!, rail: Number(l.args.rail), merchantRef: l.args.merchantRef as Hex, paymentRef: l.args.paymentRef as Hex, withdrawn: p.withdrawn }, {
       merchant: merchantOf, psp,
       rail: { withdraw: (i) => write('withdraw', [i]), settle: (i, ref) => write('settle', [i, ref]), fail: (i, code) => write('fail', [i, code]) },
     });
