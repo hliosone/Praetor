@@ -25,6 +25,9 @@ function resolveString(s: string, vars: Vars): string {
     return (BigInt(m[1]!) * 1_000_000n + BigInt((m[2] ?? '').padEnd(6, '0'))).toString();
   }
   if (!s.startsWith('$')) return s;
+  // A URL may start with a placeholder: $apiUrl/api/me.
+  const url = /^\$([A-Za-z][A-Za-z0-9_]*)(\/.*)$/.exec(s);
+  if (url) return `${resolveString(`$${url[1]}`, vars)}${url[2]}`;
   const m = /^\$([A-Za-z][A-Za-z0-9_]*)(?:([+-])(\d+))?$/.exec(s);
   const base = m ? (vars[m[1]!] ?? CONSTANTS[m[1]!]) : undefined;
   if (!m || base === undefined) throw new Error(`unknown placeholder ${s}`);

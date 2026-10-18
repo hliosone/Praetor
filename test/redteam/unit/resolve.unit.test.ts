@@ -22,6 +22,11 @@ describe('resolveValue', () => {
   it('refuses an unknown placeholder rather than sending it as text', () => {
     expect(() => resolveValue('$nobody', vars, 0n)).toThrow(/\$nobody/);
     expect(() => resolveValue('usdc:abc', vars, 0n)).toThrow(/usdc:abc/);
+    expect(() => resolveValue('$nobody/path', vars, 0n)).toThrow(/\$nobody/);
+  });
+
+  it('a placeholder may start a URL: $apiUrl/api/me', () => {
+    expect(resolveValue('$apiUrl/api/owner-actions/prepare?x=1', { apiUrl: 'http://10.88.0.80:3200' }, 0n)).toBe('http://10.88.0.80:3200/api/owner-actions/prepare?x=1');
   });
 
   it('keeps 2^256-1 style constants: $max256 and $max64', () => {

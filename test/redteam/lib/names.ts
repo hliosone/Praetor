@@ -3,7 +3,7 @@
 
 /** Account fixtures (fixtures.ts). `fresh` is a new onboarded account for that case alone. */
 export const FIXTURES = [
-  'main', 'inj-a', 'inj-b', 'inj-label', 'limits', 'split', 'budget', 'count', 'swaps', 'rebalance2', 'shape', 'owner', 'frozen', 'bare',
+  'main', 'inj-a', 'inj-b', 'inj-c', 'inj-label', 'limits', 'split', 'budget', 'count', 'swaps', 'rebalance2', 'shape', 'owner', 'frozen', 'bare',
   'approvals', 'soter', 'payouts', 'cn', 'standing', 'web', 'fresh',
 ] as const;
 export type FixtureName = (typeof FIXTURES)[number];

@@ -26,6 +26,13 @@ const DECODE_ABI = [...MandateHookAbi, ...StandingOrdersAbi, ...PayoutRailAbi, .
 
 export type Refusal = { userOpHash: Hex; reason: ReasonName; tier: TierName; tx: Hex };
 
+/** One line about an error, with viem's details ("nonce too low"...) when it has them. */
+export function errText(e: unknown): string {
+  const x = e as { shortMessage?: string; details?: string; message?: string };
+  const head = x.shortMessage ?? (e instanceof Error ? e.message : String(e));
+  return `${head.split('\n')[0]}${x.details ? ` (${String(x.details).split('\n')[0]})` : ''}`.slice(0, 300);
+}
+
 /** The revert data carried somewhere in a viem error chain. */
 export function revertData(e: unknown): Hex | undefined {
   let cur: unknown = e;
@@ -63,7 +70,8 @@ export class Chain {
   }
 
   now = () => baseNow(this.p);
-  block = () => this.p.getBlockNumber();
+  // Never viem's cached block number: a stale head would put setup transactions inside the attack window.
+  block = () => this.p.getBlockNumber({ cacheTime: 0 });
 
   hook<T>(functionName: string, args: readonly unknown[]): Promise<T> {
     return this.p.readContract({ address: this.s.base.mandateHook, abi: MandateHookAbi, functionName: functionName as never, args: args as never }) as Promise<T>;
@@ -102,6 +110,7 @@ export class Chain {
   }
 
   async refusals(account: Address, fromBlock: bigint, toBlock: bigint): Promise<Refusal[]> {
+    if (fromBlock > toBlock) return [];
     const logs = await this.p.getLogs({ address: this.s.base.refusalLog, event: REFUSED, args: { account }, fromBlock, toBlock });
     return logs.map((l) => ({ userOpHash: l.args.userOpHash!, reason: REASONS[Number(l.args.reason)]!, tier: TIERS[Number(l.args.tier)] as TierName, tx: l.transactionHash! }));
   }

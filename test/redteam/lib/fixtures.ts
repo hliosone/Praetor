@@ -2,21 +2,26 @@
 // (scripts/demo/lib.ts), one per group of cases so state-changing attacks never share an account, plus the
 // placeholder values of each case. Accounts are new on every run (label = run tag); suite-owned consortium records
 // (a sanctioned address, a delisted dummy token, a suspended dummy partner) are made once and reused.
-import { concat, encodeAbiParameters, encodeFunctionData, encodePacked, keccak256, pad, parseAbiItem, toHex, zeroAddress, type Address, type Hex } from 'viem';
-import { MandateHookAbi, PriceOracleAbi, baseNow, loadDeployments } from '@praetor/chain';
+import {
+  concat, createWalletClient, encodeAbiParameters, encodeFunctionData, encodePacked, http, keccak256, pad, parseAbi, parseAbiItem, toHex, zeroAddress,
+  type Address, type Hex,
+} from 'viem';
+import { baseSepolia } from 'viem/chains';
+import { privateKeyToAccount } from 'viem/accounts';
+import { MandateHookAbi, PraetorTokenAbi, PriceOracleAbi, baseNow, loadDeployments } from '@praetor/chain';
 import {
   OwnerActionKind as K, ZERO_HASH, digest, merchantRef, ownerActionPayload, passkeyAuth, praetorDomain, softPasskey, soterChallenge, type Policy, type SoterApproval,
 } from '@praetor/protocol';
 import { fakeSoterSignature } from '@praetor/soter-attester';
 import { ENTRY_POINT } from '@praetor/userop';
 import {
-  PARTNER, activateSoterAttester, attesterCall, bundler, createAccount, fund, http2, kycViaVendor, labelAddress, linPolicy, onboard, openAndSign, pub, root,
+  PARTNER, activateSoterAttester, attesterCall, bundler, createAccount, http2, kycViaVendor, labelAddress, linPolicy, localKey, onboard, openAndSign, pub, root,
   scriptAgent, setPayeeLabels, stack, waitFor, type Account, type Stack,
 } from '../../../scripts/demo/lib.js';
 import { WebClient, onboardViaApi, policyJson } from '../../../scripts/demo/web.js';
 import type { Case, Driver } from './case.js';
 import type { Vars } from './resolve.js';
-import type { Chain } from './chain.js';
+import { errText, type Chain } from './chain.js';
 import type { FixtureName } from './names.js';
 
 export const runTag = process.env.REDTEAM_TAG ?? Date.now().toString(36);
@@ -36,15 +41,15 @@ export type Person = { fullName: string; birthdate: string; nationality: string;
 export type Phone = { code: string; uid: string; cpu: string };
 export type Fixture = { name: string; driver: Driver; acc: Account; vars: Vars; person?: Person; web?: WebClient; phone?: Phone };
 
-type Recipe = { kind: 'lib' | 'web' | 'bare'; funded?: boolean; frozen?: boolean; soter?: boolean; nationality?: string; policy?: (p: Policy) => Policy };
+type Recipe = { kind: 'lib' | 'web' | 'bare'; funded?: boolean; metals?: boolean; frozen?: boolean; soter?: boolean; nationality?: string; policy?: (p: Policy) => Policy };
 const LIB: Recipe = { kind: 'lib', funded: true };
 const RECIPES: Record<Exclude<FixtureName, 'fresh'>, Recipe> = {
-  main: LIB, 'inj-a': LIB, 'inj-b': LIB, 'inj-label': LIB, limits: LIB, split: LIB, budget: LIB, swaps: LIB, rebalance2: LIB, shape: LIB, owner: LIB,
+  main: LIB, 'inj-a': LIB, 'inj-b': LIB, 'inj-c': LIB, 'inj-label': LIB, limits: LIB, split: LIB, budget: LIB, swaps: LIB, rebalance2: LIB, shape: LIB, owner: LIB,
   approvals: LIB, payouts: LIB, standing: LIB,
   count: { ...LIB, policy: (p) => ({ ...p, dailyCount: 2 }) },
   frozen: { ...LIB, frozen: true },
   soter: { ...LIB, soter: true },
-  cn: { ...LIB, nationality: 'CN' },
+  cn: { ...LIB, nationality: 'CN', metals: false },
   web: { kind: 'web', funded: true },
   bare: { kind: 'bare' },
 };
@@ -108,7 +113,7 @@ export class Fixtures {
     await onboard(this.s, acc, r.policy ? r.policy(base) : base, { userRef });
     // A scheduler wake must never have the real model act on a scripted account (F9).
     if (driver === 'scripted') await scriptAgent(this.s, acc.address, []);
-    if (r.funded) await this.serial(() => fund(this.s, acc));
+    if (r.funded) await this.serial(() => this.fund(acc, r.metals !== false));
     await this.setLabels(acc.address, []);
     let phone: Phone | undefined;
     if (r.soter) {
@@ -130,9 +135,47 @@ export class Fixtures {
     const prop = await web.ok('POST', '/api/policy/propose', { policy: policyJson(p) });
     if (!(await web.ownerAction(prop)).success) throw new Error('web fixture: policy not set');
     const acc: Account = { address: web.account!, owner: web.passkey, agent };
-    await this.serial(() => fund(this.s, acc));
+    await this.serial(() => this.fund(acc, true));
     await this.setLabels(acc.address, []);
     return { name, driver, acc, person, web, vars: this.baseVars(acc.address, agent) };
+  }
+
+  /**
+   * Lin's starting portfolio (the seed's fund()), with the suite's own USDC minter (the seed's shared one is
+   * reconfigured by every other flow) and retries: the desk operator key is also used by bank-service, so a nonce may
+   * be taken under our feet.
+   */
+  private async fund(acc: Account, metals: boolean) {
+    const s = this.s;
+    const p = this.chain.p;
+    const send = async (what: string, tx: () => Promise<Hex>) => {
+      for (let i = 0; ; i++) {
+        try {
+          const r = await p.waitForTransactionReceipt({ hash: await tx() });
+          if (r.status !== 'success') throw new Error(`${what} reverted (${r.transactionHash})`);
+          return;
+        } catch (e) {
+          if (i >= 4) throw new Error(`${what}: ${errText(e)}`);
+          await new Promise((res) => setTimeout(res, 2000 * (i + 1)));
+        }
+      }
+    };
+    const fiat = parseAbi(['function masterMinter() view returns (address)', 'function configureMinter(address,uint256) returns (bool)', 'function mint(address,uint256) returns (bool)']);
+    const master = await p.readContract({ address: s.base.usdc, abi: fiat, functionName: 'masterMinter' });
+    const minter = labelAddress(`usdc-minter-redteam-${runTag}`);
+    for (const a of [master, minter]) {
+      await p.request({ method: 'anvil_impersonateAccount' as never, params: [a] as never });
+      await p.request({ method: 'anvil_setBalance' as never, params: [a, '0xde0b6b3a7640000'] as never });
+    }
+    const w = createWalletClient({ chain: baseSepolia, transport: http(s.baseRpc) });
+    const usdc = 5_300_000_000n;
+    await send('USDC minter allowance', () => w.writeContract({ address: s.base.usdc, abi: fiat, functionName: 'configureMinter', args: [minter, usdc], account: master, chain: baseSepolia }));
+    await send('USDC mint', () => w.writeContract({ address: s.base.usdc, abi: fiat, functionName: 'mint', args: [acc.address, usdc], account: minter, chain: baseSepolia }));
+    if (!metals) return;
+    const desk = createWalletClient({ chain: baseSepolia, transport: http(s.baseRpc), account: privateKeyToAccount(localKey(s, 'DESK_OPERATOR_KEY')) });
+    for (const [token, usd6, price] of [[s.base.txau, 3_200_000_000n, 265_000_000_000n], [s.base.txag, 1_500_000_000n, 3_112_000_000n]] as const) {
+      await send('metal mint', () => desk.writeContract({ address: token, abi: PraetorTokenAbi, functionName: 'mint', args: [acc.address, (usd6 * 10n ** 20n) / price], chain: baseSepolia }));
+    }
   }
 
   /** The attester TEE signs a SoterApproval for the phone's (fake Tencent) SOTER result over `d`, as the api asks it. */

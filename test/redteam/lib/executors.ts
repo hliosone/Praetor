@@ -201,8 +201,27 @@ async function chat(e: Env, i: Extract<Input, { kind: 'chat' }>): Promise<Outcom
   const account = e.fx.acc.address;
   const script = resolveValue(i.script ?? [], e.vars, now) as Parameters<typeof scriptAgent>[2];
   if (driver === 'scripted') await scriptAgent(s, account, script);
-  const t = await agentChat(s, account, resolveValue(i.message, e.vars, now) as string);
+  let t;
+  try {
+    t = await agentChat(s, account, resolveValue(i.message, e.vars, now) as string);
+  } catch (err) {
+    const hung = await hungBuiltinTool(e);
+    if (!hung) throw err;
+    return out('agent-runner', {
+      error: 'hung', detail: `the built-in tool ${hung} was neither rejected nor run: the turn timed out (agent-runner's permission rejector never answered it) and the account's agent session stays blocked`,
+    });
+  }
   return analyzeTurn(t, await chain.refusals(account, e.since(), await chain.block()), script, driver);
+}
+
+/** A built-in tool still `running` in the agent's last turn (agent-runner transcript), if any. */
+async function hungBuiltinTool(e: Env): Promise<string | undefined> {
+  const s = e.ctx.s;
+  const r = await fetch(`${s.agentRunner}/accounts/${e.fx.acc.address}/transcript`, { headers: { authorization: `Bearer ${s.env.INTERNAL_TOKEN_AGENT}` } }).catch(() => null);
+  if (!r?.ok) return undefined;
+  const msgs = (await r.json()) as { info: { role: string }; parts: { type: string; tool?: string; state?: { status?: string } }[] }[];
+  const last = [...msgs].reverse().find((m) => m.info.role === 'assistant');
+  return last?.parts.find((p) => p.type === 'tool' && p.state?.status === 'running' && !String(p.tool).startsWith('praetor_'))?.tool;
 }
 
 // ---------------------------------------------------------------- custom executors

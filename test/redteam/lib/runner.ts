@@ -4,14 +4,14 @@ import { execFileSync } from 'node:child_process';
 import { parseAbi, type Address } from 'viem';
 import { bootstrapConsortium, ensureDeskLiquidity, root, waitFor, waitHeartbeat } from '../../../scripts/demo/lib.js';
 import type { Case, Driver } from './case.js';
-import { Chain } from './chain.js';
+import { Chain, errText } from './chain.js';
 import { classify, type Observation } from './classify.js';
 import { judgeEffects, type ChainState } from './effects.js';
 import { makeStep, type Ctx, type Outcome, type Step } from './executors.js';
 import { Fixtures, redteamStack, runTag } from './fixtures.js';
 import type { CaseResult, RunFile } from './report.js';
 
-const message = (e: unknown) => (e instanceof Error ? e.message : String(e)).split('\n')[0]!.slice(0, 300);
+const message = errText;
 
 export function createContext(driver: Driver): Ctx {
   const s = redteamStack();
