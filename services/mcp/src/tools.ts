@@ -198,7 +198,13 @@ export class PraetorTools {
     if (typeof built === 'string') return { text: built, isError: true };
     const v = await this.p.reader.check(this.account, built.calls);
     const w = this.worst(v);
-    const verdict = w.reason === Reason.OK ? 'would be done autonomously (T1)' : `would be refused: ${reasonName(w.reason)} (${tierName(w.tier)})`;
+    // The tier, not the reason name, says whether the owner can lift it (BUDGET_EXCEEDED and BAND_BREACH have both).
+    // The T0 wording keeps "would be refused": the red-team parser must not read a dry run as an on-chain refusal.
+    const verdict = w.reason === Reason.OK
+      ? 'would be done autonomously (T1)'
+      : w.tier === Tier.T2_HUMAN
+        ? `needs the owner's approval: ${reasonName(w.reason)} (${tierName(w.tier)}). This is not a refusal: if the user asked for it, call ${a.type} to submit it, which sends the owner an approval request (WeChat or the web app)`
+        : `would be refused: ${reasonName(w.reason)} (${tierName(w.tier)}). Nobody can approve it: the decision is final, do not try it another way`;
     return { text: `Dry run: this ${a.type} ${verdict}. Nothing was sent.`, structured: { reasons: v.map((x) => reasonName(x.reason)).filter((r) => r !== 'OK'), tier: tierName(w.tier) } };
   }
 

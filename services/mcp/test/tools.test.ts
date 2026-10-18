@@ -162,6 +162,37 @@ describe('explain', () => {
     expect(r.structured).toMatchObject({ reasons: ['OVER_AUTO_CAP'], tier: 'T2_HUMAN' });
     expect(sent).toHaveLength(0);
   });
+
+  it('T2: says calling pay asks the owner to approve it, not that it is refused or final (#4)', async () => {
+    verdict = { reason: Reason.UNKNOWN_PAYEE, tier: Tier.T2_HUMAN };
+    const r = await tools().explain({ type: 'pay', payee: '0x000000000000000000000000000000000000dEaD', amount: '300' });
+    expect(r.text).toMatch(/UNKNOWN_PAYEE \(T2_HUMAN\)/);
+    expect(r.text).toMatch(/not a refusal/i);
+    expect(r.text).toMatch(/call pay/i);
+    expect(r.text).toMatch(/approval request/i);
+    expect(r.text).toMatch(/WeChat or the web app/);
+    expect(r.text).not.toMatch(/refused|final/i);
+    expect(r.isError).toBeFalsy();
+    expect(sent).toHaveLength(0);
+    expect(requested).toHaveLength(0);
+  });
+
+  it('T2 rebalance: names the rebalance tool as the way to ask the owner', async () => {
+    verdict = { reason: Reason.REBALANCE_LIMIT, tier: Tier.T2_HUMAN };
+    const r = await tools().explain({ type: 'rebalance', sell: 'tXAU', buy: 'USDC', amountUsd: '650' });
+    expect(r.text).toMatch(/call rebalance/i);
+    expect(r.text).not.toMatch(/refused|final/i);
+  });
+
+  it('T0: keeps "refused" and "final" for what nobody can approve', async () => {
+    verdict = { reason: Reason.SANCTIONED, tier: Tier.T0_NEVER };
+    const r = await tools().explain({ type: 'pay', payee: BAD, amount: '5000' });
+    expect(r.text).toMatch(/would be refused: SANCTIONED \(T0_NEVER\)/);
+    expect(r.text).toMatch(/final/i);
+    expect(r.text).not.toMatch(/approval request/i);
+    expect(r.structured).toMatchObject({ reasons: ['SANCTIONED'], tier: 'T0_NEVER' });
+    expect(sent).toHaveLength(0);
+  });
 });
 
 describe('get_mandate and get_status', () => {

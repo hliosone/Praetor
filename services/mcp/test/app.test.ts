@@ -90,6 +90,16 @@ describe('mcp app', () => {
     expect(parse(call.text).result.content[0].text).toMatch(/Status: ACTIVE/);
   });
 
+  it('describes the dry run as pass, owner approval through pay or rebalance, or refused for good (#4)', async () => {
+    const { a, tokens } = app();
+    const list = await mcp(a, await tokens.issueAgent(ACCOUNT), rpc('tools/list')).expect(200);
+    const explain = parse(list.text).result.tools.find((x: { name: string }) => x.name === 'explain').description as string;
+    expect(explain).toMatch(/owner's approval/);
+    expect(explain).toMatch(/pay or rebalance/);
+    expect(explain).toMatch(/refused for good/);
+    expect(explain).toMatch(/Sends nothing/);
+  });
+
   it('refuses the agent bearer from outside the agent network (through Caddy it must be OAuth)', async () => {
     const { a, tokens } = app('10.88.0.2');
     const t = await tokens.issueAgent(ACCOUNT);
