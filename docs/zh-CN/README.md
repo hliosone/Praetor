@@ -9,7 +9,7 @@ Praetor 交付文档的简体中文版本（spec 12）。英文版本为准；�
 | [SELF_ASSESSMENT.md](SELF_ASSESSMENT.md) | 安全自评估：分级授权、不变量与测试、威胁模型、已知风险、工具结果 | [SELF_ASSESSMENT.md](../security/SELF_ASSESSMENT.md) |
 | [DEPLOY.md](DEPLOY.md) | 部署指南（Phase C，与团队成员一起完成） | [DEPLOY.md](../DEPLOY.md) |
 
-演示视频字幕与演示文稿标题在 Phase C 制作。
+演示视频脚本（镜头表、英文旁白与逐句中文字幕、屏幕字幕、录制清单）见 [VIDEO.md](../VIDEO.md)；中文字幕已逐句写在该文件中，因此不另设中文副本。
 
 ## 术语
 

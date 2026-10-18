@@ -83,6 +83,7 @@ spikes/             Phase 0 verification spikes
 | [docs/PROGRESS.md](docs/PROGRESS.md), [docs/DECISIONS.md](docs/DECISIONS.md) | Where the build stands; decisions taken since the spec |
 | [docs/MANUAL.md](docs/MANUAL.md) | The guided acceptance steps that need a human (phones, WeChat, cloud) |
 | [docs/TESTER.md](docs/TESTER.md) | For a teammate testing on real phones: own stack, WeChat test account, tunnel, what to report |
+| [docs/VIDEO.md](docs/VIDEO.md) | The demo video script: shot list, voice-over with Chinese subtitles, captions, recording checklist |
 | [docs/EVIDENCE.md](docs/EVIDENCE.md) | Transaction hashes of every flow, executed and refused (filled in M16) |
 | [docs/PREEXISTING.md](docs/PREEXISTING.md) | Code reused from the team's earlier projects |
 | 中文 | [README.zh-CN.md](README.zh-CN.md), [docs/zh-CN/](docs/zh-CN/README.md) |

@@ -83,6 +83,7 @@ spikes/             第 0 阶段的验证实验
 | [docs/PROGRESS.md](docs/PROGRESS.md)、[docs/DECISIONS.md](docs/DECISIONS.md) | 构建进度；规范之后所做的决策 |
 | [docs/MANUAL.md](docs/MANUAL.md) | 需要人工参与的引导式验收步骤（手机、微信、云） |
 | [docs/TESTER.md](docs/TESTER.md) | 供在真机上测试的队友使用：自己的环境、微信测试账号、隧道、需要报告的内容 |
+| [docs/VIDEO.md](docs/VIDEO.md) | 演示视频脚本：镜头表、英文旁白与逐句中文字幕、屏幕字幕、录制清单 |
 | [docs/EVIDENCE.md](docs/EVIDENCE.md) | 每个流程的交易哈希，包括已执行与被拒绝的（M16 填写） |
 | [docs/PREEXISTING.md](docs/PREEXISTING.md) | 复用自团队早期项目的代码 |
 | 中文 | [README.zh-CN.md](README.zh-CN.md)、[docs/zh-CN/](docs/zh-CN/README.md) |
