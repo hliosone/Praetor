@@ -1,11 +1,11 @@
 // F10 step 6, the end of a recovery (spec 06): 48 h after the bank scheduled it and nobody cancelled, anyone executes
 // it: the owner keys become the new passkey alone, the WeChat binding and the agent key are dropped. This moves the
 // fork's clock forward by 48 h, so it runs after every other flow (make e2e).
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import type { Address } from 'viem';
 import { AgentKeyValidatorAbi, MandateHookAbi } from '@praetor/chain';
 import { softPasskey, type SoftPasskey } from '@praetor/protocol';
-import { pub, setDemoPrices, stack, waitFor, waitHeartbeat, bootstrapConsortium, type Stack } from '../../scripts/demo/lib.js';
+import { pub, setDemoPrices, stack, waitFor, bootstrapConsortium, type Stack } from '../../scripts/demo/lib.js';
 import { WebClient, kycMockSubmit, onboardViaApi } from '../../scripts/demo/web.js';
 
 let s: Stack;
@@ -28,11 +28,8 @@ beforeAll(async () => {
   await onboardViaApi(web, `f10w-${tag}`, person);
 }, 900_000);
 
-// The jump leaves the demo prices stale and the heartbeat expired: restore both for whatever runs next.
-afterAll(async () => {
-  await setDemoPrices(s);
-  await waitHeartbeat(s);
-}, 600_000);
+// No clean-up here: after a 48 h jump no heartbeat can be fresh (FISCO accepts at most a day ahead), so `make e2e`
+// starts a fresh fork right after this file.
 
 describe('F10 recovery executed after 48 h', () => {
   it('6: scheduled after the matching re-KYC; 48 h later executeRecovery: only the new passkey signs in, the agent key is revoked', async () => {
