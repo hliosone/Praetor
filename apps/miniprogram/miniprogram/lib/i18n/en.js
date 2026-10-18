@@ -148,7 +148,7 @@ module.exports = {
     thinking: 'The agent is thinking',
     noAnswer: '(no answer)',
     tools: 'Tools: {list}',
-    chips: { doing: 'How am I doing?', pay: 'Pay the café 12.50', rebalance: 'Should I rebalance?' },
+    chips: { doing: 'How am I doing?', payees: 'Who can you pay?', rebalance: 'Should I rebalance?' },
   },
   activity: {
     title: 'Activity',

@@ -148,7 +148,7 @@ module.exports = {
     thinking: '智能体正在思考',
     noAnswer: '（没有回答）',
     tools: '工具：{list}',
-    chips: { doing: '我的资产怎么样？', pay: '给咖啡馆付 12.50', rebalance: '需要再平衡吗？' },
+    chips: { doing: '我的资产怎么样？', payees: '你能给谁付款？', rebalance: '需要再平衡吗？' },
   },
   activity: {
     title: '动态',
