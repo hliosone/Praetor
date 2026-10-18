@@ -5,9 +5,11 @@ import { OwnerActionKind as K } from '@praetor/protocol';
 import { useI18n } from '../i18n/index.js';
 import { Rings } from '../components/Rings.js';
 import { StatusPill, TierBadge } from '../components/StatusPill.js';
+import { TxLink } from '../components/TxLink.js';
 import { api, usd, type Activity, type ApprovalView, type Portfolio, type Prepared, type Status } from '../lib/api.js';
 import { useLoad } from '../lib/useLoad.js';
 import { signAndSubmit } from '../lib/passkey.js';
+import type { Config } from '../lib/policy.js';
 
 export function Home() {
   const { t } = useI18n();
@@ -18,6 +20,7 @@ export function Home() {
   const pending = useLoad(() => api<{ approvals: ApprovalView[] }>('GET', '/approvals?state=pending'), [], 5000);
   // No policy: the onboarding stopped before its last step (a discarded tab), and the way back is here.
   const policy = useLoad(() => api<{ policy: unknown }>('GET', '/policy'), []);
+  const cfg = useLoad(() => api<Config>('GET', '/config'), []);
 
   return (
     <div className="stack">
@@ -58,7 +61,7 @@ export function Home() {
       </section>
       <section className="panel">
         <h2>{t('home.feed')}</h2>
-        <table>
+        <div className="table-wrap"><table>
           <thead><tr><th>Action</th><th>Reason</th><th>Tier</th><th className="num">USD</th><th>{t('common.tx')}</th></tr></thead>
           <tbody>
             {feed.data?.items.map((i) => (
@@ -67,11 +70,11 @@ export function Home() {
                 <td>{i.reason}</td>
                 <td><TierBadge tier={i.tier} /></td>
                 <td className="num">{i.valueUsd6 ? usd(i.valueUsd6) : ''}</td>
-                <td><a className="mono" href={`https://sepolia.basescan.org/tx/${i.txHash}`} target="_blank" rel="noopener">{i.txHash.slice(0, 10)}</a></td>
+                <td><TxLink hash={i.txHash} explorer={cfg.data?.explorer} /></td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </section>
       {(portfolio.error || status.error) && <p className="error" role="alert">{t('common.error', { e: portfolio.error ?? status.error ?? '' })}</p>}
     </div>

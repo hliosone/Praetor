@@ -59,6 +59,16 @@ describe('parseToolOutput (mcp tool texts)', () => {
     expect(parseToolOutput(t0)).toEqual({ kind: 'invalid', txHashes: [] });
   });
 
+  it('the local fork form: bare hashes after the same prefixes, no explorer link (#9)', () => {
+    const fork = (h: string) => `${h} (local fork, no public explorer link)`;
+    expect(parseToolOutput(`Paid 12.50 USDC to Café Lumen. Transaction: ${fork(tx1)}`)).toEqual({ kind: 'done', txHashes: [tx1] });
+    expect(parseToolOutput(`Blocked: SANCTIONED (T0_NEVER). This decision is final. Refused operation: ${fork(tx1)}; refusal record: ${fork(tx2)}`))
+      .toEqual({ kind: 'refused', reason: 'SANCTIONED', tier: 'T0_NEVER', txHashes: [tx1, tx2] });
+    expect(parseToolOutput(`Not done yet: UNKNOWN_PAYEE needs the owner's approval. Request 3f8a1c2e-1111-4222-8333-944445555666 is waiting for the owner. Refused operation: ${fork(tx1)}; refusal record: no transaction`))
+      .toMatchObject({ kind: 'pending', txHashes: [tx1] });
+    expect(parseToolOutput(`Standing order 3 executed. Transaction: ${fork(tx1)}`)).toEqual({ kind: 'done', txHashes: [tx1] });
+  });
+
   it('reads the text inside an MCP content array', () => {
     const out = { content: [{ type: 'text', text: `Blocked: OVER_HARD_CAP (T0_NEVER). Refused operation: https://x/tx/${tx1}; refusal record: https://x/tx/${tx2}` }] };
     expect(parseToolOutput(out)).toMatchObject({ kind: 'refused', reason: 'OVER_HARD_CAP' });

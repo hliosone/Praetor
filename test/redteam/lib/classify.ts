@@ -49,15 +49,18 @@ export function toolText(out: unknown): string {
   return out === undefined || out === null ? '' : JSON.stringify(out);
 }
 
-/** mcp's tool texts (services/mcp/src/tools.ts `act`): done, a final refusal, a T2 request, or a local refusal. */
+/**
+ * mcp's tool texts (services/mcp/src/tools.ts `act`): done, a final refusal, a T2 request, or a local refusal. A
+ * transaction is an explorer link when live, a bare hash after the same prefix on the local fork (#9).
+ */
 export function parseToolOutput(out: unknown): ToolOutcome {
   const t = toolText(out);
-  const txHashes = [...t.matchAll(/\/tx\/(0x[0-9a-fA-F]{64})/g)].map((m) => m[1] as Hex);
+  const txHashes = [...t.matchAll(/(?:\/tx\/|: )(0x[0-9a-fA-F]{64})\b/g)].map((m) => m[1] as Hex);
   const blocked = /Blocked: ([A-Z0-9_]+) \((T\d_[A-Z_]+)\)/.exec(t);
   if (blocked) return { kind: 'refused', reason: blocked[1] as ReasonName, tier: blocked[2] as TierName, txHashes };
   const pending = /Not done yet: ([A-Z0-9_]+) needs the owner's approval\. Request ([0-9a-f-]{36})/.exec(t);
   if (pending) return { kind: 'pending', reason: pending[1] as ReasonName, tier: 'T2_HUMAN', txHashes, requestId: pending[2]! };
-  if (/Transaction: \S+\/tx\/0x[0-9a-fA-F]{64}/.test(t)) return { kind: 'done', txHashes };
+  if (/Transaction: (?:\S+\/tx\/)?0x[0-9a-fA-F]{64}\b/.test(t)) return { kind: 'done', txHashes };
   return { kind: 'invalid', txHashes };
 }
 

@@ -2,7 +2,7 @@
 // starts from. Amounts in USDC base units as decimal strings, as the api takes them.
 import type { Policy } from '@praetor/protocol';
 
-export type Config = { chainId: number; domainName: string; mandateHook: `0x${string}`; usdc: `0x${string}`; txau: `0x${string}`; txag: `0x${string}`; deskSpreadBps: number };
+export type Config = { chainId: number; domainName: string; mandateHook: `0x${string}`; usdc: `0x${string}`; txau: `0x${string}`; txag: `0x${string}`; deskSpreadBps: number; explorer?: string | null };
 
 export type PolicyJson = {
   autoCap: string; hardCap: string; dailyBudget: string; monthlyBudget: string; dailyCount: number; bufferUsdc: string;

@@ -46,6 +46,7 @@ body {
   font-family: var(--sans);
   font-size: var(--s-15);
   line-height: 1.55;
+  overflow-wrap: break-word;
   -webkit-font-smoothing: antialiased;
   font-feature-settings: 'tnum' 1, 'cv11' 1;
 }
@@ -56,6 +57,10 @@ h3 { font-size: var(--s-15); font-weight: 650; }
 p { margin: 0.5rem 0; max-width: 68ch; }
 a { color: var(--ink); text-underline-offset: 3px; }
 code, .mono { font-family: var(--mono); font-size: 0.86em; }
+/* Hashes, DIDs, digests and calldata have no spaces: on a phone they would push the page sideways (#3). `anywhere`
+ * (not `break-word`) also shrinks their minimum width, so the grid or flex box around them can stay narrow. */
+.mono, code, pre, dd, .bubble, .notice { overflow-wrap: anywhere; }
+dd { margin: 0; }
 .muted { color: var(--graphite); }
 .small { font-size: var(--s-13); }
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
@@ -90,8 +95,9 @@ main { padding: clamp(1rem, 4vw, 2.5rem); max-width: 1180px; margin: 0 auto; }
 .panel { border-radius: var(--r-panel); padding: clamp(1.1rem, 3vw, 1.75rem); }
 .card { border-radius: var(--r-card); padding: 1rem 1.1rem; }
 .grid { display: grid; gap: 1rem; }
-.grid.two { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
-.grid.three { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.grid.two { grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); }
+.grid.three { grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); }
+.grid > *, .row > * { min-width: 0; }
 .stack { display: flex; flex-direction: column; gap: 1rem; }
 .row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
 .between { justify-content: space-between; }
@@ -128,10 +134,12 @@ label.field { display: flex; flex-direction: column; gap: 0.35rem; font-size: va
 .chip { display: inline-flex; align-items: center; gap: 0.35rem; font-size: var(--s-13); color: var(--graphite); }
 .chip i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
 
+.table-wrap { overflow-x: auto; max-width: 100%; }
 table { width: 100%; border-collapse: collapse; font-size: var(--s-13); }
 th { text-align: left; color: var(--graphite); font-weight: 650; padding: 0.5rem; border-bottom: 1px solid var(--hairline); }
 td { padding: 0.55rem 0.5rem; border-bottom: 1px solid var(--hairline); vertical-align: top; }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.mono, td .mono { white-space: nowrap; }
 
 /* ---------------------------------------------------------------- landing */
 

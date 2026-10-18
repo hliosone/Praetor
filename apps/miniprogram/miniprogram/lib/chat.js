@@ -22,7 +22,7 @@ function parseSse(text) {
 }
 
 function chips(lang) {
-  return ['doing', 'pay', 'rebalance'].map((key) => ({ key, text: i18n.t(lang, `chat.chips.${key}`) }));
+  return ['doing', 'payees', 'rebalance'].map((key) => ({ key, text: i18n.t(lang, `chat.chips.${key}`) }));
 }
 
 module.exports = { parseSse, chips };

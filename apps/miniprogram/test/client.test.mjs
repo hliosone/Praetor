@@ -63,8 +63,12 @@ describe('chat over server-sent events', () => {
   });
 
   it('offers the quick chips of spec 07 in the user\'s language', () => {
-    expect(chat.chips('en').map((c) => c.text)).toEqual(['How am I doing?', 'Pay the café 12.50', 'Should I rebalance?']);
-    expect(chat.chips('zh-CN')[0].text).toBe('我的资产怎么样？');
+    expect(chat.chips('en').map((c) => c.text)).toEqual(['How am I doing?', 'Who can you pay?', 'Should I rebalance?']);
+    expect(chat.chips('zh-CN').map((c) => c.text)).toEqual(['我的资产怎么样？', '你能给谁付款？', '需要再平衡吗？']);
+  });
+
+  it('no chip asks to pay a payee by name: a new account has none, so it would be a dead end (#10)', () => {
+    for (const lang of ['en', 'zh-CN']) for (const c of chat.chips(lang)) expect(c.text, c.key).not.toMatch(/café|咖啡/i);
   });
 });
 

@@ -77,6 +77,16 @@ describe('pay', () => {
     expect(r.text).toContain(`https://sepolia.basescan.org/tx/0x${'bb'.repeat(32)}`);
   });
 
+  it('on the local fork: the bare hash and no explorer link, so nobody is sent to a BaseScan page that does not exist (#9)', async () => {
+    const fork = () => new PraetorTools(ACCOUNT, { ...ports(), explorer: null });
+    const done = await fork().pay({ payee: 'Café Lumen', amount: '12.50' });
+    expect(done.text).toContain(`Transaction: 0x${'bb'.repeat(32)} (local fork, no public explorer link)`);
+    verdict = { reason: Reason.SANCTIONED, tier: Tier.T0_NEVER };
+    const refused = await fork().pay({ payee: BAD, amount: '5000' });
+    expect(refused.text).toContain(`Refused operation: 0x${'bb'.repeat(32)} (local fork, no public explorer link); refusal record: 0x${'cc'.repeat(32)} (local fork, no public explorer link)`);
+    for (const r of [done, refused]) expect(r.text).not.toMatch(/basescan|\/tx\//i);
+  });
+
   it('a payee name resolves to its exact label first, a unique partial name to its label, an ambiguous one to nothing (red team D62)', async () => {
     const BISTRO = '0x00000000000000000000000000000000000b1570' as Address;
     const LUMEN = '0x000000000000000000000000000000000001ee11' as Address;

@@ -12,7 +12,7 @@ const wxa = require('../../lib/wx.js');
 
 Page({
   data: {
-    t: {}, loading: true, error: '', ok: false, refuse: '', what: '', others: [], why: '', left: '', mode: null, noSoter: false,
+    t: {}, loading: true, error: '', ok: false, refuse: '', what: '', others: [], why: '', expires: '', mode: null, noSoter: false,
     digest: '', details: {}, showDetails: false, result: '', resultText: '', busy: false,
   },
 
@@ -43,7 +43,7 @@ Page({
         why: models.reasonText(lang, view.reason), digest: check.digest || '',
         details: { account: view.tier2.account, callHash: view.tier2.callHash, nonce: view.tier2.nonce, expiresAt: view.tier2.expiresAt },
         result: closed || '', resultText: closed && check.problems.length === 0 ? models.resultText(lang, closed) : '',
-        left: countdown.mmss(countdown.secondsLeft(view.tier2.expiresAt, this.offset, phoneNow)),
+        expires: i18n.t(lang, 'approve.expires', { t: countdown.mmss(countdown.secondsLeft(view.tier2.expiresAt, this.offset, phoneNow)) }),
       });
       if (check.ok) this.timer = setInterval(() => this.tick(), 1000);
     } catch (e) {
@@ -54,7 +54,7 @@ Page({
 
   tick() {
     const s = countdown.secondsLeft(this.expiresAt, this.offset, Date.now());
-    this.setData({ left: countdown.mmss(s) });
+    this.setData({ expires: i18n.t(getApp().lang, 'approve.expires', { t: countdown.mmss(s) }) });
     if (s === 0) {
       clearInterval(this.timer);
       this.setData({ ok: false, result: 'expired', resultText: models.resultText(getApp().lang, 'expired') });

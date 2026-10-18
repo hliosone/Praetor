@@ -1,7 +1,7 @@
 // Page logic of chat, activity, payments, settings and support against a fake WeChat.
 import { describe, it, expect, afterEach } from 'vitest';
 import { fakeWx, launch, page, settle } from './harness.mjs';
-import { ACCOUNT, NOW, activity, mpApi } from './fixtures.mjs';
+import { ACCOUNT, CFG, NOW, activity, mpApi } from './fixtures.mjs';
 
 const linked = () => ({ token: 'T-linked', account: ACCOUNT, expiresAt: NOW + 7200 });
 let open = [];
@@ -17,7 +17,7 @@ describe('chat', () => {
     }) });
     await launch(wx);
     const p = await start(page('chat'));
-    expect(p.data.chips.map((c) => c.text)).toEqual(['How am I doing?', 'Pay the café 12.50', 'Should I rebalance?']);
+    expect(p.data.chips.map((c) => c.text)).toEqual(['How am I doing?', 'Who can you pay?', 'Should I rebalance?']);
     await p.sendChip({ currentTarget: { dataset: { text: 'How am I doing?' } } });
     expect(asked).toEqual(['How am I doing?']);
     expect(p.data.messages).toEqual([
@@ -42,15 +42,29 @@ describe('chat', () => {
 });
 
 describe('activity', () => {
-  it('lists decisions with tier badges and reasons in words; a tap copies the BaseScan link', async () => {
-    const wx = fakeWx({ api: mpApi({ 'POST /session': linked, 'GET /activity?limit=50': () => activity }) });
+  const api = (explorer) => mpApi({ 'POST /session': linked, 'GET /config': () => ({ ...CFG, explorer }), 'GET /activity?limit=50': () => activity });
+
+  it('lists decisions with tier badges and reasons in words; live, a tap copies the BaseScan link', async () => {
+    const wx = fakeWx({ api: api('https://sepolia.basescan.org') });
     await launch(wx);
     const p = await start(page('activity'));
     expect(p.data.rows.map((r) => [r.cls, r.tier, r.text, r.amount])).toEqual([
       ['signed', 'T1', 'Allowed by the mandate', '12.50'], ['refused', 'T0', 'Payee on the sanctions list', ''], ['asked', 'T2', 'The payee is not in your mandate', ''],
     ]);
-    await p.copyTx({ currentTarget: { dataset: { url: `https://sepolia.basescan.org/tx/0x${'aa'.repeat(32)}` } } });
-    expect(wx.named('setClipboardData')[0].opts.data).toBe(`https://sepolia.basescan.org/tx/0x${'aa'.repeat(32)}`);
+    expect(p.data.rows[0].url).toBe(`https://sepolia.basescan.org/tx/${activity.items[0].txHash}`);
+    await p.copyTx({ currentTarget: { dataset: { url: p.data.rows[0].url } } });
+    expect(wx.named('setClipboardData')[0].opts.data).toBe(`https://sepolia.basescan.org/tx/${activity.items[0].txHash}`);
+  });
+
+  it('on the local fork: no link to copy, since BaseScan never saw these transactions (#9)', async () => {
+    const wx = fakeWx({ api: api(null) });
+    await launch(wx);
+    const p = await start(page('activity'));
+    expect(p.data.rows).toHaveLength(3);
+    expect(p.data.rows.map((r) => r.url)).toEqual(['', '', '']);
+    expect(p.data.fork).toBe(true);
+    await p.copyTx({ currentTarget: { dataset: { url: p.data.rows[0].url } } });
+    expect(wx.named('setClipboardData')).toHaveLength(0);
   });
 });
 

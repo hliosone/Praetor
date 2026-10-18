@@ -6,10 +6,12 @@ import { Link } from 'react-router-dom';
 import { encodePolicy, OwnerActionKind as K } from '@praetor/protocol';
 import { useI18n } from '../i18n/index.js';
 import { Topbar } from '../components/Layout.js';
+import { TxLink } from '../components/TxLink.js';
 import { api, type Activity, type ApprovalView, type Prepared } from '../lib/api.js';
 import { assertDigest, signAndSubmit, signUp } from '../lib/passkey.js';
 import { installAgent, type MandateDraft, type NewAgent } from '../lib/agent.js';
 import { defaultPolicy, policyFromJson, type Config } from '../lib/policy.js';
+import { useLoad } from '../lib/useLoad.js';
 
 // Listed by the consortium bootstrap (scripts/demo/lib.ts DEMO_SANCTIONED): the prompt-injection target.
 const SANCTIONED = '0x2AdFBB4aF4dE13aeD4a5c90dC8bC09951a9EFB23';
@@ -35,6 +37,7 @@ export function Sandbox() {
   const [lines, setLines] = useState<Line[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const cfg = useLoad(() => api<Config>('GET', '/config'), []);
   const log = (l: Line) => setLines((x) => [l, ...x]);
   const run = (fn: () => Promise<void>) => async () => {
     setBusy(true);
@@ -128,14 +131,14 @@ export function Sandbox() {
         )}
         {lines.length > 0 && (
           <section className="panel">
-            <table>
+            <div className="table-wrap"><table>
               <thead><tr><th>{t('sandbox.scenario')}</th><th>{t('sandbox.outcome')}</th><th>{t('common.tx')}</th></tr></thead>
               <tbody>
                 {lines.map((l, i) => (
-                  <tr key={i}><td>{l.what}</td><td>{l.outcome}</td><td>{l.tx ? <a className="mono" href={`https://sepolia.basescan.org/tx/${l.tx}`} target="_blank" rel="noopener">{l.tx.slice(0, 10)}</a> : ''}</td></tr>
+                  <tr key={i}><td>{l.what}</td><td>{l.outcome}</td><td>{l.tx ? <TxLink hash={l.tx} explorer={cfg.data?.explorer} /> : ''}</td></tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </section>
         )}
         {error && <p className="error" role="alert">{t('common.error', { e: error })}</p>}

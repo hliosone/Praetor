@@ -14,7 +14,8 @@ export type ActivityItem = { kind: 'decision' | 'refusal'; reason: string; tier:
 
 export type Ports = {
   tokens: { usdc: Address; txau: Address; txag: Address; desk: Address };
-  explorer: string;
+  /** BaseScan when live; null on the local fork, which no public explorer knows (#9). */
+  explorer: string | null;
   reader: {
     balances(account: Address): Promise<Record<string, bigint>>;
     price(token: Address): Promise<PriceInfo>;
@@ -77,7 +78,8 @@ export class PraetorTools {
     return l === this.p.tokens.txau.toLowerCase() ? 'tXAU' : l === this.p.tokens.txag.toLowerCase() ? 'tXAG' : 'USDC';
   }
 
-  private tx = (h: Hex | null) => (h ? `${this.p.explorer}/tx/${h}` : 'no transaction');
+  // On the fork the text says outright there is no link: the model, asked for "the transaction link", would build one.
+  private tx = (h: Hex | null) => (!h ? 'no transaction' : this.p.explorer ? `${this.p.explorer}/tx/${h}` : `${h} (local fork, no public explorer link)`);
 
   async getPortfolio(): Promise<ToolResult> {
     const [balances, policy] = await Promise.all([this.p.reader.balances(this.account), this.p.reader.policy(this.account)]);
