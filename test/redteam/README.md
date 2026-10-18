@@ -95,18 +95,18 @@ tXAG. Scripted fixtures run the scripted model with nothing queued between cases
 
 | Fixture | Special |
 |---|---|
-| `main`, `inj-a`, `inj-b`, `inj-label`, `limits`, `split`, `budget`, `swaps`, `rebalance2`, `shape`, `owner`, `approvals`, `payouts`, `standing` | Plain (one per group, so stateful attacks never share an account; at most about 15 refused userOps each, under the bundler's 20 a day). |
+| `main`, `inj-a`, `inj-b`, `inj-c`, `inj-label`, `limits`, `split`, `budget`, `swaps`, `rebalance2`, `shape`, `owner`, `approvals`, `payouts`, `standing` | Plain (one per group, so stateful attacks never share an account; at most about 15 refused userOps each, under the bundler's 20 a day). |
 | `count` | `dailyCount` 2. |
 | `frozen` | FROZEN by the regulator (one signature) before the cases run. |
 | `soter` | WeChat linked (LINK_WECHAT with the SOTER fixture phone). |
-| `cn` | KYC nationality CN (payouts blocked for that jurisdiction). |
+| `cn` | KYC nationality CN (payouts blocked for that jurisdiction); USDC only, since the metal tokens' compliance refuses a CN holder. |
 | `web` | Onboarded through the api (signed-in session and CSRF cookie of the software passkey). |
 | `bare` | An address with no account (consortium messages about it). |
 | `fresh` | A new plain account for that case alone. |
 
 ## Held-out cases
 
-20% of the suite is written by a teammate outside the repo and run in Phase C (`docs/MANUAL.md`, step 7): with 83
+20% of the suite is written by a teammate outside the repo and run in Phase C (`docs/MANUAL.md`, step 7): with 84
 built-in cases that is about 21 held-out cases. Put them in any directory as `*.json` files, each holding one case or
 an array of cases, and run:
 
