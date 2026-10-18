@@ -9,7 +9,7 @@ The same images and the same compose file run on a laptop and on the server; onl
 | Mode | How it starts | `PRAETOR_ENV` | Base | FISCO | TEEs | Public URL |
 |---|---|---|---|---|---|---|
 | local | `make up` (`infra/compose.yml`) | `local` | anvil fork of Base Sepolia (`CHAIN_MODE=fork`, `LOCAL_` keys) | 4 nodes in Docker | dstack simulator (`ATTESTATION_MODE=simulator`) | `https://praetor.localhost` (Caddy's internal CA) |
-| local live | `make up LIVE=1` (adds `infra/live.env`) | `local` (not changed by `LIVE=1`) | Base Sepolia (`CHAIN_MODE=live`, `LIVE_` keys, no anvil) | the same local chain, governed by the `LOCAL` set (`FISCO_KEYSET=LOCAL`, D75) | simulator | same, plus `make tunnel` for phones |
+| local live | `make up LIVE=1` (adds `infra/live.env`) | `local` (not changed by `LIVE=1`) | Base Sepolia (`CHAIN_MODE=live`, `LIVE_` keys, no anvil; read through `https://base-sepolia-rpc.publicnode.com`, D92) | the same local chain, governed by the `LOCAL` set (`FISCO_KEYSET=LOCAL`, D75) | simulator | same, plus `make tunnel` for phones |
 | rehearsal | `make rehearsal` (`compose.yml` + `compose.prod.yml`) | `rehearsal` | `CHAIN_MODE` from `.env`: the fork unless `.env` sets the live values (the target does not pass `LIVE=1`) | same | simulator (the prod refusals are checked separately) | `https://praetor.localhost` |
 | prod | the server, `compose.yml` + `compose.prod.yml` (section 9) | `prod` | Base Sepolia | the server's own 4 nodes | Phala Cloud CVMs (`ATTESTATION_MODE=phala`) | `https://app.<domain>` |
 
@@ -33,7 +33,7 @@ Only `PRAETOR_ENV=prod` triggers the production refusals, so the rehearsal can s
 | `PRAETOR_ENV` | `prod` |
 | `PUBLIC_HOST`, `PUBLIC_URL` | `app.<domain>`, `https://app.<domain>` (passkeys are bound to this host) |
 | `CADDY_TLS` | the ACME account email (`compose.prod.yml` passes it to Caddy; `internal` by default) |
-| `CHAIN_MODE`, `BASE_RPC_URL` | `live`, a Base Sepolia RPC |
+| `CHAIN_MODE`, `BASE_RPC_URL` | `live`, a Base Sepolia RPC that serves wide `eth_getLogs` ranges: `https://base-sepolia-rpc.publicnode.com`, as in `infra/live.env` (D92). `sepolia.base.org` caps `eth_getLogs` at 200 blocks, too few for the payout partner, scheduler, api, notifier, oracle feeder and reader; publicnode allows 50,000 blocks (about 28 h from the deployment block), so a server that runs for days needs the Base client to split wide `eth_getLogs` (follow-up, not built) |
 | `DEPLOYMENTS_FILE`, `FISCO_DEPLOYMENTS_FILE` | `infra/deployments/base-sepolia.json`, `infra/deployments/fisco-live.json` |
 | `DOMAIN_NAME` | `Praetor` |
 | `ATTESTATION_MODE` | `phala` |
@@ -53,7 +53,7 @@ What `PRAETOR_ENV=prod` refuses today: simulator attestations (agent-signer, sot
 
 ## 4. Fund the LIVE addresses
 
-The live budget is deliberately small (D74): the human funds the deployer, and Base Sepolia's gas price (about 0.006 gwei when measured) makes the run cheap. The live run was planned within 0.0133 ETH on the deployer and 44 USDC on the treasury.
+The live budget is deliberately small (D74): the human funds the deployer, and Base Sepolia's gas price (about 0.006 gwei when measured) makes the run cheap. The live run was planned within 0.0133 ETH on the deployer and 44 USDC on the treasury, and the M16 evidence run of 2026-10-18 stayed within it (D74, D96).
 
 ```bash
 pnpm exec tsx scripts/deploy/fund-live.ts           # dry run: what each LIVE gas account lacks

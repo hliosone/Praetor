@@ -13,7 +13,7 @@ Steps are added during Phase B, each time something needs a human (phone Face ID
 | **You do** | Keep the laptop awake on AC power: leave `systemd-inhibit --what=sleep:idle:handle-lid-switch --who=praetor --why="Phase B build" --mode=block sleep infinity` running in a terminal (or set KDE power management to never suspend). Answer `docs/QUESTIONS.md` (or accept the defaults), fill the empty human values in `.env` (`MP_*`, `OA_*`, `PYTH_API_KEY`, `OPENCODE_API_KEY` if needed), fund the addresses listed in QUESTIONS.md section "Funding", then say "go". |
 | **You see** | Balances on https://sepolia.basescan.org for each funded address. |
 | **Claude checks** | `.env` values present (never printed), balances read on Base Sepolia, then starts Phase B. |
-| **Fallback** | Unfunded live addresses: Phase B runs everything on the fork; M16 (live run) waits in BLOCKERS.md. |
+| **Fallback** | Unfunded live addresses: Phase B runs everything on the fork; M16 (live run) waits in BLOCKERS.md. Not needed: the human funded the LIVE set on 2026-10-17 and M16 ran on Base Sepolia on 2026-10-18 (BLOCKERS B1, D74, D96). |
 
 ## 1. KYC with a real EU Digital Identity Wallet (M6)
 
@@ -209,6 +209,8 @@ Fixed and re-tested on 2026-10-18: the web tools, and the built-in tools whose p
 | **You see** | `docs/EVIDENCE.md` with BaseScan links for every executed and refused transaction of the evidence flows, and the FISCO transactions of each flow. |
 | **Claude checks** | `scripts/deploy/fund-live.ts` dry run, then `--send`; one deployment with a 0.004 ETH paymaster deposit; the evidence flows at `DEMO_SCALE=100`; `scripts/evidence/collect.ts base-sepolia`; balances after the run reported. |
 | **Fallback** | The ETH runs out mid-run: the flows done so far are in the evidence; the rest is shown on the fork (same code, `Praetor-local` domain). |
+
+Done on 2026-10-18 (D96): the evidence flows C0 to F8 ran on Base Sepolia within this budget, with Pyth prices, the real model and WeCross; [EVIDENCE.md](EVIDENCE.md) lists 10 flows (F6 twice: its first attempt failed on the old agent instructions and was re-run on the same account after D93, with `scripts/evidence/live-run.ts --resume <tag> --only F6`) with 21 BaseScan links to Base transactions and the FISCO calls.
 
 ## 11. Web push on a phone (M13, PWA)
 

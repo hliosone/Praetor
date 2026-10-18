@@ -2,7 +2,7 @@
 
 Praetor 让 AI 智能体动用用户的资金，因此设计上要回答的问题不是“智能体是否可信”（它不可信），而是“智能体或其周围的任何组件，最坏能做什么”。本文以已构建代码的证据回答这个问题：分级授权以及执行每一级的合约函数，十九个不变量及证明它们的测试，威胁模型，已知风险，以及各工具的结果。英文版：[docs/security/SELF_ASSESSMENT.md](../security/SELF_ASSESSMENT.md)。架构：[docs/zh-CN/ARCHITECTURE.md](ARCHITECTURE.md)。
 
-快照：2026-10-18，在 D44 至 D75 之后、针对 F10、Web 推送和沙盒的安全审查（D80 至 D83）之后，以及红队测试、M18 演练和 Pyth 喂价（D86 至 D90）之后更新。M17 版本之后新构建的部分：带联盟控制台和临时评委沙盒的 Web 应用（M13）、小程序（M14）、智能体密钥轮换与所有者恢复（F10）以及国密冒烟测试（M15）、Base Sepolia 部署、实链运行脚本与红队测试套件（M16）、生产 compose 覆盖文件及其拒绝检查（M18）。红队测试已于 2026-10-18 针对本地栈运行，0 个攻击得逞（[第 9 节](#9-红队测试结果)）；M18 已在分叉上通过（D90）；2026-10-18 团队在 iPhone 上通过了小程序的绑定、SOTER Face ID 审批、重放被拒、冻结、解绑和中文界面（风险 10）。在本次提交时仍未完成：M16 关卡在 `docs/PROGRESS.md` 中尚未勾选（M12、M13、M15 和 M18 已于 2026-10-17 和 2026-10-18 通过），因为 Base Sepolia 上的实链证据运行（其证据见 `docs/EVIDENCE.md`）尚未结束；依赖它的行会注明（D85）。
+快照：2026-10-18，在 D44 至 D75 之后、针对 F10、Web 推送和沙盒的安全审查（D80 至 D83）之后，红队测试、M18 演练和 Pyth 喂价（D86 至 D90）之后，以及队友真机测试发现的问题修复（D91、D93 至 D95）和 M16 实链运行（D92、D96）之后更新。M17 版本之后新构建的部分：带联盟控制台和临时评委沙盒的 Web 应用（M13）、小程序（M14）、智能体密钥轮换与所有者恢复（F10）以及国密冒烟测试（M15）、Base Sepolia 部署、实链运行脚本与红队测试套件（M16）、生产 compose 覆盖文件及其拒绝检查（M18）。红队测试已于 2026-10-18 针对本地栈运行，0 个攻击得逞（[第 9 节](#9-红队测试结果)）；M18 已在分叉上通过（D90）；2026-10-18 团队在 iPhone 上通过了小程序的绑定、SOTER Face ID 审批、重放被拒、冻结、解绑和中文界面（风险 10）。Phase B 的所有里程碑关卡均已在 `docs/PROGRESS.md` 中勾选：M16 已于 2026-10-18 随 Base Sepolia 上的证据运行关闭（Pyth 价格、真实模型、WeCross；`docs/EVIDENCE.md`，D96），其中链上的拒绝包括一次指向受制裁地址的提示注入（SANCTIONED）、所有者批准之前的新收款方（UNKNOWN_PAYEE）以及冻结期间的一笔付款（FROZEN）。后续在 Phase C 中完成：Phala Cloud 上的 TEE（证明目前仍来自 dstack 模拟器）、云端部署、渗透测试（[第 10 节](#10-渗透测试)）、红队留出用例以及 I19 扫描（尚未构建）。
 
 ## 1. 证据一览
 
@@ -19,6 +19,7 @@ Praetor 让 AI 智能体动用用户的资金，因此设计上要回答的问�
 | 集成与 e2e（流程 F1 至 F10） | F1 至 F9 在 M3 至 M11 的关卡中全部通过（`docs/PROGRESS.md`）。M12 关卡：在全新分叉上以 WeCross 为传输（`BRIDGE=wecross`），集成测试 16/16 个文件、e2e 41/41。M13 关卡：Web 应用的 Playwright 旅程 F1 至 F10 与沙盒用例（`apps/web/e2e`）15/15，34 张截图均经 axe 检查。M15 关卡：F10（`test/e2e/F10-rotation-recovery.test.ts`）3/3 以及 48 小时后的执行（`test/warp/F10-recovery-execute.test.ts`），均在全新分叉上。以上是 `docs/PROGRESS.md` 中记录的关卡结果；本文未重新运行（共享的本地栈正被占用） | `test/integration`，`test/e2e`，`test/warp`，`apps/web/e2e` |
 | 生产环境拒绝（I13） | `scripts/deploy/prod-refusals.sh` 以 `PRAETOR_ENV=prod` 及各自的仅测试设置（模拟器证明、伪造的腾讯接口、伪 LLM）启动 bank、agent-signer、soter-attester、agent-runner 和 api，并期望每个服务都拒绝启动；由 `make rehearsal` 运行：在 2026-10-18 的 M18 演练中五个服务全部拒绝启动，同时 `compose.prod.yml` 上的冒烟测试 F1、F5、F8 16/16 通过（D90） | `scripts/deploy`，`test/infra/compose-prod.test.ts` |
 | 红队（“N attacks, 0 executed”） | 本地栈，2026-10-18：脚本化运行 **85 attacks, 0 executed**；全局运行（共享状态）**3 attacks, 0 executed**；真实模型 **12 attacks, 0 executed**（3 个被系统拦截，9 个被模型拒绝）。早先运行中的发现已修复并重新测试（D86 至 D88） | [第 9 节](#9-红队测试结果)，[redteam.md](../security/redteam.md) |
+| 实链证据运行，Base Sepolia（M16） | 2026-10-18（D96）：在同一个账户上运行 C0 至 F8，`DEMO_SCALE=100`，使用 Pyth 价格、真实模型（经 OpenCode 调用 DeepSeek）和 WeCross；21 个指向 Base 交易的 BaseScan 链接，其中包括 Refused SANCTIONED（一次提示注入，F5b）、Refused UNKNOWN_PAYEE 之后的 ApprovalRegistered 与 ApprovalConsumed 及 Decision OK（F6）、经由 WeCross 的 StatusApplied 之后的 Refused FROZEN（F9），以及审计锚定（F8） | [EVIDENCE.md](../EVIDENCE.md) |
 | 渗透测试 | **Phase C**，报告写入 `docs/security/pentest.md` | [第 10 节](#10-渗透测试) |
 | TEE 部署检查清单 | 列出当前已由代码强制的条目；结果**在部署之后（Phase C）** | [tee-checklist.md](../security/tee-checklist.md) |
 
@@ -66,7 +67,7 @@ Praetor 账户的每一次执行都经过 `MandateHook.preCheck`（I1），无�
 | I16 | hook 之外没有签名路径：不存在有效的 ERC-1271 签名 | Fork、Proven | `Safe7579Fork.t.sol`：`test_I16_usdcPermitAndAuthorizationWithAccountSignaturesFail`。`AgentKeyValidator.t.sol` 和 `PasskeyValidator.t.sol`：`testFuzz_erc1271AlwaysInvalid`。`NoOwner.t.sol`：`testFuzz_neverSigns`。hook 还拒绝 USDC 的 `permit`、`transferWithAuthorization`、`receiveWithAuthorization` 和 `transferFrom`（D10，`test_usdcSelectorsOutsideThePatternRefused`） |
 | I17 | Safe7579 adapter 的每个非 view 选择器要么经过 hook 包裹，要么不可达 | Fork | `Safe7579Fork.t.sol`：`test_I17_outsidersCannotReachAnyNonViewEntryPoint`、`test_I17_ourValidatorsRefuseEveryOtherSelector` |
 | I18 | 一条联盟消息无法阻塞后续消息（nonce = stored + 1） | Proven | `MandateHookConsortium.t.sol`：`test_nonceMustBeStoredPlusOne`。`HookFuzz.t.sol`：`testFuzz_I18_nonce`。`Anchor.t.sol`：`test_sequenceAndDeadline`。FISCO `Board.t.sol`：`test_openAllocatesIdNonceAndFiscoRef`、`test_reissueAnUndeliveredExpiredMessageWithTheSameNonce`、`test_reissueRefusedWhenDeliveredNotExpiredOrSuperseded`（D25） |
-| I19 | Base 上没有个人数据：只有地址、金额和哈希 | **Not yet**（仅凭设计） | 目前尚无测试扫描 Base 的 calldata 和事件；针对实链测试套件的扫描计划在 M16 中完成，本次提交时尚未构建。设计上：收款人是地址，商户是 `merchantRef = keccak256(merchantId)`，出款引用是哈希，标签保存在 api 和 mcp 数据库中。按已构建代码，Base 还承载每个账户的 KYA 属性（kycLevel、riskProfile、两个字母的司法辖区）以及 ERC-3643 身份的国家代码，这与 spec 02 和 03 的定义一致（D69） |
+| I19 | Base 上没有个人数据：只有地址、金额和哈希 | **Not yet**（仅凭设计） | 目前尚无测试扫描 Base 的 calldata 和事件：对 Base 数据（包括实链运行的数据）的扫描尚未构建，留待 Phase C。设计上：收款人是地址，商户是 `merchantRef = keccak256(merchantId)`，出款引用是哈希，标签保存在 api 和 mcp 数据库中。按已构建代码，Base 还承载每个账户的 KYA 属性（kycLevel、riskProfile、两个字母的司法辖区）以及 ERC-3643 身份的国家代码，这与 spec 02 和 03 的定义一致（D69） |
 
 ## 4. 威胁模型
 
