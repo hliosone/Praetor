@@ -144,7 +144,7 @@ test('F2 WeChat link: QR, SOTER in the mini program (fixture), passkey confirmat
   test.setTimeout(300_000);
   await page.goto('/settings');
   const started = page.waitForResponse((r) => r.url().endsWith('/api/wechat/link/start'));
-  await page.getByRole('button', { name: 'Link WeChat' }).click();
+  await page.getByRole('button', { name: 'Link WeChat', exact: true }).click();
   const { id, digest } = (await (await started).json()) as { id: string; digest: Hex };
   await expect(page.getByAltText('WeChat link QR code')).toBeVisible();
   const code = `ui-${tag}`;
@@ -221,8 +221,12 @@ test('F9 governance: the regulator freezes with one signature, loosening needs t
   await shoot(page, 'home-frozen');
   await shoot(cons, 'console-freeze');
 
+  // The loosen proposal's card is added in front of the freeze's: wait for it before reading its id.
+  const cards = regulator.locator('[data-testid^="proposal-regulator-"]');
+  const before = await cards.count();
   await regulator.getByRole('button', { name: 'Loosen' }).click();
-  const card = regulator.locator('[data-testid^="proposal-regulator-"]').first();
+  await expect(cards).toHaveCount(before + 1, { timeout: 60_000 });
+  const card = cards.first();
   const id = (await card.getAttribute('data-testid'))!.replace('proposal-regulator-', '');
   await card.getByRole('button', { name: 'Sign with my passkey' }).click();
   await expect(regulator.getByText('Signed: waiting for another member.')).toBeVisible({ timeout: 60_000 });
