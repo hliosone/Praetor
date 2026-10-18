@@ -18,7 +18,7 @@ PROFILES := $(filter-out dev,$(PROFILES))
 endif
 PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 
-.PHONY: help setup install up down ps logs smoke-sm test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-web e2e-smoke rehearsal tunnel-stop e2e-live redteam redteam-live redteam-global slither deploy-contracts deploy-fisco tunnel reset-fork up-base
+.PHONY: help setup install up down ps logs smoke-sm test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-web e2e-smoke rehearsal tunnel-stop e2e-live redteam redteam-live redteam-global slither deploy-contracts deploy-fisco tunnel reset-fork up-base up-services
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -36,6 +36,10 @@ up: ## Start the local stack (waits for healthchecks; deploys the contracts on a
 	bash scripts/dev/sync-fork-time.sh
 	bash scripts/dev/ensure-fork-deploy.sh
 	pnpm -s --filter @praetor/web build
+	@# A sub-make: make expands a whole recipe before running it, so a compose call here would miss .run/compose.env.
+	$(MAKE) --no-print-directory up-services
+
+up-services:
 	$(COMPOSE) $(PROFILE_FLAGS) up -d --wait --build
 	@if [ -f .run/deployments-changed ]; then $(COMPOSE) $(PROFILE_FLAGS) restart bundler bank regulator operator bridge-relayer && rm .run/deployments-changed; fi
 	@case " $(PROFILES) " in *" wecross "*) bash scripts/wecross/up.sh ;; esac

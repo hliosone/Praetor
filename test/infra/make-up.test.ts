@@ -26,4 +26,16 @@ describe('make up on a fresh clone (#11)', () => {
     const up = recipe('up');
     expect(indexOf(up, /up-base/)).toBeLessThan(indexOf(up, /ensure-fork-deploy\.sh/));
   });
+
+  it('runs compose from sub-makes only, so every compose call reads the .run/compose.env that make up writes first', () => {
+    // make expands all the lines of a recipe before it runs the first one: a $(COMPOSE) line in up itself is expanded
+    // before compose-env.sh has run, and on a fresh clone it lacks --env-file .run/compose.env (every key blank).
+    expect(mk).toContain('$(if $(wildcard .run/compose.env),--env-file .run/compose.env)');
+    const up = recipe('up');
+    expect(indexOf(up, /compose-env\.sh/)).toBeGreaterThanOrEqual(0);
+    expect(up.filter((l) => l.includes('$(COMPOSE)'))).toEqual([]);
+    expect(indexOf(up, /compose-env\.sh/)).toBeLessThan(indexOf(up, /\$\(MAKE\).* up-base$/));
+    expect(indexOf(up, /compose-env\.sh/)).toBeLessThan(indexOf(up, /\$\(MAKE\).* up-services$/));
+    expect(recipe('up-services').some((l) => l.includes('$(COMPOSE) $(PROFILE_FLAGS) up -d --wait --build'))).toBe(true);
+  });
 });
