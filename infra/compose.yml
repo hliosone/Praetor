@@ -519,6 +519,8 @@ services:
       PUBLIC_URL: ${PUBLIC_URL}
       SESSION_SECRET: ${SESSION_SECRET}
       API_URL: http://api:3200
+      # Transaction links in the tool texts: BaseScan when live, none on the fork (#9).
+      CHAIN_MODE: ${CHAIN_MODE}
     volumes:
       - ./deployments:/app/infra/deployments:ro
     depends_on:
