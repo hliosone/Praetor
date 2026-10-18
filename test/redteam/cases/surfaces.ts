@@ -6,10 +6,10 @@ export const surfaceCases: CaseInput[] = [
   // ---------------------------------------------------------------- 10. MCP
   {
     id: 'RT-73', category: 'mcp', item: 10, fixture: 'bare',
-    title: 'The agent\'s static MCP bearer used from outside the agent network (through Caddy and the praetor network)',
+    title: 'The agent\'s static MCP bearer used from anywhere but agent-runner (Caddy, the praetor network, the host through the agent network\'s gateway)',
     input: { kind: 'custom', name: 'mcp-agent-bearer', params: {} },
     expect: { layer: 'mcp', error: '401' },
-    note: 'Minting a bearer replaces the account\'s previous one, so the case uses an address whose agent never chats. Control: the same bearer through the agent network address is accepted.',
+    note: 'Minting a bearer replaces the account\'s previous one, so the case uses an address whose agent never chats. Control: the same bearer sent from inside agent-runner is accepted (D87: AGENT_SUBNET is agent-runner\'s /32).',
   },
   {
     id: 'RT-74', category: 'mcp', item: 10, fixture: 'main',

@@ -77,6 +77,10 @@ describe('infra/compose.yml', () => {
     expect(Object.keys(compose.services['fake-llm']!.networks as Record<string, unknown>)).toEqual(['agent']);
     const members = services.filter(([, s]) => on(s, 'agent')).map(([n]) => n).sort();
     expect(members).toEqual(['agent-runner', 'api', 'fake-llm', 'mcp', 'scheduler']);
+    // mcp takes an agent bearer only from agent-runner's address: the agent network also holds the host's gateway.
+    const runnerIp = (runner.networks as Record<string, { ipv4_address: string }>).agent!.ipv4_address;
+    expect(compose.services.mcp!.environment!.AGENT_SUBNET).toBe(`${runnerIp}/32`);
+    expect(read('services/mcp/src/main.ts')).toContain(`AGENT_SUBNET: z.string().default('${runnerIp}/32')`);
   });
 
   it('keeps the custodial WeIdentity services on their own network, joined only by bank, MySQL and one FISCO node', () => {

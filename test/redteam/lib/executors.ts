@@ -1,6 +1,7 @@
 // Executors: what each kind of case input does against the stack, and what the stack answered. A step may prepare
 // (before the snapshot), runs the attack, and may clean up after the effects are judged. `accepted` means the stack
 // took the attacker's request (a userOp or transaction that succeeded, an HTTP request that was served).
+import { execFileSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
@@ -477,19 +478,24 @@ const mcpAgentBearer: Custom = (e) => ({
     const t = await http2(`${URLS.mcp}/internal/agent-token`, s.env.INTERNAL_TOKEN_MCP!, { account: e.fx.acc.address });
     if (t.status !== 200) throw new Error(`agent token: ${t.status}`);
     const token = t.body.token as string;
-    // Control: through mcp's agent-network address the host's bridge gateway is inside AGENT_SUBNET, so the bearer works.
-    const control = await mcpRpc(process.env.MCP_AGENT_URL_HOST ?? 'http://10.90.0.60:3080', token, 'tools/list', {});
-    if (control.status !== 200) throw new Error(`control failed: the fresh agent bearer is not accepted on the agent network (${control.status})`);
+    // Control: from agent-runner itself (the one address AGENT_SUBNET admits, D87) the bearer works. The token goes
+    // through stdin, never a command line.
+    const runner = process.env.AGENT_RUNNER_CONTAINER ?? 'praetor-agent-runner-1';
+    const js = "let t='';process.stdin.on('data',(d)=>t+=d).on('end',async()=>{const r=await fetch('http://mcp:3080/mcp',{method:'POST',headers:{authorization:'Bearer '+t.trim(),'content-type':'application/json',accept:'application/json, text/event-stream'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list',params:{}})});console.log(r.status)})";
+    const control = Number(execFileSync('docker', ['exec', '-i', runner, 'node', '-e', js], { input: token }).toString().trim());
+    if (control !== 200) throw new Error(`control failed: the fresh agent bearer is not accepted from agent-runner (${control})`);
     const statuses: string[] = [];
     let accepted = false;
-    for (const base of [URLS.web, URLS.mcp]) {
+    // Outside agent-runner: Caddy, mcp on the praetor network, and mcp's agent-network address reached from the host
+    // (through the bridge gateway 10.90.0.1).
+    for (const base of [URLS.web, URLS.mcp, process.env.MCP_AGENT_URL_HOST ?? 'http://10.90.0.60:3080']) {
       const r = await mcpRpc(base, token, 'tools/list', {});
       statuses.push(`${new URL(base).host} ${r.status}`);
       if (r.status === 200) accepted = true;
     }
     return out('mcp', {
       accepted, error: accepted ? '200' : '401',
-      detail: `control: the bearer works on the agent network (10.90.0.60: 200; note: the Docker host's bridge gateway 10.90.0.1 is inside AGENT_SUBNET); from outside it: ${statuses.join(', ')}`,
+      detail: `control: the bearer works from agent-runner (200); from anywhere else: ${statuses.join(', ')}`,
     });
   },
 });

@@ -514,7 +514,8 @@ services:
       SIGNER_HMAC_MCP: ${SIGNER_HMAC_MCP}
       INTERNAL_TOKEN_MCP: ${INTERNAL_TOKEN_MCP}
       INTERNAL_TOKEN_API: ${INTERNAL_TOKEN_API}
-      AGENT_SUBNET: 10.90.0.0/24
+      # agent-runner's address alone: the agent network also holds the Docker host's bridge gateway (10.90.0.1).
+      AGENT_SUBNET: 10.90.0.10/32
       PUBLIC_URL: ${PUBLIC_URL}
       SESSION_SECRET: ${SESSION_SECRET}
       API_URL: http://api:3200
