@@ -49,7 +49,8 @@ fisco-image: ## Build the FISCO node image once (the nodes never rebuild it: see
 	@docker image inspect praetor/fisco-bcos:3.17.1 >/dev/null 2>&1 || docker build -t praetor/fisco-bcos:3.17.1 infra/fisco
 
 up-base:
-	$(COMPOSE) --profile core $(if $(LIVE),,--profile dev) up -d --wait $(if $(LIVE),,anvil) mysql caddy
+	@# The FISCO nodes too: ensure-fork-deploy bootstraps the consortium on them before the rest of the stack starts.
+	$(COMPOSE) --profile core $(if $(LIVE),,--profile dev) $(if $(filter chain,$(PROFILES)),--profile chain) up -d --wait $(if $(LIVE),,anvil) mysql caddy $(if $(filter chain,$(PROFILES)),fisco-node0 fisco-node1 fisco-node2 fisco-node3)
 	@# The init script only runs on an empty volume; it is idempotent, so rerun it to add new service databases.
 	$(COMPOSE) exec -T mysql bash /docker-entrypoint-initdb.d/01-databases.sh
 
