@@ -73,4 +73,14 @@ describe('make up on a fresh clone (#11)', () => {
     // build_wecross.sh and add_chain.sh print their errors on stdout, which went to /dev/null.
     for (const tool of ['build_wecross.sh', 'add_chain.sh']) expect(sh).toMatch(new RegExp(`bash ${tool} [^\\n]*>>"\\$LOG"$`, 'm'));
   });
+
+  it('runs scripts/wecross/up.sh with the Makefile\'s compose command and profiles: --profile wecross alone is invalid', () => {
+    // wecross-account-manager depends on mysql (core, chain): "depends on undefined service mysql" otherwise.
+    const call = recipe('up-services').find((l) => l.includes('scripts/wecross/up.sh'))!;
+    expect(call).toContain('COMPOSE="$(COMPOSE) $(PROFILE_FLAGS)" bash scripts/wecross/up.sh');
+    const sh = read('scripts/wecross/up.sh');
+    const fallback = /^COMPOSE="\$\{COMPOSE:-([^}]+)\}"$/m.exec(sh)?.[1];
+    expect(fallback, 'COMPOSE from the environment, with a default for a run by hand').toBeTruthy();
+    for (const p of ['core', 'chain', 'wecross']) expect(fallback).toContain(`--profile ${p}`);
+  });
 });

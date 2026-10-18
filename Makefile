@@ -45,7 +45,7 @@ up: ## Start the local stack (waits for healthchecks; deploys the contracts on a
 up-services:
 	$(COMPOSE) $(PROFILE_FLAGS) up -d --wait --build
 	@if [ -f .run/deployments-changed ]; then $(COMPOSE) $(PROFILE_FLAGS) restart bundler bank regulator operator bridge-relayer && rm .run/deployments-changed; fi
-	@case " $(PROFILES) " in *" wecross "*) bash scripts/wecross/up.sh ;; esac
+	@case " $(PROFILES) " in *" wecross "*) COMPOSE="$(COMPOSE) $(PROFILE_FLAGS)" bash scripts/wecross/up.sh ;; esac
 
 reset-fork: ## Fresh anvil fork, contracts and consortium redeployed, services restarted
 	$(COMPOSE) --profile dev rm -sf anvil
