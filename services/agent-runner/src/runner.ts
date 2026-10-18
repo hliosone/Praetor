@@ -61,7 +61,13 @@ export class Runner {
       }
       const [providerID, ...rest] = i.model.split('/');
       const before = ((await this.call(i, 'GET', `/session/${session}/message`).catch(() => [])) as Message[]).length;
-      const last = (await this.call(i, 'POST', `/session/${session}/message`, { model: { providerID, modelID: rest.join('/') }, parts: [{ type: 'text', text }] }, this.turnTimeoutMs)) as Message;
+      const last = (await this.call(i, 'POST', `/session/${session}/message`, { model: { providerID, modelID: rest.join('/') }, parts: [{ type: 'text', text }] }, this.turnTimeoutMs).catch(async (e) => {
+        // A turn left running (a tool that never completes) would block every later message of the session: stop it
+        // and let the next turn start a new session.
+        this.sessions.delete(account);
+        await this.call(i, 'POST', `/session/${session}/abort`).catch(() => undefined);
+        throw e;
+      })) as Message;
       const all = (await this.call(i, 'GET', `/session/${session}/message`)) as Message[];
       const turn = all.slice(before).filter((m) => m.info.role === 'assistant');
       const tools = turn.flatMap((m) => m.parts.filter((p) => p.type === 'tool').map((p) => ({ tool: p.tool ?? '', status: p.state?.status ?? '', input: p.state?.input, output: p.state?.output ?? p.state?.error })));

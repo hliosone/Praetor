@@ -6,8 +6,14 @@ const base = { account: '0x00000000000000000000000000000000000c0ffe', model: 'op
 describe('opencode.json per account', () => {
   it('locks the built-in tools behind permission prompts (rejected by the runner), Praetor tools allowed (Q34)', () => {
     const c = opencodeConfig(base);
-    expect(c.permission).toEqual({ '*': 'ask', 'praetor_*': 'allow' });
+    expect(c.permission).toEqual({ '*': 'ask', webfetch: 'deny', websearch: 'deny', 'praetor_*': 'allow' });
     expect(c.model).toBe('opencode/deepseek-v4.1-flash-free');
+  });
+  it('takes the web tools out of the model\'s tool list: a rejected webfetch hangs its turn in OpenCode 1.19 (RT-84)', () => {
+    // OpenCode drops a tool whose last matching rule is a "*" deny; the rule must come after the "*" ask to win.
+    const keys = Object.keys(opencodeConfig(base).permission);
+    expect(keys.indexOf('webfetch')).toBeGreaterThan(keys.indexOf('*'));
+    expect(keys.indexOf('websearch')).toBeGreaterThan(keys.indexOf('*'));
   });
   it('passes the MCP bearer only through an env substitution: the file holds no token', () => {
     const c = opencodeConfig(base);
