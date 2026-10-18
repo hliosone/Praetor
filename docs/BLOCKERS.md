@@ -10,7 +10,7 @@ Each entry: what, why, what was tried, fallback taken, status. Phase B never sto
 - **Fallback**: everything runs on the anvil fork (same chain id, domain `Praetor-local`). Live scripts are built and tested against the fork; M16 is re-checked when balances appear.
 - **Update 2026-10-17/18**: the human funded the deployer (0.0133 ETH) and the treasury (44 USDC). Within that budget (D74): the ETH was spread to the gas accounts (`scripts/deploy/fund-live.ts`) and Praetor was deployed once on Base Sepolia (`infra/deployments/base-sepolia.json`, MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`, about 0.0045 ETH), with its consortium on the local FISCO chain (D75). The SANDBOX set is still unfunded: the sandbox stays interim (D48).
 - **Update 2026-10-18**: M18 closed with a rehearsal on the fork (D90); its live half (live Base, Phala TEEs, a real certificate) is Phase C.
-- **Update 2026-10-18**: M16 closed: the evidence run went on Base Sepolia within this budget (D74, D96), its transactions in `docs/EVIDENCE.md`.
+- **Update 2026-10-18**: M16 closed: the evidence run ran on Base Sepolia within this budget (D74, D96), its transactions in `docs/EVIDENCE.md`.
 - **Status**: resolved (live funded, M16 done; D74, D96). The SANDBOX set is still unfunded: the own sandbox deployment is not built (Phase C).
 
 ## B2. No human `.env` values (Pyth, WeChat, OA)

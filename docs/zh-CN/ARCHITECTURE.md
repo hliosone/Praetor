@@ -12,7 +12,7 @@ Praetor 是一个智能体钱包（FinTechathon 2026，国际赛道，赛题 F�
 - **有界（Bounded）**：账户发出的每一笔调用都要经过链上的 **Mandate hook**，它执行用户的规则和银行的上限，默认拒绝。任何异常操作都需要所有者的 Face ID（passkey，或微信内的 SOTER）。
 - **受监管（Regulated）**：由银行、监管方、运营方组成的 **FISCO BCOS** 联盟链掌握身份、获准资产、制裁名单、智能体状态以及只追加的审计日志。其决定以成员签名的形式到达 Base，由 hook 自行验证。监管方一个签名即可冻结智能体；放宽需要三分之二。
 
-本文档是面向评委的技术文档：先给出全景图，再介绍核心算法、安全设计和部署。它描述 2026-10-18 时实际构建的代码，此时 Web 应用、小程序、智能体密钥轮换与恢复（F10）、Base Sepolia 部署以及生产 compose 均已加入，红队测试、M18 演练和实链上的 Pyth 喂价也已完成（D86 至 D90），队友真机测试发现的问题已修复（D91、D93 至 D95），Base Sepolia 上的 M16 实链运行也已完成（D92、D96）；Phase B 的所有里程碑关卡均已通过，第 7 节给出各部分的状态以及留给 Phase C 的工作（D85）。构建与 `spec/` 不一致之处，引用 [DECISIONS.md](../DECISIONS.md) 中的条目。英文版：[ARCHITECTURE.md](../ARCHITECTURE.md)。安全证据：[SELF_ASSESSMENT.md](SELF_ASSESSMENT.md)（英文版 [security/SELF_ASSESSMENT.md](../security/SELF_ASSESSMENT.md)）。
+本文档是面向评委的技术文档：先给出全景图，再介绍核心算法、安全设计和部署。它描述 2026-10-18 时实际构建的代码，此时 Web 应用、小程序、智能体密钥轮换与恢复（F10）、Base Sepolia 部署以及生产 compose 均已加入，红队测试、M18 演练和实链上的 Pyth 喂价也已完成（D86 至 D90），队友真机测试发现的问题已修复（D91、D93 至 D95），Base Sepolia 上的 M16 实链运行也已完成（D92、D96）；Phase B 的所有里程碑关卡均已通过，第 7 节给出各部分的状态（D85）。构建与 `spec/` 不一致之处，引用 [DECISIONS.md](../DECISIONS.md) 中的条目。英文版：[ARCHITECTURE.md](../ARCHITECTURE.md)。安全证据：[SELF_ASSESSMENT.md](SELF_ASSESSMENT.md)（英文版 [security/SELF_ASSESSMENT.md](../security/SELF_ASSESSMENT.md)）。
 
 ## 1. 系统全景图
 
