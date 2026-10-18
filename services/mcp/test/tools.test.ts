@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { decodeFunctionData, erc20Abi, getAddress, type Address, type Hex } from 'viem';
 import { TreasuryDeskAbi } from '@praetor/chain';
-import { Reason, Tier, PriceSource, type Policy } from '@praetor/protocol';
+import { Reason, Tier, PriceSource, Status, type Policy } from '@praetor/protocol';
 import { PraetorTools, type Ports } from '../src/tools.js';
 
 const ACCOUNT = '0x00000000000000000000000000000000000c0ffe' as Address;
@@ -202,6 +202,39 @@ describe('get_mandate and get_status', () => {
     expect(m.text).toMatch(/Café Lumen/);
     const st = await tools().getStatus();
     expect(st.text).toMatch(/ACTIVE/);
+  });
+});
+
+describe('get_status when the consortium tightened the account (#6)', () => {
+  const withStatus = (account: number, global: number) => {
+    const p = ports();
+    p.reader.status = async () => ({ effective: Math.max(account, global), account, global, heartbeatValidUntil: 1_800_000_900n });
+    return new PraetorTools(ACCOUNT, p).getStatus();
+  };
+
+  it('a freeze of this account: what it stops, who set it, who can lift it, and no guessed reason', async () => {
+    const r = await withStatus(Status.FROZEN, Status.ACTIVE);
+    expect(r.text).toMatch(/^Status: FROZEN/);
+    expect(r.text).toMatch(/Set by the consortium \(bank, regulator, operator\): this account is frozen\./);
+    expect(r.text).not.toMatch(/every account/);
+    expect(r.text).toMatch(/no payment, rebalance or standing order can move money, the owner's own included/);
+    expect(r.text).toMatch(/Any one member can freeze or restrict; lifting or loosening needs two of the three\. The owner cannot lift it\./);
+    expect(r.text).toMatch(/The tools do not say why it was set: do not guess a reason\./);
+    expect(r.structured).toMatchObject({ status: 'FROZEN', accountStatus: 'FROZEN', globalStatus: 'ACTIVE' });
+  });
+
+  it('a global restriction: says it covers every account and what restricted means', async () => {
+    const r = await withStatus(Status.ACTIVE, Status.RESTRICTED);
+    expect(r.text).toMatch(/^Status: RESTRICTED/);
+    expect(r.text).toMatch(/Set by the consortium \(bank, regulator, operator\): every account is restricted \(global\)\./);
+    expect(r.text).toMatch(/every payment or rebalance the agent makes needs the owner's approval/);
+    expect(r.text).toMatch(/two of the three/);
+  });
+
+  it('active: no consortium text', async () => {
+    const r = await withStatus(Status.ACTIVE, Status.ACTIVE);
+    expect(r.text).toMatch(/^Status: ACTIVE/);
+    expect(r.text).not.toMatch(/consortium/);
   });
 });
 

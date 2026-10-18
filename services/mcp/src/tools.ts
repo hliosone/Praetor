@@ -4,7 +4,7 @@
 // data (I9): nothing here reads any.
 import { encodeFunctionData, erc20Abi, getAddress, isAddress, type Address, type Hex } from 'viem';
 import { TreasuryDeskAbi } from '@praetor/chain';
-import { PriceSource, REASONS, STATUSES, TIERS, Reason, Tier, type Policy } from '@praetor/protocol';
+import { PriceSource, REASONS, STATUSES, TIERS, Reason, Status, Tier, type Policy } from '@praetor/protocol';
 
 export type Call = { to: Address; value: bigint; data: Hex };
 export type Verdict = { reason: number; tier: number; callHash: Hex };
@@ -126,12 +126,30 @@ export class PraetorTools {
 
   async getStatus(): Promise<ToolResult> {
     const [st, kya, now] = await Promise.all([this.p.reader.status(this.account), this.p.reader.kya(this.account), this.p.reader.now()]);
-    const effective = STATUSES[st.effective] ?? 'UNKNOWN';
+    const name = (s: number) => STATUSES[s] ?? 'UNKNOWN';
+    const effective = name(st.effective);
     const heartbeat = st.heartbeatValidUntil > now ? 'fresh' : 'stale (autonomous actions are paused until the operator heartbeat returns)';
     const kyaOk = kya.validUntil > now;
+    // The model invented a cause for a regulator freeze (#6): say what the status stops and who can lift it (I3), and
+    // that no reason reaches the tools (a StatusAttestation carries none).
+    const tightened: string[] = [];
+    if (st.effective !== Status.ACTIVE) {
+      const set = [
+        st.account !== Status.ACTIVE ? `this account is ${name(st.account).toLowerCase()}` : null,
+        st.global !== Status.ACTIVE ? `every account is ${name(st.global).toLowerCase()} (global)` : null,
+      ].filter(Boolean).join(' and ');
+      tightened.push(
+        `Set by the consortium (bank, regulator, operator): ${set}.`,
+        st.effective === Status.FROZEN
+          ? "While frozen, no payment, rebalance or standing order can move money, the owner's own included."
+          : "While restricted, every payment or rebalance the agent makes needs the owner's approval.",
+        'Any one member can freeze or restrict; lifting or loosening needs two of the three. The owner cannot lift it.',
+        'The tools do not say why it was set: do not guess a reason.',
+      );
+    }
     return {
-      text: [`Status: ${effective}`, `Heartbeat: ${heartbeat}`, `KYA: ${kyaOk ? 'valid' : 'expired'}`].join('\n'),
-      structured: { status: effective, heartbeatFresh: st.heartbeatValidUntil > now, kyaValid: kyaOk },
+      text: [`Status: ${effective}`, ...tightened, `Heartbeat: ${heartbeat}`, `KYA: ${kyaOk ? 'valid' : 'expired'}`].join('\n'),
+      structured: { status: effective, accountStatus: name(st.account), globalStatus: name(st.global), heartbeatFresh: st.heartbeatValidUntil > now, kyaValid: kyaOk },
     };
   }
 
