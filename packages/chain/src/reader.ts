@@ -5,6 +5,7 @@ import { erc20Abi, parseAbiItem, type Address, type Hex, type PublicClient } fro
 import { REASONS, TIERS, type Policy } from '@praetor/protocol';
 import { MandateHookAbi, PriceOracleAbi, TreasuryDeskAbi } from './abis.generated.js';
 import { baseNow } from './base.js';
+import { boundedGetLogs, logsMaxRange } from './logs.js';
 import type { Deployment } from './deployments.js';
 
 export type Call = { to: Address; value: bigint; data: Hex };
@@ -17,8 +18,9 @@ const REFUSED = parseAbiItem('event Refused(bytes32 indexed userOpHash, address 
 const UPDATED = parseAbiItem('event PriceUpdated(address indexed token, int256 price8, uint64 publishTime, uint8 source)');
 const LOOKBACK = 20_000n;
 
-export function accountReader(pub: PublicClient, d: Deployment) {
+export function accountReader(pub: PublicClient, d: Deployment, maxRange: bigint = logsMaxRange()) {
   const hook = { address: d.mandateHook, abi: MandateHookAbi } as const;
+  const getLogs = boundedGetLogs(pub, maxRange);
   // Never before the deployment: on a fork, blocks before the fork point are not served (and hold no Praetor logs).
   const from = async () => {
     const head = await pub.getBlockNumber();
@@ -34,7 +36,7 @@ export function accountReader(pub: PublicClient, d: Deployment) {
     price: async (token: Address): Promise<PriceInfo> => {
       const [price8, publishTime] = (await pub.readContract({ address: d.priceOracle, abi: PriceOracleAbi, functionName: 'getPrice', args: [token] })) as readonly [bigint, bigint];
       if (token.toLowerCase() === d.usdc.toLowerCase()) return { price8, publishTime, source: 0 };
-      const logs = await pub.getLogs({ address: d.priceOracle, event: UPDATED, args: { token }, fromBlock: await from(), toBlock: 'latest' });
+      const logs = await getLogs({ address: d.priceOracle, event: UPDATED, args: { token }, fromBlock: await from(), toBlock: 'latest' });
       return { price8, publishTime, source: Number(logs.at(-1)?.args.source ?? 0) };
     },
     policy: async (account: Address): Promise<Policy | null> => {
@@ -69,8 +71,8 @@ export function accountReader(pub: PublicClient, d: Deployment) {
     activity: async (account: Address, limit: number): Promise<ActivityItem[]> => {
       const fromBlock = await from();
       const [decisions, refusals] = await Promise.all([
-        pub.getLogs({ address: d.mandateHook, event: DECISION, args: { account }, fromBlock, toBlock: 'latest' }),
-        pub.getLogs({ address: d.refusalLog, event: REFUSED, args: { account }, fromBlock, toBlock: 'latest' }),
+        getLogs({ address: d.mandateHook, event: DECISION, args: { account }, fromBlock, toBlock: 'latest' }),
+        getLogs({ address: d.refusalLog, event: REFUSED, args: { account }, fromBlock, toBlock: 'latest' }),
       ]);
       const items: (ActivityItem & { block: bigint })[] = [
         ...decisions.map((l) => ({ kind: 'decision' as const, reason: REASONS[l.args.reason!] ?? '?', tier: TIERS[l.args.tier!] ?? '?', target: l.args.target!, txHash: l.transactionHash, valueUsd6: l.args.valueUsd6?.toString(), block: l.blockNumber })),

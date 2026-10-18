@@ -40,4 +40,21 @@ describe('account reader (shared by mcp and the api)', () => {
       { kind: 'decision', reason: 'OK', tier: 'T1_AUTONOMOUS', target: addr(5), txHash: '0xa1', valueUsd6: '12500000' },
     ]);
   });
+
+  it('never asks the RPC for more than N blocks per log query (D98: public RPCs refuse wide eth_getLogs)', async () => {
+    const ranges: { name: string; fromBlock: unknown; toBlock: unknown }[] = [];
+    const pub = {
+      getBlockNumber: async () => 100_000n,
+      readContract: async () => [1n, 2n],
+      getLogs: async ({ event, fromBlock, toBlock }: { event: { name: string }; fromBlock: unknown; toBlock: unknown }) => { ranges.push({ name: event.name, fromBlock, toBlock }); return []; },
+    } as unknown as PublicClient;
+    const r = accountReader(pub, d, 5_000n);
+    await r.activity(A, 10);
+    await r.price(addr(6));
+    // The 20,000-block lookback from head 100,000, in windows of 5,000, for Decision, Refused and PriceUpdated.
+    const windows = [[80_000n, 84_999n], [85_000n, 89_999n], [90_000n, 94_999n], [95_000n, 99_999n], [100_000n, 100_000n]];
+    for (const name of ['Decision', 'Refused', 'PriceUpdated']) {
+      expect(ranges.filter((x) => x.name === name).map((x) => [x.fromBlock, x.toBlock]), name).toEqual(windows);
+    }
+  });
 });
