@@ -18,7 +18,7 @@ PROFILES := $(filter-out dev,$(PROFILES))
 endif
 PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 
-.PHONY: help setup install up down ps logs smoke-sm test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-web e2e-smoke rehearsal tunnel-stop e2e-live redteam slither deploy-contracts deploy-fisco tunnel reset-fork up-base
+.PHONY: help setup install up down ps logs smoke-sm test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-web e2e-smoke rehearsal tunnel-stop e2e-live redteam redteam-live redteam-global slither deploy-contracts deploy-fisco tunnel reset-fork up-base
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -126,8 +126,14 @@ e2e-web: ## The web app's journey F1 to F10 and the sandbox in Playwright (virtu
 e2e-live: ## Flows on live Base Sepolia (CHAIN_MODE=live)
 	CHAIN_MODE=live pnpm -s --filter @praetor/test test:e2e
 
-redteam: ## Red-team suite (real model)
-	@echo "redteam suite: M16" && exit 1
+redteam: ## Red-team suite, scripted driver (needs make up): "N attacks, 0 executed" in docs/security/redteam.md
+	pnpm -s --filter @praetor/test test:redteam
+
+redteam-live: ## Red-team suite with the real model through OpenCode (needs make up)
+	pnpm -s --filter @praetor/test test:redteam:live
+
+redteam-global: ## Red-team cases that change shared state, restored after (REDTEAM_GLOBAL=1; nobody else on the stack)
+	pnpm -s --filter @praetor/test test:redteam:global
 
 slither: ## Static analysis of the Base and FISCO contracts (fails on unexplained High/Medium)
 	bash scripts/checks/slither.sh
