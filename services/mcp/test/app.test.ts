@@ -100,6 +100,13 @@ describe('mcp app', () => {
     expect(explain).toMatch(/Sends nothing/);
   });
 
+  it('get_mandate is described as the place to read what was spent (#7)', async () => {
+    const { a, tokens } = app();
+    const list = await mcp(a, await tokens.issueAgent(ACCOUNT), rpc('tools/list')).expect(200);
+    const mandate = parse(list.text).result.tools.find((x: { name: string }) => x.name === 'get_mandate').description as string;
+    expect(mandate).toMatch(/what was spent today and in the 30-day period/);
+  });
+
   it('refuses the agent bearer from outside the agent network (through Caddy it must be OAuth)', async () => {
     const { a, tokens } = app('10.88.0.2');
     const t = await tokens.issueAgent(ACCOUNT);

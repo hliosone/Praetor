@@ -110,18 +110,22 @@ export class PraetorTools {
   async getMandate(): Promise<ToolResult> {
     const [policy, kya, labels] = await Promise.all([this.p.reader.policy(this.account), this.p.reader.kya(this.account), this.p.labels(this.account)]);
     if (!policy) return { text: 'No mandate is set: every action is refused until the owner sets one.', structured: { policy: null } };
-    const caps = await this.p.reader.caps(this.account);
+    const [caps, spent] = await Promise.all([this.p.reader.caps(this.account), this.p.reader.spent(this.account)]);
     const payees = policy.payees.map((a) => ({ address: a, label: labels[a.toLowerCase()] ?? null }));
     const lines = [
       `Payments: up to ${usd(policy.autoCap)} USDC without asking; above that the owner approves; never above ${usd(policy.hardCap)} USDC.`,
       `Budgets: ${usd(policy.dailyBudget)} USDC per day, ${usd(policy.monthlyBudget)} per month, at most ${policy.dailyCount} payments per day; keep at least ${usd(policy.bufferUsdc)} USDC.`,
+      // The hook's own counters (spentOf), so the model never adds amounts up itself (#7). The hook's day is
+      // block.timestamp / 1 days and its month a fixed 30-day window; an approval lifts the owner's BUDGET_EXCEEDED (T2)
+      // while the bank's cap stays T0.
+      `Spent today (UTC day on Base): ${usd(spent.day)} of the ${usd(policy.dailyBudget)} USDC daily budget, ${spent.count} of ${policy.dailyCount} daily payments; this 30-day period: ${usd(spent.month)} of ${usd(policy.monthlyBudget)}. Owner-approved payments and standing orders count too; an owner approval can take spending past the owner's budgets, never past the bank's limits.`,
       `Known payees: ${payees.map((x) => (x.label ? `${x.label} (${x.address})` : x.address)).join(', ') || 'none'}. A new payee needs the owner.`,
       `Bands: ${policy.bands.map((b) => `${this.symbolOf(b.token)} ${pct(b.minBps)} to ${pct(b.maxBps)} (target ${pct(b.targetBps)})`).join(', ')}.`,
       `Rebalancing: at most ${policy.maxRebalancesPerDay} per day, ${usd(policy.maxTradeUsd)} USD per trade, slippage ${pct(policy.maxSlippageBps)}.`,
       `Bank limits for this risk profile: ${usd(caps.perTx)} USD per transaction, ${usd(caps.daily)} per day.`,
       `Agent key valid until ${new Date(Number(kya.validUntil) * 1000).toISOString().slice(0, 10)}.`,
     ];
-    return { text: lines.join('\n'), structured: { autoCap: usd(policy.autoCap), hardCap: usd(policy.hardCap), payees, bands: policy.bands.map((b) => ({ symbol: this.symbolOf(b.token), ...b, token: undefined })), maxRebalancesPerDay: policy.maxRebalancesPerDay } };
+    return { text: lines.join('\n'), structured: { autoCap: usd(policy.autoCap), hardCap: usd(policy.hardCap), payees, bands: policy.bands.map((b) => ({ symbol: this.symbolOf(b.token), ...b, token: undefined })), maxRebalancesPerDay: policy.maxRebalancesPerDay, spentToday: usd(spent.day), spentThisPeriod: usd(spent.month), paymentsToday: Number(spent.count) } };
   }
 
   async getStatus(): Promise<ToolResult> {

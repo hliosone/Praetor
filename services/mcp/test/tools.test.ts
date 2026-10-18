@@ -205,6 +205,17 @@ describe('get_mandate and get_status', () => {
   });
 });
 
+describe('get_mandate spending (#7)', () => {
+  it('quotes the hook\'s own counters (UTC day, 30-day period), approved payments included, and says an approval can pass the owner\'s budget, never the bank\'s limits', async () => {
+    const p = ports();
+    p.reader.spent = async () => ({ day: 530_000_000n, month: 1_060_000_000n, count: 2n, rebalances: 0n });
+    const m = await new PraetorTools(ACCOUNT, p).getMandate();
+    expect(m.text).toMatch(/Spent today \(UTC day on Base\): 530\.00 of the 500\.00 USDC daily budget, 2 of 10 daily payments; this 30-day period: 1060\.00 of 3000\.00\./);
+    expect(m.text).toMatch(/Owner-approved payments and standing orders count too; an owner approval can take spending past the owner's budgets, never past the bank's limits\./);
+    expect(m.structured).toMatchObject({ spentToday: '530.00', spentThisPeriod: '1060.00', paymentsToday: 2 });
+  });
+});
+
 describe('get_status when the consortium tightened the account (#6)', () => {
   const withStatus = (account: number, global: number) => {
     const p = ports();
