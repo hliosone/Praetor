@@ -482,10 +482,11 @@ services:
       BASE_RPC_URL: ${BASE_RPC_URL}
       DEPLOYMENTS_FILE: /app/${DEPLOYMENTS_FILE}
       ORACLE_FEEDER_KEY: ${ORACLE_FEEDER_KEY}
+      CHAIN_MODE: ${CHAIN_MODE}
       PYTH_API_KEY: ${PYTH_API_KEY}
       PYTH_HERMES_URL: ${PYTH_HERMES_URL}
       DEMO_HOLD_S: ${DEMO_HOLD_S}
-      FEED_INTERVAL_S: 60
+      FEED_INTERVAL_S: ${FEED_INTERVAL_S}
     volumes:
       - ./deployments:/app/infra/deployments:ro
     networks:

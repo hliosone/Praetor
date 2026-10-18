@@ -124,6 +124,11 @@ describe('infra/compose.yml', () => {
     expect(read('scripts/dev/compose-env.sh')).toMatch(/CADDYFILE_SHA=.*sha256sum infra\/Caddyfile/);
   });
 
+  it('polls Pyth gently: the feeder knows the chain mode and its interval comes from the env, 5 minutes on live (D89)', () => {
+    expect(compose.services['oracle-feeder']!.environment).toMatchObject({ CHAIN_MODE: '${CHAIN_MODE}', FEED_INTERVAL_S: '${FEED_INTERVAL_S}' });
+    expect(read('infra/live.env')).toMatch(/^FEED_INTERVAL_S=300$/m);
+  });
+
   it('documents in infra/.env.example every variable compose interpolates', () => {
     const vars = new Set([...read('infra/compose.yml').matchAll(/\$\{([A-Z0-9_]+)/g)].map((m) => m[1]!));
     const example = read('infra/.env.example');
