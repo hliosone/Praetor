@@ -1,8 +1,9 @@
 // The audit writer's sources: Base events of spec 02 (every Praetor contract that emits them) and FISCO decisions
 // (BaseOutbox Enqueued, one per Ready). Each poll reads from its cursor to the head, in bounded windows (FISCO
-// scans at most 10 blocks per getLogs, Q23), and returns the events in chain order.
+// scans at most 10 blocks per getLogs, Q23; public Base RPCs refuse wide ranges, D98), and returns the events in chain
+// order.
 import { parseAbiItem, type Abi, type AbiEvent, type Address, type Hex, type PublicClient } from 'viem';
-import type { Deployment } from '@praetor/chain';
+import { boundedGetLogs, logsMaxRange, type Deployment } from '@praetor/chain';
 import { getLogsChunked } from '@praetor/fisco-client';
 import {
   anchorEventsAbi, mandateHookEventsAbi, payoutRailEventsAbi, refusalLogEventsAbi, standingOrdersEventsAbi, treasuryDeskEventsAbi,
@@ -13,7 +14,6 @@ const BASE_EVENTS = [mandateHookEventsAbi, refusalLogEventsAbi, standingOrdersEv
   .flatMap((abi) => (abi as Abi).filter((x): x is AbiEvent => x.type === 'event'));
 const ENQUEUED = parseAbiItem('event Enqueued(uint256 indexed id, uint8 indexed kind, address indexed board, uint256 proposalId)');
 const PAYOUT_OF = parseAbiItem('function payoutOf(uint256 id) view returns ((address account, address partner, uint256 amount, uint8 rail, bytes32 merchantRef, bytes32 paymentRef, bool withdrawn, uint8 state))');
-const BASE_WINDOW = 2000n;
 
 const blockTimes = async (pub: PublicClient, blocks: bigint[]) => {
   const out = new Map<bigint, number>();
@@ -21,13 +21,9 @@ const blockTimes = async (pub: PublicClient, blocks: bigint[]) => {
   return out;
 };
 
-export async function baseEvents(pub: PublicClient, d: Deployment, fromBlock: bigint, toBlock: bigint): Promise<SourceEvent[]> {
+export async function baseEvents(pub: PublicClient, d: Deployment, fromBlock: bigint, toBlock: bigint, maxRange = logsMaxRange()): Promise<SourceEvent[]> {
   const address = [d.mandateHook, d.refusalLog, d.standingOrders, d.payoutRail, d.treasuryDesk, d.anchor] as Address[];
-  const logs = [];
-  for (let a = fromBlock; a <= toBlock; a += BASE_WINDOW) {
-    const b = a + BASE_WINDOW - 1n < toBlock ? a + BASE_WINDOW - 1n : toBlock;
-    logs.push(...(await pub.getLogs({ address, events: BASE_EVENTS, fromBlock: a, toBlock: b, strict: false })));
-  }
+  const logs = await boundedGetLogs(pub, maxRange)({ address, events: BASE_EVENTS, fromBlock, toBlock, strict: false });
   logs.sort((x, y) => (x.blockNumber === y.blockNumber ? x.logIndex! - y.logIndex! : x.blockNumber! < y.blockNumber! ? -1 : 1));
   const times = await blockTimes(pub, logs.map((l) => l.blockNumber!));
   const out: SourceEvent[] = [];

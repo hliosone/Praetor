@@ -233,6 +233,7 @@ services:
       PRAETOR_ENV: ${PRAETOR_ENV}
       CHAIN_MODE: ${CHAIN_MODE}
       BASE_RPC_URL: ${BASE_RPC_URL}
+      BASE_LOGS_MAX_RANGE: ${BASE_LOGS_MAX_RANGE}
       FISCO_RPC_URL: ${FISCO_RPC_URL}
       DEPLOYMENTS_FILE: /app/${DEPLOYMENTS_FILE}
       FISCO_DEPLOYMENTS_FILE: /app/${FISCO_DEPLOYMENTS_FILE}
@@ -368,6 +369,7 @@ services:
     restart: unless-stopped
     environment:
       BASE_RPC_URL: ${BASE_RPC_URL}
+      BASE_LOGS_MAX_RANGE: ${BASE_LOGS_MAX_RANGE}
       DEPLOYMENTS_FILE: /app/${DEPLOYMENTS_FILE}
       PAYOUT_PARTNER_KEY: ${PAYOUT_PARTNER_KEY}
       ALIPAYPLUS_GATEWAY_URL: https://alipayplus-mock
@@ -401,6 +403,7 @@ services:
     restart: unless-stopped
     environment:
       BASE_RPC_URL: ${BASE_RPC_URL}
+      BASE_LOGS_MAX_RANGE: ${BASE_LOGS_MAX_RANGE}
       DEPLOYMENTS_FILE: /app/${DEPLOYMENTS_FILE}
       FISCO_RPC_URL: ${FISCO_RPC_URL}
       FISCO_DEPLOYMENTS_FILE: /app/${FISCO_DEPLOYMENTS_FILE}
@@ -452,6 +455,7 @@ services:
     restart: unless-stopped
     environment:
       BASE_RPC_URL: ${BASE_RPC_URL}
+      BASE_LOGS_MAX_RANGE: ${BASE_LOGS_MAX_RANGE}
       DEPLOYMENTS_FILE: /app/${DEPLOYMENTS_FILE}
       INTERNAL_TOKEN_API: ${INTERNAL_TOKEN_API}
       OA_APPID: ${OA_APPID}
@@ -482,6 +486,7 @@ services:
     restart: unless-stopped
     environment:
       BASE_RPC_URL: ${BASE_RPC_URL}
+      BASE_LOGS_MAX_RANGE: ${BASE_LOGS_MAX_RANGE}
       DEPLOYMENTS_FILE: /app/${DEPLOYMENTS_FILE}
       ORACLE_FEEDER_KEY: ${ORACLE_FEEDER_KEY}
       CHAIN_MODE: ${CHAIN_MODE}
@@ -510,6 +515,7 @@ services:
     restart: unless-stopped
     environment:
       BASE_RPC_URL: ${BASE_RPC_URL}
+      BASE_LOGS_MAX_RANGE: ${BASE_LOGS_MAX_RANGE}
       DEPLOYMENTS_FILE: /app/${DEPLOYMENTS_FILE}
       MYSQL_HOST: mysql
       MYSQL_PASSWORD_MCP: ${MYSQL_PASSWORD_MCP}
@@ -595,6 +601,7 @@ services:
     restart: unless-stopped
     environment:
       BASE_RPC_URL: ${BASE_RPC_URL}
+      BASE_LOGS_MAX_RANGE: ${BASE_LOGS_MAX_RANGE}
       DEPLOYMENTS_FILE: /app/${DEPLOYMENTS_FILE}
       INTERNAL_TOKEN_BUNDLER: ${INTERNAL_TOKEN_BUNDLER}
       INTERNAL_TOKEN_AGENT: ${INTERNAL_TOKEN_AGENT}

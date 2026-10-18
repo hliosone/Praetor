@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { createWalletClient, encodeFunctionData, erc20Abi, http, parseAbi, parseAbiItem, type Address, type Hex } from 'viem';
 import { baseSepolia } from 'viem/chains';
 import { AuditLogAbi, fiscoClients } from '@praetor/fisco-client';
-import { AgentKeyValidatorAbi, AnchorAbi, MandateHookAbi, PasskeyValidatorAbi, StandingOrdersAbi, accountReader, baseClients, baseNow, loadDeployments } from '@praetor/chain';
+import { AgentKeyValidatorAbi, AnchorAbi, MandateHookAbi, PasskeyValidatorAbi, StandingOrdersAbi, accountReader, baseClients, baseNow, boundedGetLogs, loadDeployments } from '@praetor/chain';
 import { connect, loadMigrations, migrate } from '@praetor/db';
 import { explorerUrl } from '@praetor/config';
 import { prepareAccount } from '@praetor/userop';
@@ -68,6 +68,8 @@ const log = pino();
 const mpWechat = mpWechatConfig(process.env);
 const d = loadDeployments(env.DEPLOYMENTS_FILE);
 const { publicClient: pub } = baseClients(env.BASE_RPC_URL);
+// Standing orders, statements and recovery read from the deployment block: in windows the public RPC accepts (D98).
+const getLogs = boundedGetLogs(pub);
 const conn = connect({ host: env.MYSQL_HOST, user: 'api', password: env.MYSQL_PASSWORD_API, database: 'api' });
 await migrate(conn.runner, loadMigrations('api'));
 const store = new MySqlApiStore(conn.runner);
@@ -148,7 +150,7 @@ const ORDER_SET = parseAbiItem('event StandingOrderSet(address indexed account, 
 const standingOrders = new StandingOrders({
   now, ownerActions, standingOrders: d.standingOrders, proposals: new MySqlProposalStore(conn.runner), bundler: c.bundler, notify,
   orders: async (account) => {
-    const logs = await pub.getLogs({ address: d.standingOrders, event: ORDER_SET, args: { account }, fromBlock: BigInt(d.deployBlock), toBlock: 'latest' });
+    const logs = await getLogs({ address: d.standingOrders, event: ORDER_SET, args: { account }, fromBlock: BigInt(d.deployBlock), toBlock: 'latest' });
     const ids = [...new Set(logs.map((l) => Number(l.args.id)))];
     return Promise.all(ids.map(async (id) => {
       const [payee, amount, period, , nextDue, rail, merchantRef, active] = await pub.readContract({ address: d.standingOrders, abi: StandingOrdersAbi, functionName: 'orders', args: [account, id] });
@@ -178,9 +180,9 @@ const PAYOUT_REQUESTED = parseAbiItem('event PayoutRequested(uint256 indexed id,
 const statement = async (account: Address, fromMs: number, toMs: number) => {
   const range = { fromBlock: BigInt(d.deployBlock), toBlock: 'latest' as const };
   const [out, inc, payouts, balance] = await Promise.all([
-    pub.getLogs({ address: d.usdc, event: TRANSFER, args: { from: account }, ...range }),
-    pub.getLogs({ address: d.usdc, event: TRANSFER, args: { to: account }, ...range }),
-    pub.getLogs({ address: d.payoutRail, event: PAYOUT_REQUESTED, args: { account }, ...range }),
+    getLogs({ address: d.usdc, event: TRANSFER, args: { from: account }, ...range }),
+    getLogs({ address: d.usdc, event: TRANSFER, args: { to: account }, ...range }),
+    getLogs({ address: d.payoutRail, event: PAYOUT_REQUESTED, args: { account }, ...range }),
     pub.readContract({ address: d.usdc, abi: erc20Abi, functionName: 'balanceOf', args: [account] }),
   ]);
   const times = new Map<bigint, number>();
@@ -258,7 +260,7 @@ const RECOVERY_EVENTS = [
   parseAbiItem('event RecoveryExecuted(address indexed account, bytes32 payloadHash)'),
 ] as const;
 const recoveryStatus = async (account: Address) => {
-  const logs = (await Promise.all(RECOVERY_EVENTS.map((event) => pub.getLogs({ address: d.mandateHook, event, args: { account }, fromBlock: BigInt(d.deployBlock), toBlock: 'latest' })))).flat();
+  const logs = (await Promise.all(RECOVERY_EVENTS.map((event) => getLogs({ address: d.mandateHook, event, args: { account }, fromBlock: BigInt(d.deployBlock), toBlock: 'latest' })))).flat();
   const last = logs.sort((x, y) => Number(x.blockNumber! - y.blockNumber!) || x.logIndex! - y.logIndex!).at(-1);
   if (!last) return { state: 'none' };
   const state = last.eventName === 'RecoveryScheduled' ? 'scheduled' : last.eventName === 'RecoveryCancelled' ? 'cancelled' : 'executed';

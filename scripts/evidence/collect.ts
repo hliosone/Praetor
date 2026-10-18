@@ -8,7 +8,7 @@ import { createPublicClient, decodeEventLog, decodeFunctionData, http, type Abi,
 import { baseSepolia } from 'viem/chains';
 import { anchorEventsAbi, mandateHookEventsAbi, payoutRailEventsAbi, refusalLogEventsAbi, standingOrdersEventsAbi, treasuryDeskEventsAbi, REASONS } from '@praetor/protocol';
 import { fiscoAbis } from '@praetor/fisco-client';
-import { loadDeployments } from '@praetor/chain';
+import { boundedGetLogs, loadDeployments } from '@praetor/chain';
 
 export type Flow = { id: string; title: string; accounts: Address[]; base: [string, string]; fisco: [string, string]; notes?: string[] };
 export type Run = { env: string; startedAt: string; flows: Flow[] };
@@ -41,6 +41,7 @@ async function main(envName: string) {
   const fiscoFile = JSON.parse(readFileSync(new URL(`infra/deployments/fisco-${envName === 'base-sepolia' ? 'live' : 'local'}.json`, root), 'utf8')) as Record<string, string>;
   const live = envName === 'base-sepolia';
   const base = createPublicClient({ chain: baseSepolia, transport: http(live ? (process.env.BASE_LIVE_RPC_URL ?? 'https://base-sepolia-rpc.publicnode.com') : (process.env.ANVIL_URL ?? 'http://127.0.0.1:18545')) });
+  const getLogs = boundedGetLogs(base);
   const fisco = createPublicClient({ transport: http(process.env.FISCO_RPC_URL_HOST ?? 'http://10.88.1.10:8545') });
   const sources: [Address, Abi][] = [
     [d.mandateHook, mandateHookEventsAbi], [d.refusalLog, refusalLogEventsAbi], [d.standingOrders, standingOrdersEventsAbi],
@@ -57,11 +58,8 @@ async function main(envName: string) {
   for (const f of run.flows) {
     const logs: (Log & { decoded: { eventName: string; args: Record<string, unknown> } })[] = [];
     for (const [address, abi] of sources) {
-      for (let from = BigInt(f.base[0]); from <= BigInt(f.base[1]); from += 2000n) {
-        const to = from + 1999n < BigInt(f.base[1]) ? from + 1999n : BigInt(f.base[1]);
-        for (const l of await base.getLogs({ address, fromBlock: from, toBlock: to })) {
-          try { logs.push({ ...l, decoded: decodeEventLog({ abi, data: l.data, topics: l.topics }) as never }); } catch { /* not one of ours */ }
-        }
+      for (const l of await getLogs({ address, fromBlock: BigInt(f.base[0]), toBlock: BigInt(f.base[1]) })) {
+        try { logs.push({ ...l, decoded: decodeEventLog({ abi, data: l.data, topics: l.topics }) as never }); } catch { /* not one of ours */ }
       }
     }
     logs.sort((a, b) => Number(a.blockNumber! - b.blockNumber!) || a.logIndex! - b.logIndex!);

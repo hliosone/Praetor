@@ -3,7 +3,7 @@ import pino from 'pino';
 import express from 'express';
 import { z } from 'zod';
 import { parseAbiItem, type Address, type Hex } from 'viem';
-import { PriceOracleAbi, baseClients, baseNow, loadDeployments } from '@praetor/chain';
+import { PriceOracleAbi, baseClients, baseNow, boundedGetLogs, loadDeployments } from '@praetor/chain';
 import { resolveKey } from '@praetor/config';
 import { PriceSource } from '@praetor/protocol';
 import { PYTH_IDS, SEEDED, decide, feedMode, nextTickS, normalisePyth, type Update } from './feeder.js';
@@ -22,6 +22,7 @@ const env = z.object({
 const log = pino();
 const d = loadDeployments(env.DEPLOYMENTS_FILE);
 const { publicClient, walletClient } = baseClients(env.BASE_RPC_URL, resolveKey('ORACLE_FEEDER_KEY', process.env));
+const getLogs = boundedGetLogs(publicClient);
 const tokens: Record<keyof typeof PYTH_IDS, Address> = { XAU: d.txau, XAG: d.txag };
 const UPDATED = parseAbiItem('event PriceUpdated(address indexed token, int256 price8, uint64 publishTime, uint8 source)');
 const LOOKBACK = 5_000n;
@@ -32,7 +33,7 @@ async function lastUpdate(token: Address): Promise<Update | null> {
   const head = await publicClient.getBlockNumber();
   const back = head > LOOKBACK ? head - LOOKBACK : 0n;
   const fromBlock = back > BigInt(d.deployBlock) ? back : BigInt(d.deployBlock);
-  const logs = await publicClient.getLogs({ address: d.priceOracle, event: UPDATED, args: { token }, fromBlock, toBlock: head });
+  const logs = await getLogs({ address: d.priceOracle, event: UPDATED, args: { token }, fromBlock, toBlock: head });
   const l = logs.at(-1);
   if (l) return { price8: l.args.price8!, publishTime: BigInt(l.args.publishTime!), source: Number(l.args.source) };
   const [price8, publishTime] = (await publicClient.readContract({ address: d.priceOracle, abi: PriceOracleAbi, functionName: 'getPrice', args: [token] })) as readonly [bigint, bigint];

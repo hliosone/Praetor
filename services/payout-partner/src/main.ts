@@ -3,7 +3,7 @@
 import pino from 'pino';
 import { z } from 'zod';
 import { parseAbiItem, type Hex } from 'viem';
-import { PayoutRailAbi, baseClients, loadDeployments } from '@praetor/chain';
+import { PayoutRailAbi, baseClients, boundedGetLogs, loadDeployments } from '@praetor/chain';
 import { resolveKey } from '@praetor/config';
 import { Rail } from '@praetor/protocol';
 import { processPayout } from './partner.js';
@@ -28,6 +28,8 @@ const log = pino();
 const d = loadDeployments(env.DEPLOYMENTS_FILE);
 const { publicClient: pub, walletClient: wallet } = baseClients(env.BASE_RPC_URL, resolveKey('PAYOUT_PARTNER_KEY', process.env));
 const partner = wallet!.account!.address;
+// The first tick reads from the deployment block: in windows the public RPC accepts (D98).
+const getLogs = boundedGetLogs(pub);
 const write = async (functionName: 'withdraw' | 'settle' | 'fail', args: readonly unknown[]) => {
   const hash = await wallet!.writeContract({ address: d.payoutRail, abi: PayoutRailAbi, functionName, args: args as never, account: wallet!.account!, chain: wallet!.chain });
   const r = await pub.waitForTransactionReceipt({ hash });
@@ -45,7 +47,7 @@ const done: { id: string; result: string }[] = [];
 async function tick() {
   const head = await pub.getBlockNumber();
   if (head < from) return;
-  const logs = await pub.getLogs({ address: d.payoutRail, event: REQUESTED, args: { partner }, fromBlock: from, toBlock: head });
+  const logs = await getLogs({ address: d.payoutRail, event: REQUESTED, args: { partner }, fromBlock: from, toBlock: head });
   for (const l of logs) {
     const id = l.args.id!;
     const p = (await pub.readContract({ address: d.payoutRail, abi: PayoutRailAbi, functionName: 'payoutOf', args: [id] })) as { state: number; withdrawn: boolean };

@@ -2,7 +2,7 @@
 import pino from 'pino';
 import { z } from 'zod';
 import { parseAbiItem, type Address } from 'viem';
-import { baseClients, loadDeployments } from '@praetor/chain';
+import { baseClients, boundedGetLogs, loadDeployments } from '@praetor/chain';
 import { explorerUrl } from '@praetor/config';
 import { Tier } from '@praetor/protocol';
 import { createNotifierApp, recoveryText, refusalText, type Channel } from './app.js';
@@ -44,6 +44,8 @@ app.listen(env.PORT, () => log.info({ port: env.PORT, oa: !!env.OA_APPID }, 'not
 // the owner knows (the bank's own notice is a log sink, D13).
 const d = loadDeployments(env.DEPLOYMENTS_FILE);
 const { publicClient: pub } = baseClients(env.BASE_RPC_URL);
+// The cursor moves only after a successful read: after an RPC outage the range can outgrow what the RPC accepts (D98).
+const getLogs = boundedGetLogs(pub);
 const REFUSED = parseAbiItem('event Refused(bytes32 indexed userOpHash, address indexed account, bytes32 indexed callHash, uint8 reason, uint8 tier, address target, address reporter)');
 const RECOVERY = parseAbiItem('event RecoveryScheduled(address indexed account, bytes32 payloadHash, uint64 executableAt)');
 let from = await pub.getBlockNumber();
@@ -58,8 +60,8 @@ setInterval(() => {
     if (head <= from) return;
     const range = { fromBlock: from + 1n, toBlock: head };
     const [logs, recoveries] = await Promise.all([
-      pub.getLogs({ address: d.refusalLog, event: REFUSED, ...range }),
-      pub.getLogs({ address: d.mandateHook, event: RECOVERY, ...range }),
+      getLogs({ address: d.refusalLog, event: REFUSED, ...range }),
+      getLogs({ address: d.mandateHook, event: RECOVERY, ...range }),
     ]);
     from = head;
     for (const l of logs) {

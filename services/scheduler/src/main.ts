@@ -5,7 +5,7 @@ import pino from 'pino';
 import express from 'express';
 import { z } from 'zod';
 import { encodeFunctionData, erc20Abi, parseAbiItem, type Address } from 'viem';
-import { MandateHookAbi, PriceOracleAbi, StandingOrdersAbi, baseClients, baseNow, loadDeployments } from '@praetor/chain';
+import { MandateHookAbi, PriceOracleAbi, StandingOrdersAbi, baseClients, baseNow, boundedGetLogs, loadDeployments } from '@praetor/chain';
 import { PriceSource, type Policy } from '@praetor/protocol';
 import { Cooldown, bandWake, weightsOf } from './bands.js';
 import { dueOrders } from './standing.js';
@@ -27,6 +27,8 @@ const env = z.object({
 const log = pino();
 const d = loadDeployments(env.DEPLOYMENTS_FILE);
 const { publicClient: pub } = baseClients(env.BASE_RPC_URL);
+// Standing orders are read from the deployment block at each start: in windows the public RPC accepts (D98).
+const getLogs = boundedGetLogs(pub);
 const cooldown = new Cooldown(env.WAKE_COOLDOWN_S);
 const symbols: Record<string, string> = { [d.usdc.toLowerCase()]: 'USDC', [d.txau.toLowerCase()]: 'tXAU', [d.txag.toLowerCase()]: 'tXAG' };
 const UPDATED = parseAbiItem('event PriceUpdated(address indexed token, int256 price8, uint64 publishTime, uint8 source)');
@@ -81,7 +83,7 @@ async function watchDemo() {
   try {
     const head = await pub.getBlockNumber();
     if (head > fromBlock) {
-      const logs = await pub.getLogs({ address: d.priceOracle, event: UPDATED, fromBlock: fromBlock + 1n, toBlock: head });
+      const logs = await getLogs({ address: d.priceOracle, event: UPDATED, fromBlock: fromBlock + 1n, toBlock: head });
       fromBlock = head;
       if (logs.some((l) => Number(l.args.source) === PriceSource.DEMO)) await checkAll();
     }
@@ -99,7 +101,7 @@ async function standingOrders() {
   try {
     const head = await pub.getBlockNumber();
     if (head >= soFrom) {
-      for (const l of await pub.getLogs({ address: d.standingOrders, event: SET, fromBlock: soFrom, toBlock: head })) known.set(`${l.args.account}:${l.args.id}`, { account: l.args.account!, id: Number(l.args.id) });
+      for (const l of await getLogs({ address: d.standingOrders, event: SET, fromBlock: soFrom, toBlock: head })) known.set(`${l.args.account}:${l.args.id}`, { account: l.args.account!, id: Number(l.args.id) });
       soFrom = head + 1n;
     }
     const now = await baseNow(pub);
