@@ -72,6 +72,8 @@ describe('make up on a fresh clone (#11)', () => {
     expect(sh).not.toMatch(/^\s*set -[a-zA-Z]*x/m);
     // build_wecross.sh and add_chain.sh print their errors on stdout, which went to /dev/null.
     for (const tool of ['build_wecross.sh', 'add_chain.sh']) expect(sh).toMatch(new RegExp(`bash ${tool} [^\\n]*>>"\\$LOG"$`, 'm'));
+    // compose restarts the same container, /tmp included: a run must not print an earlier run's output as its cause.
+    expect(sh).toMatch(/^setup\(\) \{\n {2}: > "\$LOG"$/m);
   });
 
   it('runs scripts/wecross/up.sh with the Makefile\'s compose command and profiles: --profile wecross alone is invalid', () => {

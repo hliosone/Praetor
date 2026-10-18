@@ -28,6 +28,7 @@ address_of_hex() { # 0x-address of a secp256k1 hex key: keccak256 of the uncompr
 }
 
 setup() {
+  : > "$LOG"
   : "${WECROSS_FISCO_KEY:?}" "${WECROSS_ADMIN_PASSWORD:?}" "${MYSQL_PASSWORD_WECROSS:?}" "${WECROSS_AM_ENCRYPT_KEY:?}"
   [ -w /data ] || { echo "wecross: /data (infra/wecross/generated) is not writable by uid $(id -u): create it as that user before compose runs (make up does)" >&2; exit 1; }
   local WECROSS_FISCO_ADDRESS
