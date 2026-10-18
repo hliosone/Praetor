@@ -4,7 +4,7 @@ Single source of truth for where the build stands. After a context reset: read `
 
 ## Now
 
-**Phase B in progress** (go received 2026-10-17 07:02 UTC, no answers: all QUESTIONS defaults apply, D3). No address funded and no human `.env` value: everything runs on the fork (BLOCKERS B1, B2). Resume at the first unchecked item below.
+**Phase B in progress** (go received 2026-10-17 07:02 UTC, no answers: all QUESTIONS defaults apply, D3). M0 to M15 and M17 are closed on the local fork. The human funded the LIVE deployer and treasury on 2026-10-17 (B1 resolved for live, budget D74); the contracts are on Base Sepolia. Left: the red team on the fork and the live evidence run (M16), the rehearsal (M18). Resume at the first unchecked item below.
 
 ## Phase 0 (2026-10-17 03:30 to 04:30 UTC)
 
