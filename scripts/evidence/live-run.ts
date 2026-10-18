@@ -2,7 +2,8 @@
 // real model; each flow's block ranges on Base and FISCO are written to .run/evidence/<env>.json for collect.ts.
 // Live: CHAIN_MODE=live with the stack started in live mode (make up LIVE=1). Fork: a dry run of the same script.
 // Usage: CHAIN_MODE=live pnpm exec tsx scripts/evidence/live-run.ts
-import { mkdirSync, writeFileSync } from 'node:fs';
+//        ... live-run.ts --resume <tag> --only F6   (re-runs flows on the same account; the tag is in its email)
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createPublicClient, encodeFunctionData, erc20Abi, http, type Address } from 'viem';
 import { PriceOracleAbi, baseNow } from '@praetor/chain';
 import {
@@ -17,23 +18,35 @@ const env = s.set === 'LIVE' ? 'base-sepolia' : 'fork';
 const scale = s.set === 'LIVE' ? 100n : 1n;
 const usd6 = (usd: number) => (BigInt(Math.round(usd * 1e6)) / scale);
 const fisco = createPublicClient({ transport: http(process.env.FISCO_RPC_URL_HOST ?? 'http://10.88.1.10:8545') });
-const run: Run = { env, startedAt: new Date().toISOString(), flows: [] };
+const arg = (k: string) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : undefined; };
+const resume = arg('--resume');
+const only = arg('--only')?.split(',');
+const runFile = `${root}.run/evidence/${env}.json`;
+const run: Run = resume && existsSync(runFile) ? JSON.parse(readFileSync(runFile, 'utf8')) : { env, startedAt: new Date().toISOString(), flows: [] };
 const save = () => { mkdirSync(`${root}.run/evidence`, { recursive: true }); writeFileSync(`${root}.run/evidence/${env}.json`, JSON.stringify(run, null, 2)); };
 
 async function flow(id: string, title: string, accounts: Address[], body: (notes: string[]) => Promise<void>) {
-  const notes: string[] = [];
+  if (only && !only.includes(id)) return;
+  const earlier = run.flows.findIndex((f) => f.id === id);
+  const notes: string[] = earlier >= 0 ? [`re-run on the same account; first attempt: ${(run.flows[earlier]!.notes ?? []).join(' | ').slice(0, 200)}`] : [];
   const b0 = await pub(s).getBlockNumber();
   const f0 = await fisco.getBlockNumber();
   try { await body(notes); } catch (e) { notes.push(`stopped: ${(e as Error).message.slice(0, 200)}`); }
-  run.flows.push({ id, title, accounts, base: [b0.toString(), (await pub(s).getBlockNumber()).toString()], fisco: [f0.toString(), (await fisco.getBlockNumber()).toString()], notes } satisfies Flow);
+  const entry = { id, title, accounts, base: [b0.toString(), (await pub(s).getBlockNumber()).toString()], fisco: [f0.toString(), (await fisco.getBlockNumber()).toString()], notes } satisfies Flow;
+  if (earlier >= 0) run.flows.splice(earlier + 1, 0, entry);
+  else run.flows.push(entry);
   save();
   console.log(`${id}: ${notes.join(' | ') || 'done'}`);
 }
 
-const tag = Date.now().toString(36);
-const web = new WebClient(s, `evidence-${tag}`);
-const cafe = labelAddress(`evidence-cafe-${tag}`);
 let agent: Address = '0x0000000000000000000000000000000000000000';
+const tag = resume ?? Date.now().toString(36);
+const web = new WebClient(s, `evidence-${tag}`);
+if (resume) {
+  await web.signIn();
+  agent = (await pub(s).readContract({ address: s.base.mandateHook, abi: [{ type: 'function', name: 'kyaOf', stateMutability: 'view', inputs: [{ type: 'address' }], outputs: [{ type: 'address' }, { type: 'uint8' }, { type: 'uint8' }, { type: 'bytes2' }, { type: 'uint64' }] }] as const, functionName: 'kyaOf', args: [web.account as Address] }))[0];
+}
+const cafe = labelAddress(`evidence-cafe-${tag}`);
 
 await flow('C0', 'Consortium bootstrap (caps, assets, partner, CN payouts blocked, demo sanctions, heartbeat); prices from Pyth on live', [], async (notes) => {
   await bootstrapConsortium(s);
@@ -57,8 +70,10 @@ await flow('F1', 'Onboarding: passkey, account, KYC, agent in the TEE, AgentMand
 });
 const acc = () => web.account as Address;
 // F1 created the account: its events are the flow's.
-run.flows.at(-1)!.accounts = [acc()];
-save();
+if (!resume) {
+  run.flows.at(-1)!.accounts = [acc()];
+  save();
+}
 
 await flow('F3', 'Mandate set with the passkey after the bank\'s FISCO check, then funded', [acc()], async () => {
   const p = { ...linPolicy(s, 0n), autoCap: usd6(200), hardCap: usd6(2000), dailyBudget: usd6(500), monthlyBudget: usd6(3000), bufferUsdc: usd6(1000), maxTradeUsd: usd6(1000), payees: [cafe], validUntil: (await baseNow(pub(s))) + 31_536_000n };

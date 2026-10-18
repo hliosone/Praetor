@@ -53,6 +53,14 @@ export class WebClient {
     return v as { account: `0x${string}`; credIdHash: Hex };
   }
 
+  /** Sign in again with the same passkey (an evidence run resumed with its tag). */
+  async signIn() {
+    const options = await this.ok('POST', '/api/auth/options');
+    const v = await this.ok('POST', '/api/auth/verify', { response: this.passkey.authentication(options.challenge) });
+    this.account = v.account;
+    return v as { account: `0x${string}` };
+  }
+
   /** An owner action prepared by the api, signed here over the digest, submitted. */
   async ownerAction(prepared: { ownerAction: unknown; payload: Hex; digest: Hex }) {
     return this.ok('POST', '/api/owner-actions/submit', { ownerAction: prepared.ownerAction, payload: prepared.payload, assertion: this.assert(prepared.digest) });
