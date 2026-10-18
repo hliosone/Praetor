@@ -12,17 +12,24 @@ const servers: Server[] = [];
 afterEach(() => { for (const s of servers.splice(0)) s.close(); });
 
 /** A fake `opencode serve`: one session; the message blocks until its permission request is rejected. */
-function fakeOpencode(port: number, opts: { askPermission?: boolean } = {}) {
+function fakeOpencode(port: number, opts: { askPermission?: boolean; askQuestion?: boolean } = {}) {
   const app = express();
   app.use(express.json());
-  const state = { permissions: [] as { id: string }[], rejected: [] as string[], messages: [] as unknown[], auth: '' as string, directories: [] as string[] };
+  const state = { permissions: [] as { id: string }[], questions: [] as { id: string }[], rejected: [] as string[], messages: [] as unknown[], auth: '' as string, directories: [] as string[] };
   app.use((req, _res, next) => { state.auth = req.header('authorization') ?? ''; state.directories.push(String(req.query.directory ?? '')); next(); });
   app.get('/doc', (_req, res) => res.json({}));
   app.post('/session', (_req, res) => res.json({ id: 'ses_1' }));
   app.get('/permission', (_req, res) => res.json(state.permissions));
   app.post('/permission/:id/reply', (req, res) => { state.rejected.push(`${req.params.id}:${req.body.reply}`); state.permissions = state.permissions.filter((p) => p.id !== req.params.id); res.json(true); });
+  app.get('/question', (_req, res) => res.json(state.questions));
+  app.post('/question/:id/reject', (req, res) => { state.rejected.push(`${req.params.id}:question-reject`); state.questions = state.questions.filter((q) => q.id !== req.params.id); res.json(true); });
   app.post('/session/:id/message', async (req, res) => {
     state.messages.push(req.body);
+    if (opts.askQuestion) {
+      state.questions.push({ id: 'que_1' });
+      for (let i = 0; i < 50 && state.questions.length; i++) await new Promise((r) => setTimeout(r, 50));
+      if (state.questions.length) return res.json({ info: { role: 'assistant' }, parts: [{ type: 'text', text: 'stuck' }] });
+    }
     if (opts.askPermission) {
       state.permissions.push({ id: 'per_1' });
       for (let i = 0; i < 50 && state.permissions.length; i++) await new Promise((r) => setTimeout(r, 50));
@@ -38,7 +45,7 @@ function fakeOpencode(port: number, opts: { askPermission?: boolean } = {}) {
   return state;
 }
 
-function setup(o: { askPermission?: boolean; max?: number } = {}) {
+function setup(o: { askPermission?: boolean; askQuestion?: boolean; max?: number } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'runner-'));
   const states: ReturnType<typeof fakeOpencode>[] = [];
   const envs: Record<string, string>[] = [];
@@ -127,5 +134,12 @@ describe('turns', () => {
     ]);
     expect(states[0]!.auth).toBe(`Basic ${Buffer.from('opencode:pw').toString('base64')}`);
     expect((states[0]!.messages[0] as { model: unknown }).model).toEqual({ providerID: 'fake', modelID: 'scripted' });
+  });
+
+  it('rejects a pending question (the ask-the-user tool) so the turn ends instead of hanging (issue #5)', async () => {
+    const { runner, states } = setup({ askQuestion: true });
+    const r = await runner.turn(ACCOUNT, 'Pay the café 12.50');
+    expect(states[0]!.rejected).toEqual(['que_1:question-reject']);
+    expect(r.text).toBe('Paid 12.50 USDC.');
   });
 });

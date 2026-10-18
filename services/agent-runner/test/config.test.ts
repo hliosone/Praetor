@@ -6,8 +6,16 @@ const base = { account: '0x00000000000000000000000000000000000c0ffe', model: 'op
 describe('opencode.json per account', () => {
   it('locks the built-in tools behind permission prompts (rejected by the runner), Praetor tools allowed (Q34)', () => {
     const c = opencodeConfig(base);
-    expect(c.permission).toEqual({ '*': 'ask', 'praetor_*': 'allow' });
+    expect(c.permission['*']).toBe('ask');
+    expect(c.permission['praetor_*']).toBe('allow');
     expect(c.model).toBe('opencode/deepseek-v4.1-flash-free');
+  });
+  it('denies the interactive built-ins (question, plan mode) after the "*" rule: OpenCode takes the last match (issue #5)', () => {
+    const c = opencodeConfig(base);
+    expect(c.permission).toEqual({ '*': 'ask', question: 'deny', plan_enter: 'deny', plan_exit: 'deny', 'praetor_*': 'allow' });
+    const keys = Object.keys(c.permission);
+    expect(keys.indexOf('question')).toBeGreaterThan(keys.indexOf('*'));
+    expect(JSON.parse(JSON.stringify(c)).permission.question).toBe('deny');
   });
   it('passes the MCP bearer only through an env substitution: the file holds no token', () => {
     const c = opencodeConfig(base);

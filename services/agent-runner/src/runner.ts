@@ -1,5 +1,6 @@
 // One agent turn on an account's OpenCode instance: the permission rejector starts before the message is sent (a
-// pending request would otherwise hang the turn) and rejects every built-in tool call (Q34).
+// pending request would otherwise hang the turn) and rejects every built-in tool call (Q34). It also rejects any
+// pending `question` (OpenCode's ask-the-user tool, denied in opencode.json): the chat cannot show one (issue #5).
 import type { Instance, InstanceManager } from './instances.js';
 
 export type ToolStep = { tool: string; status: string; input: unknown; output: unknown };
@@ -35,7 +36,7 @@ export class Runner {
   private async call(i: Instance, method: string, path: string, body?: unknown, timeoutMs = 30_000): Promise<unknown> {
     const sep = path.includes('?') ? '&' : '?';
     const r = await fetch(`${i.base}${path}${sep}directory=${encodeURIComponent(i.project)}`, {
-      method, headers: { authorization: i.auth, 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs),
+      method, headers: body === undefined ? { authorization: i.auth } : { authorization: i.auth, 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs),
     });
     if (!r.ok) throw new Error(`opencode ${method} ${path}: ${r.status}`);
     return r.json();
@@ -49,7 +50,9 @@ export class Runner {
     const rejector = (async () => {
       while (rejecting) {
         const pending = (await this.call(i, 'GET', '/permission').catch(() => [])) as { id: string }[];
-        for (const p of pending) await this.call(i, 'POST', `/permission/${p.id}/reply`, { reply: 'reject' }).catch(() => undefined);
+        for (const p of Array.isArray(pending) ? pending : []) await this.call(i, 'POST', `/permission/${p.id}/reply`, { reply: 'reject' }).catch(() => undefined);
+        const questions = (await this.call(i, 'GET', '/question').catch(() => [])) as { id: string }[];
+        for (const q of Array.isArray(questions) ? questions : []) await this.call(i, 'POST', `/question/${q.id}/reject`).catch(() => undefined);
         await new Promise((r) => setTimeout(r, 200));
       }
     })();
