@@ -31,6 +31,8 @@ export function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/start" element={<Onboarding />} />
+          {/* The KYC provider sends the user back to /onboarding/kyc (often in the tab it opened): onboarding resumes there. */}
+          <Route path="/onboarding/*" element={<Onboarding />} />
           <Route path="/console/*" element={<Console />} />
           <Route path="/recover" element={<Recover />} />
           <Route path="/sandbox" element={<Sandbox />} />
