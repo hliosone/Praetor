@@ -177,11 +177,12 @@ describe('explain', () => {
     expect(requested).toHaveLength(0);
   });
 
-  it('T2 rebalance: names the rebalance tool as the way to ask the owner', async () => {
+  it('T2 rebalance: needs the owner, not refused, but no hint to submit it (an approved rebalance cannot be resubmitted yet, D89)', async () => {
     verdict = { reason: Reason.REBALANCE_LIMIT, tier: Tier.T2_HUMAN };
     const r = await tools().explain({ type: 'rebalance', sell: 'tXAU', buy: 'USDC', amountUsd: '650' });
-    expect(r.text).toMatch(/call rebalance/i);
+    expect(r.text).toMatch(/needs the owner's approval: REBALANCE_LIMIT \(T2_HUMAN\)/);
     expect(r.text).not.toMatch(/refused|final/i);
+    expect(r.text).not.toMatch(/call rebalance/i);
   });
 
   it('T0: keeps "refused" and "final" for what nobody can approve', async () => {

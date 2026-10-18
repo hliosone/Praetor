@@ -222,10 +222,12 @@ export class PraetorTools {
     const w = this.worst(v);
     // The tier, not the reason name, says whether the owner can lift it (BUDGET_EXCEEDED and BAND_BREACH have both).
     // The T0 wording keeps "would be refused": the red-team parser must not read a dry run as an on-chain refusal.
+    // Only a payment gets the hint to submit it: an approved rebalance is never executed yet (D89).
+    const submit = a.type === 'pay' ? '. This is not a refusal: if the user asked for it, call pay to submit it, which sends the owner an approval request (WeChat or the web app)' : '';
     const verdict = w.reason === Reason.OK
       ? 'would be done autonomously (T1)'
       : w.tier === Tier.T2_HUMAN
-        ? `needs the owner's approval: ${reasonName(w.reason)} (${tierName(w.tier)}). This is not a refusal: if the user asked for it, call ${a.type} to submit it, which sends the owner an approval request (WeChat or the web app)`
+        ? `needs the owner's approval: ${reasonName(w.reason)} (${tierName(w.tier)})${submit}`
         : `would be refused: ${reasonName(w.reason)} (${tierName(w.tier)}). Nobody can approve it: the decision is final, do not try it another way`;
     return { text: `Dry run: this ${a.type} ${verdict}. Nothing was sent.`, structured: { reasons: v.map((x) => reasonName(x.reason)).filter((r) => r !== 'OK'), tier: tierName(w.tier) } };
   }
