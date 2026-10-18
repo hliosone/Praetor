@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createRequire } from 'node:module';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { REASONS, TIERS, STATUSES } from '@praetor/protocol';
 
 const require = createRequire(import.meta.url);
@@ -22,6 +24,19 @@ describe('i18n: English and Simplified Chinese', () => {
 
   it('keeps the same {placeholders} in both languages', () => {
     for (const k of Object.keys(fe)) expect(placeholders(fz[k]), k).toEqual(placeholders(fe[k]));
+  });
+
+  it('never binds a string with a {placeholder} straight into a page, where it cannot be filled (issue #8)', () => {
+    const pages = join(import.meta.dirname, '../miniprogram/pages');
+    const wxml = readdirSync(pages, { recursive: true }).filter((f) => String(f).endsWith('.wxml'));
+    expect(wxml.length).toBeGreaterThan(0);
+    for (const f of wxml) {
+      const src = readFileSync(join(pages, String(f)), 'utf8');
+      for (const m of src.matchAll(/\bt\.([\w.]+)/g)) {
+        const v = fe[m[1]];
+        if (typeof v === 'string') expect(placeholders(v), `${f}: t.${m[1]}`).toEqual([]);
+      }
+    }
   });
 
   it('never uses an em dash, not even the Chinese double dash', () => {

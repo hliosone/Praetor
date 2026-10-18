@@ -83,13 +83,24 @@ function approveApi(view, extra = {}) {
 }
 
 describe('approve (F6 step 5a)', () => {
+  it('fills the countdown into the translated pill in both languages (issue #8: raw {t} showed)', async () => {
+    for (const [language, text] of [['en', 'Expires in 15:00'], ['zh_CN', '15:00 后过期']]) {
+      const wx = fakeWx({ api: approveApi(approvalView()).api, language });
+      await launch(wx);
+      const p = await start(page('approve'), { id: 'a1' });
+      expect(p.data.leftText).toBe(text);
+      expect(p.data.leftText).not.toContain('{');
+      p.onUnload();
+    }
+  });
+
   it('shows the decoded call, the reason in words and the Base-time countdown; Face ID signs the digest computed here', async () => {
     const v = approvalView();
     const { api, posted } = approveApi(v);
     const wx = fakeWx({ api });
     await launch(wx);
     const p = await start(page('approve'), { id: 'a1' });
-    expect(p.data).toMatchObject({ ok: true, refuse: '', what: `Pay 300 USDC to ${'0x1111111111111111111111111111111111111111'}`, why: 'The payee is not in your mandate', left: '15:00', mode: 'facial', digest: v.digest });
+    expect(p.data).toMatchObject({ ok: true, refuse: '', what: `Pay 300 USDC to ${'0x1111111111111111111111111111111111111111'}`, why: 'The payee is not in your mandate', left: '15:00', leftText: 'Expires in 15:00', mode: 'facial', digest: v.digest });
     await p.approve();
     await settle();
     const soter = wx.named('startSoterAuthentication');
