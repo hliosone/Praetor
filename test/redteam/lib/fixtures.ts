@@ -98,6 +98,24 @@ export class Fixtures {
     if (r.status !== 204) throw new Error(`could not give the live account the real model: ${r.status}`);
   }
 
+  /** The accounts this run built (fixture key -> address), for the run file. */
+  async addresses(): Promise<Record<string, Address>> {
+    const out: Record<string, Address> = {};
+    for (const [key, f] of this.built) {
+      const fx = await f.catch(() => null);
+      if (fx) out[key] = fx.acc.address;
+    }
+    return out;
+  }
+
+  /** After a live run its accounts go back to the scripted model: a later scheduler wake must never reach the real one. */
+  async park(): Promise<void> {
+    for (const f of this.built.values()) {
+      const fx = await f.catch(() => null);
+      if (fx?.driver === 'live' && fx.acc.agent !== zeroAddress) await scriptAgent(this.s, fx.acc.address, []).catch(() => undefined);
+    }
+  }
+
   /** Transactions from shared EOAs (USDC master minter, desk operator) one at a time. */
   serial<T>(fn: () => Promise<T>): Promise<T> {
     const next = this.queue.then(fn, fn);

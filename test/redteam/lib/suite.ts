@@ -34,11 +34,13 @@ export function redteamSuite(o: { name: RunFile['driver']; driver: Driver; cases
   afterAll(async () => {
     try {
       await o.afterRun?.(ctx);
+      if (o.driver === 'live') await ctx.fixtures.park();
     } finally {
+      const fixtures = await ctx.fixtures.addresses();
       mkdirSync(`${root}.run`, { recursive: true });
       // A REDTEAM_ONLY subset never replaces the full run behind the report.
       const partial = !!process.env.REDTEAM_ONLY;
-      writeRun(`${root}.run/redteam-${o.name}${partial ? '-partial' : ''}.json`, runFile(ctx, o.name, startedAt, all.length, results));
+      writeRun(`${root}.run/redteam-${o.name}${partial ? '-partial' : ''}.json`, runFile(ctx, o.name, startedAt, all.length, results, fixtures));
       if (!partial) writeFileSync(`${root}docs/security/redteam.md`, renderReport(readRuns(`${root}.run`)));
     }
   }, 1_200_000);

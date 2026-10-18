@@ -20,6 +20,8 @@ export type RunFile = {
   commit?: string;
   model?: string;
   stack: { chain: string; chainId: number; hook: Address; domainName: string };
+  /** The accounts the run attacked (fixture key -> address). */
+  fixtures?: Record<string, Address>;
   results: CaseResult[];
 };
 

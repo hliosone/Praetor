@@ -121,7 +121,7 @@ export async function runCase(c: Case, ctx: Ctx): Promise<CaseResult> {
   };
 }
 
-export function runFile(ctx: Ctx, driver: RunFile['driver'], startedAt: string, planned: number, results: CaseResult[]): RunFile {
+export function runFile(ctx: Ctx, driver: RunFile['driver'], startedAt: string, planned: number, results: CaseResult[], fixtures: Record<string, Address> = {}): RunFile {
   let commit: string | undefined;
   try {
     commit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root }).toString().trim();
@@ -131,7 +131,7 @@ export function runFile(ctx: Ctx, driver: RunFile['driver'], startedAt: string, 
   const b = ctx.s.base;
   return {
     driver, planned, startedAt, finishedAt: new Date().toISOString(), commit, ...(driver === 'live' ? { model: liveModel() } : {}),
-    stack: { chain: b.env, chainId: b.chainId, hook: b.mandateHook, domainName: b.domainName }, results: [...results].sort((x, y) => x.id.localeCompare(y.id)),
+    stack: { chain: b.env, chainId: b.chainId, hook: b.mandateHook, domainName: b.domainName }, fixtures, results: [...results].sort((x, y) => x.id.localeCompare(y.id)),
   };
 }
 

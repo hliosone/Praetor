@@ -210,7 +210,7 @@ async function chat(e: Env, i: Extract<Input, { kind: 'chat' }>): Promise<Outcom
     const hung = await hungBuiltinTool(e);
     if (!hung) throw err;
     return out('agent-runner', {
-      error: 'hung', detail: `the built-in tool ${hung} was neither rejected nor run: the turn timed out (agent-runner's permission rejector never answered it) and the account's agent session stays blocked`,
+      error: 'hung', detail: `the built-in tool ${hung} never completed: the turn timed out with the tool still running (agent-runner did not reject it), and the account's later turns time out too`,
     });
   }
   if (driver === 'live' && (await fakeCalls()) > fakeBefore) throw new Error('control failed: this live turn was answered by the scripted fake model, not the real one');
@@ -617,7 +617,7 @@ type PwBrowser = { newContext(o: { ignoreHTTPSErrors: boolean }): Promise<{ addC
 function cspMissing(): string {
   const file = readFileSync(join(root, 'infra/Caddyfile'), 'utf8');
   return /Content-Security-Policy/.test(file)
-    ? 'absent on the running Caddy although infra/Caddyfile sets one (finding: Caddy not reloaded since the hardening)'
+    ? 'absent from the responses although infra/Caddyfile sets one (finding: the running Caddy has not loaded it)'
     : 'absent (finding: spec 08 lists CSP)';
 }
 
