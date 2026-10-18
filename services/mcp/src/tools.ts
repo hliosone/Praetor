@@ -118,7 +118,7 @@ export class PraetorTools {
       // The hook's own counters (spentOf), so the model never adds amounts up itself (#7). The hook's day is
       // block.timestamp / 1 days and its month a fixed 30-day window; an approval lifts the owner's BUDGET_EXCEEDED (T2)
       // while the bank's cap stays T0.
-      `Spent today (UTC day on Base): ${usd(spent.day)} of the ${usd(policy.dailyBudget)} USDC daily budget, ${spent.count} of ${policy.dailyCount} daily payments; this 30-day period: ${usd(spent.month)} of ${usd(policy.monthlyBudget)}. Owner-approved payments and standing orders count too; an owner approval can take spending past the owner's budgets, never past the bank's limits.`,
+      `Spent today (UTC day on Base): ${usd(spent.day)} of the ${usd(policy.dailyBudget)} USDC daily budget, ${spent.count} of ${policy.dailyCount} daily payments; this 30-day period: ${usd(spent.month)} of ${usd(policy.monthlyBudget)}. Owner-approved payments count too, and standing orders count in the amounts (not in the payments); an owner approval can take spending past the owner's budgets, never past the bank's limits.`,
       `Known payees: ${payees.map((x) => (x.label ? `${x.label} (${x.address})` : x.address)).join(', ') || 'none'}. A new payee needs the owner.`,
       `Bands: ${policy.bands.map((b) => `${this.symbolOf(b.token)} ${pct(b.minBps)} to ${pct(b.maxBps)} (target ${pct(b.targetBps)})`).join(', ')}.`,
       `Rebalancing: at most ${policy.maxRebalancesPerDay} per day, ${usd(policy.maxTradeUsd)} USD per trade, slippage ${pct(policy.maxSlippageBps)}.`,
