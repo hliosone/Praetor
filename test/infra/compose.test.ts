@@ -83,6 +83,13 @@ describe('infra/compose.yml', () => {
     expect(read('services/mcp/src/main.ts')).toContain(`AGENT_SUBNET: z.string().default('${runnerIp}/32')`);
   });
 
+  it('services that show transaction links know the chain mode: no BaseScan link for a fork transaction (#9)', () => {
+    for (const s of ['api']) {
+      expect(compose.services[s]!.environment!.CHAIN_MODE, s).toBe('${CHAIN_MODE}');
+      expect(read(`services/${s}/src/main.ts`), s).toMatch(/explorerUrl\(env\)/);
+    }
+  });
+
   it('keeps the custodial WeIdentity services on their own network, joined only by bank, MySQL and one FISCO node', () => {
     // weid-rest and weid-helper hold every hosted key with no auth (spec 05): nothing agent-side may reach them.
     const on = (s: Service, n: string) => (Array.isArray(s.networks) ? s.networks.includes(n) : Object.keys(s.networks ?? {}).includes(n));

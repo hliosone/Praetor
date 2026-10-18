@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
-import { resolveKey, keySet, baseEnvSchema, loadConfig, ConfigError } from '../src/index.js';
+import { resolveKey, keySet, baseEnvSchema, loadConfig, ConfigError, explorerUrl } from '../src/index.js';
 
 const K = '0x' + '11'.repeat(32);
 const L = '0x' + '22'.repeat(32);
@@ -54,5 +54,14 @@ describe('startup validation (spec 11, I13)', () => {
 
   it('only prod triggers the prod refusals (the rehearsal runs the simulator)', () => {
     expect(loadConfig(baseEnvSchema, { ...ok, PRAETOR_ENV: 'rehearsal', CHAIN_MODE: 'live' }).ATTESTATION_MODE).toBe('simulator');
+  });
+});
+
+describe('explorer links (#9)', () => {
+  it('BaseScan on Base Sepolia, overridable; none on the local fork, whose transactions BaseScan does not know', () => {
+    expect(explorerUrl({ CHAIN_MODE: 'live' })).toBe('https://sepolia.basescan.org');
+    expect(explorerUrl({ CHAIN_MODE: 'live', EXPLORER_URL: 'https://scan.example' })).toBe('https://scan.example');
+    expect(explorerUrl({ CHAIN_MODE: 'fork', EXPLORER_URL: 'https://sepolia.basescan.org' })).toBeNull();
+    expect(explorerUrl({})).toBeNull();
   });
 });

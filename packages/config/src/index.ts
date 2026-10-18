@@ -21,6 +21,14 @@ export function resolveKey(name: string, env: Env = process.env): `0x${string}` 
   return value as `0x${string}`;
 }
 
+/**
+ * Where a Base transaction can be looked up: BaseScan on Base Sepolia (EXPLORER_URL overrides it), nowhere on the local
+ * fork, whose transactions BaseScan has never seen (#9). Clients show a bare hash when this is null.
+ */
+export function explorerUrl(env: { CHAIN_MODE?: string; EXPLORER_URL?: string }): string | null {
+  return env.CHAIN_MODE === 'live' ? env.EXPLORER_URL || 'https://sepolia.basescan.org' : null;
+}
+
 const flag = z.enum(['0', '1']).default('0').transform((v) => v === '1');
 
 export const baseEnvSchema = z.object({

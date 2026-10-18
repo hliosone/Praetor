@@ -8,6 +8,7 @@ import { baseSepolia } from 'viem/chains';
 import { AuditLogAbi, fiscoClients } from '@praetor/fisco-client';
 import { AnchorAbi, MandateHookAbi, PasskeyValidatorAbi, StandingOrdersAbi, accountReader, baseClients, baseNow, loadDeployments } from '@praetor/chain';
 import { connect, loadMigrations, migrate } from '@praetor/db';
+import { explorerUrl } from '@praetor/config';
 import { prepareAccount } from '@praetor/userop';
 import { createApiApp, HttpError } from './app.js';
 import { clients, UpstreamError } from './clients.js';
@@ -196,6 +197,8 @@ const config = {
   treasuryDesk: d.treasuryDesk, payoutRail: d.payoutRail,
   // The web app subscribes its service worker to push with this key (VAPID, RFC 8292).
   vapidPublic: env.VAPID_PUBLIC,
+  // Where the clients link a transaction: BaseScan when live, null on the fork (they show the bare hash).
+  explorer: explorerUrl(env),
 };
 const push = new MySqlPushStore(conn.runner);
 const MEMBERS = { bank: env.BANK_URL, regulator: env.REGULATOR_URL, operator: env.OPERATOR_URL } as const;
