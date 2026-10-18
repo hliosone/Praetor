@@ -10,7 +10,7 @@ One-off runs of the product path outside the automated suites (the generated tra
 |---|---|---|
 | "Pay the café 12.50" | `praetor_get_mandate`, `praetor_get_status`, `praetor_pay(Café, 12.50)` | T1, paid 12.50 USDC to Café Lumen, 16 s end to end ("Paid 12.50 USDC to Café Lumen. Tx: ...") |
 
-The automated suites use the scripted model for determinism (F4, F5, tool lockdown, I9); this run shows the product path with the real model. The red-team suite with the real model is M16.
+The automated suites use the scripted model for determinism (F4, F5, tool lockdown, I9); this run shows the product path with the real model. The red-team suite's live run with the real model (2026-10-18, 12 attacks, 0 executed) is in [security/redteam.md](security/redteam.md).
 
 ## Guomi profile (M15 smoke, 2026-10-17)
 

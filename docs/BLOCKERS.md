@@ -9,13 +9,15 @@ Each entry: what, why, what was tried, fallback taken, status. Phase B never sto
 - **Tried**: balance read on `https://sepolia.base.org`.
 - **Fallback**: everything runs on the anvil fork (same chain id, domain `Praetor-local`). Live scripts are built and tested against the fork; M16 is re-checked when balances appear.
 - **Update 2026-10-17/18**: the human funded the deployer (0.0133 ETH) and the treasury (44 USDC). Within that budget (D74): the ETH was spread to the gas accounts (`scripts/deploy/fund-live.ts`) and Praetor was deployed once on Base Sepolia (`infra/deployments/base-sepolia.json`, MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`, about 0.0045 ETH), with its consortium on the local FISCO chain (D75). The SANDBOX set is still unfunded: the sandbox stays interim (D48).
+- **Update 2026-10-18**: M18 closed with a rehearsal on the fork (D90); its live half (live Base, Phala TEEs, a real certificate) is Phase C.
 - **Status**: resolved for the live evidence run; open for the sandbox deployment.
 
 ## B2. No human `.env` values (Pyth, WeChat, OA)
 
 - **What**: `PYTH_API_KEY`, `MP_*`, `OA_*` empty.
 - **Fallback**: seeded DEMO prices (Q27); SOTER fixture behind `SOTER_FAKE_TENCENT=1`; OA notifications to the log sink and web push; MANUAL steps for Phase C.
-- **Status**: open (not blocking Phase B).
+- **Update 2026-10-18**: the human gave `PYTH_API_KEY` (D89). The oracle-feeder reads real XAU and XAG prices from Pyth Hermes on live Base Sepolia only, one request for both feeds every 5 minutes; the fork keeps the seeded DEMO prices its tests set (the real prices are far above the seeded ones and PriceOracle refuses a move over 25 %). The team's iPhone test of the mini program used a WeChat mini program test account (MANUAL 5). `OA_*` are still empty: Official Account notifications go to the log sink and web push.
+- **Status**: price half resolved for live (D89); WeChat Official Account half open (not blocking).
 
 ## B3. Guomi profile: the agent's secp256k1 key cannot update its WeID on an SM chain
 

@@ -1,6 +1,6 @@
 # Deploying Praetor
 
-> **Status on 2026-10-18.** The Base contracts are deployed on Base Sepolia (MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`, `infra/deployments/base-sepolia.json`) from this laptop's `LIVE_` keys, and their consortium on the laptop's local FISCO chain (live mode, D74, D75). The production compose override, the rehearsal target and the prod refusal check exist (M18; the rehearsal gate is pending in `docs/PROGRESS.md`). The cloud deployment is a **Phase C step, done with the human** (spec 10) and has not happened; spec 11's server bootstrap script (`scripts/deploy/server-bootstrap.sh`) does not exist. This document gives the commands that exist, says plainly where the Makefile does not yet match spec 11, and is where Phase C records the values it uses (never a secret). Chinese version: [zh-CN/DEPLOY.md](zh-CN/DEPLOY.md).
+> **Status on 2026-10-18.** The Base contracts are deployed on Base Sepolia (MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`, `infra/deployments/base-sepolia.json`) from this laptop's `LIVE_` keys, and their consortium on the laptop's local FISCO chain (live mode, D74, D75). The production compose override, the rehearsal target and the prod refusal check exist, and the rehearsal passed on the fork on 2026-10-18 (M18, D90; section 9). The cloud deployment is a **Phase C step, done with the human** (spec 10) and has not happened; spec 11's server bootstrap script (`scripts/deploy/server-bootstrap.sh`) does not exist. This document gives the commands that exist, says plainly where the Makefile does not yet match spec 11, and is where Phase C records the values it uses (never a secret). Chinese version: [zh-CN/DEPLOY.md](zh-CN/DEPLOY.md).
 
 ## 1. Environments
 
@@ -114,6 +114,8 @@ make rehearsal     # PRAETOR_ENV=rehearsal make up PROD=1, then make e2e-smoke (
 ```
 
 `compose.prod.yml` adds a restart policy for every long-running service and log rotation for all, moves the scripted model to a `test` profile, passes `CADDY_TLS` to Caddy and disables the plain-HTTP tunnel site. `prod-refusals.sh` runs the bank, agent-signer, soter-attester, agent-runner and the api once each with `PRAETOR_ENV=prod` and their test-only settings (simulator attestations, the fake Tencent, the fake LLM), and expects each to refuse to start.
+
+Passed on 2026-10-18 (D90): smoke F1, F5, F8 16 of 16 and the five prod refusals, after three fixes the rehearsal found (the scheduler never overlaps band checks, each refusal check runs without a network, the api refuses the fake Tencent before connecting to MySQL). The smoke used the scripted model (the local stack's fake-llm container was still up and `PRAETOR_ENV=rehearsal` allows it; in prod agent-runner refuses `FAKE_LLM_URL`). Not rehearsed: live Base, the Phala TEEs and a real certificate (Phase C).
 
 **On the server (Phase C).** There is no server target yet:
 

@@ -2,7 +2,7 @@
 
 # 部署 Praetor
 
-> **2026-10-18 时的状态。** Base 合约已用这台笔记本电脑的 `LIVE_` 密钥部署到 Base Sepolia（MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`，`infra/deployments/base-sepolia.json`），其联盟部署在笔记本电脑的本地 FISCO 链上（实链模式，D74、D75）。生产 compose 覆盖文件、演练目标和生产拒绝检查均已存在（M18；演练关卡在 `docs/PROGRESS.md` 中尚待完成）。云端部署是 **Phase C 的一个步骤，由人工参与完成**（spec 10），目前尚未进行；spec 11 中的服务器初始化脚本（`scripts/deploy/server-bootstrap.sh`）尚不存在。本文档给出已经存在的命令，明确说明 Makefile 在哪些地方尚未与 spec 11 一致，Phase C 也在此记录所使用的值（绝不记录任何密钥）。中文版由英文版翻译，以英文版为准。
+> **2026-10-18 时的状态。** Base 合约已用这台笔记本电脑的 `LIVE_` 密钥部署到 Base Sepolia（MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`，`infra/deployments/base-sepolia.json`），其联盟部署在笔记本电脑的本地 FISCO 链上（实链模式，D74、D75）。生产 compose 覆盖文件、演练目标和生产拒绝检查均已存在，演练已于 2026-10-18 在分叉上通过（M18，D90；第 9 节）。云端部署是 **Phase C 的一个步骤，由人工参与完成**（spec 10），目前尚未进行；spec 11 中的服务器初始化脚本（`scripts/deploy/server-bootstrap.sh`）尚不存在。本文档给出已经存在的命令，明确说明 Makefile 在哪些地方尚未与 spec 11 一致，Phase C 也在此记录所使用的值（绝不记录任何密钥）。中文版由英文版翻译，以英文版为准。
 
 ## 1. 环境
 
@@ -116,6 +116,8 @@ make rehearsal     # PRAETOR_ENV=rehearsal make up PROD=1，然后 make e2e-smok
 ```
 
 `compose.prod.yml` 为每个长期运行的服务加上重启策略、为所有服务加上日志轮转，把脚本化模型移到 `test` profile，把 `CADDY_TLS` 传给 Caddy，并停用明文 HTTP 的隧道站点。`prod-refusals.sh` 以 `PRAETOR_ENV=prod` 及各自的仅测试设置（模拟器证明、伪造的腾讯接口、伪 LLM）分别运行一次 bank、agent-signer、soter-attester、agent-runner 和 api，并期望每个服务都拒绝启动。
+
+已于 2026-10-18 通过（D90）：冒烟测试 F1、F5、F8 16/16，五项生产拒绝检查均通过；此前修复了演练发现的三个问题（scheduler 的区间检查不再重叠，每项拒绝检查在无网络的情况下运行，api 在连接 MySQL 之前就拒绝伪造的腾讯接口）。冒烟测试使用的是脚本化模型（本地栈的 fake-llm 容器仍在运行，而 `PRAETOR_ENV=rehearsal` 允许使用它；在生产环境中 agent-runner 会拒绝 `FAKE_LLM_URL`）。未演练：实链 Base、Phala TEE 和真实证书（Phase C）。
 
 **在服务器上（Phase C）。** 目前还没有服务器专用的目标：
 
