@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" font-family="IBM Plex Sans, Inter, Arial, sans-serif">
+<title>The regulator's brake</title>
+<style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');]]></style>
+<defs>
+<marker id="ah0" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#64748B"/></marker>
+<marker id="ah1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#1D4ED8"/></marker>
+<marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#0B1B33"/></marker>
+</defs>
+<rect x="0" y="0" width="1600" height="900" fill="#FFFFFF"/>
+<text x="56" y="72" font-size="28" font-weight="600" fill="#0B1B33" text-anchor="start" data-role="title">The regulator's brake</text>
+<rect x="56" y="396" width="576" height="224" rx="10" fill="#ECF7F5" stroke="#0F766E" stroke-width="1.5"/>
+<text x="76" y="430" font-size="20" font-weight="600" fill="#0F766E" text-anchor="start" data-role="label">FISCO BCOS</text>
+<rect x="968" y="396" width="576" height="224" rx="10" fill="#EEF3FF" stroke="#1D4ED8" stroke-width="1.5"/>
+<text x="988" y="430" font-size="20" font-weight="600" fill="#1D4ED8" text-anchor="start" data-role="label">Base Sepolia</text>
+<g data-box="1">
+<rect x="76" y="452" width="248" height="148" rx="10" fill="#FFFFFF" stroke="#0F766E" stroke-width="1.5"/>
+<text x="200" y="504" font-size="20" font-weight="600" fill="#0B1B33" text-anchor="middle" data-role="label">Regulator</text>
+<text x="200" y="529" font-size="20" font-weight="600" fill="#0B1B33" text-anchor="middle" data-role="label">clicks Freeze</text>
+<text x="200" y="562" font-size="18" font-weight="400" fill="#475569" text-anchor="middle" data-role="sub">staff passkey</text>
+</g>
+<g data-box="1">
+<rect x="364" y="452" width="248" height="148" rx="10" fill="#FFFFFF" stroke="#0F766E" stroke-width="1.5"/>
+<text x="488" y="504" font-size="20" font-weight="600" fill="#0B1B33" text-anchor="middle" data-role="label">FISCO board</text>
+<text x="488" y="537" font-size="18" font-weight="400" fill="#475569" text-anchor="middle" data-role="sub">1 signature is enough</text>
+<text x="488" y="562" font-size="18" font-weight="400" fill="#475569" text-anchor="middle" data-role="sub">to tighten</text>
+</g>
+<g data-box="1">
+<rect x="676" y="452" width="248" height="148" rx="10" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1.5"/>
+<text x="800" y="504" font-size="20" font-weight="600" fill="#0B1B33" text-anchor="middle" data-role="label">WeCross</text>
+<text x="800" y="537" font-size="18" font-weight="400" fill="#475569" text-anchor="middle" data-role="sub">carries the signed</text>
+<text x="800" y="562" font-size="18" font-weight="400" fill="#475569" text-anchor="middle" data-role="sub">decision</text>
+</g>
+<g data-box="1">
+<rect x="988" y="452" width="248" height="148" rx="10" fill="#FFFFFF" stroke="#1D4ED8" stroke-width="1.5"/>
+<text x="1112" y="504" font-size="20" font-weight="600" fill="#0B1B33" text-anchor="middle" data-role="label">Mandate hook</text>
+<text x="1112" y="529" font-size="20" font-weight="600" fill="#0B1B33" text-anchor="middle" data-role="label">on Base</text>
+<text x="1112" y="562" font-size="18" font-weight="400" fill="#475569" text-anchor="middle" data-role="sub">checks the signatures</text>
+</g>
+<g data-box="1">
+<rect x="1276" y="452" width="248" height="148" rx="10" fill="#FCEEEE" stroke="#B91C1C" stroke-width="1.5"/>
+<text x="1400" y="504" font-size="20" font-weight="600" fill="#0B1B33" text-anchor="middle" data-role="label">Next agent</text>
+<text x="1400" y="529" font-size="20" font-weight="600" fill="#0B1B33" text-anchor="middle" data-role="label">payment</text>
+<text x="1400" y="562" font-size="18" font-weight="400" fill="#475569" text-anchor="middle" data-role="sub">refused <tspan font-family="IBM Plex Mono, Menlo, Consolas, monospace" fill="#B91C1C" font-weight="600">FROZEN</tspan></text>
+</g>
+<path d="M324,526 L364,526" fill="none" stroke="#64748B" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah0)"/>
+<path d="M612,526 L676,526" fill="none" stroke="#64748B" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah0)"/>
+<path d="M924,526 L988,526" fill="none" stroke="#64748B" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah0)"/>
+<path d="M1236,526 L1276,526" fill="none" stroke="#1D4ED8" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah1)"/>
+<path d="M364,378 L364,364 L1236,364 L1236,378" fill="none" stroke="#0B1B33" stroke-width="1.5" stroke-linejoin="round"/>
+<path d="M800,364 L800,352" fill="none" stroke="#0B1B33" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="800" y="268" font-size="104" font-weight="600" fill="#0B1B33" text-anchor="middle" data-role="figure">6.3 s</text>
+<text x="800" y="314" font-size="20" font-weight="400" fill="#475569" text-anchor="middle" data-role="sub">from the FISCO decision to enforcement on Base (measured in the team's iPhone test)</text>
+<rect x="56" y="684" width="1488" height="92" rx="10" fill="#F4F7FB" stroke="#D6DEEA" stroke-width="1.5"/>
+<text x="88" y="737" font-size="22" font-weight="600" fill="#0B1B33" text-anchor="start" data-role="label">Loosen</text>
+<text x="216" y="737" font-size="20" font-weight="400" fill="#0B1B33" text-anchor="start" data-role="label">needs 2 of 3 members (bank, regulator, operator)</text>
+<text x="1512" y="741" font-size="30" font-weight="600" fill="#0B1B33" text-anchor="end" data-role="label"><tspan font-weight="400">measured </tspan><tspan font-weight="600">7.5 s</tspan></text>
+</svg>

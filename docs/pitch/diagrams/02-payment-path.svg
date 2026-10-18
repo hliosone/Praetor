@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" font-family="IBM Plex Sans, Inter, Arial, sans-serif">
+<title>Every payment takes one path</title>
+<style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');]]></style>
+<defs>
+<marker id="ah0" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#64748B"/></marker>
+<marker id="ah1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#1D4ED8"/></marker>
+<marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#15803D"/></marker>
+<marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#B45309"/></marker>
+<marker id="ah4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#B91C1C"/></marker>
+</defs>
+<rect x="0" y="0" width="1600" height="900" fill="#FFFFFF"/>
+<text x="56" y="72" font-size="28" font-weight="600" fill="#0B1B33" text-anchor="start" data-role="title">Every payment takes one path</text>
+<rect x="756" y="314" width="428" height="220" rx="10" fill="#EEF3FF" stroke="#1D4ED8" stroke-width="1.5"/>
+<text x="776" y="346" font-size="20" font-weight="600" fill="#1D4ED8" text-anchor="start" data-role="label">Base Sepolia</text>
+<g data-box="1">
+<rect x="56" y="380" width="146" height="120" rx="10" fill="#F4F7FB" stroke="#B9C5D6" stroke-width="1.5"/>
+<text x="129" y="431.5" font-size="20" font-weight="600" fill="#0B1B33" text-anchor="middle" data-role="label">Agent asks</text>
+<text x="129" y="462.5" font-size="16" font-weight="400" fill="#475569" text-anchor="middle" data-role="sub">pay, rebalance</text>
+</g>
+<g data-box="1">
+<rect x="230" y="380" width="146" height="120" rx="10" fill="#F4F7FB" stroke="#B9C5D6" stroke-width="1.5"/>
+<text x="303" y="419" font-size="20" font-weight="600" fill="#0B1B33" text-anchor="middle" data-role="label">MCP builds</text>
+<text x="303" y="444" font-size="20" font-weight="600" fill="#0B1B33" text-anchor="middle" data-role="label">the call</text>
+<text x="303" y="475" font-size="16" font-weight="400" fill="#475569" text-anchor="middle" data-role="sub">dry run first</text>
+</g>
+<g data-box="1">
+<rect x="404" y="380" width="146" height="120" rx="10" fill="#F4F7FB" stroke="#B9C5D6" stroke-width="1.5"/>
+<text x="477" y="431.5" font-size="20" font-weight="600" fill="#0B1B33" text-anchor="middle" data-role="label">TEE signs</text>
+<text x="477" y="462.5" font-size="16" font-weight="400" fill="#475569" text-anchor="middle" data-role="sub">agent key</text>
+</g>
+<g data-box="1">
+<rect x="578" y="380" width="146" height="120" rx="10" fill="#F4F7FB" stroke="#B9C5D6" stroke-width="1.5"/>
+<text x="651" y="419" font-size="20" font-weight="600" fill="#0B1B33" text-anchor="middle" data-role="label">Bundler</text>
+<text x="651" y="444" font-size="20" font-weight="600" fill="#0B1B33" text-anchor="middle" data-role="label">submits</text>
+<text x="651" y="475" font-size="16" font-weight="400" fill="#475569" text-anchor="middle" data-role="sub">ERC-4337</text>
+</g>
+<g data-box="1">
+<rect x="780" y="380" width="180" height="120" rx="10" fill="#FFFFFF" stroke="#1D4ED8" stroke-width="1.5"/>
+<text x="870" y="431.5" font-size="20" font-weight="600" fill="#0B1B33" text-anchor="middle" data-role="label">Smart account</text>
+<text x="870" y="462.5" font-size="16" font-weight="400" fill="#475569" text-anchor="middle" data-role="sub">Safe7579</text>
+</g>
+<g data-box="1">
+<rect x="992" y="370" width="168" height="140" rx="10" fill="#FFFFFF" stroke="#1D4ED8" stroke-width="3"/>
+<text x="1076" y="431.5" font-size="20" font-weight="600" fill="#0B1B33" text-anchor="middle" data-role="label">Mandate hook</text>
+<text x="1076" y="462.5" font-size="16" font-weight="400" fill="#475569" text-anchor="middle" data-role="sub">checks every call</text>
+</g>
+<path d="M202,440 L230,440" fill="none" stroke="#64748B" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah0)"/>
+<path d="M376,440 L404,440" fill="none" stroke="#64748B" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah0)"/>
+<path d="M550,440 L578,440" fill="none" stroke="#64748B" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah0)"/>
+<path d="M724,440 L780,440" fill="none" stroke="#64748B" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah0)"/>
+<path d="M960,440 L992,440" fill="none" stroke="#1D4ED8" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah1)"/>
+<g data-box="1">
+<rect x="1224" y="134" width="320" height="124" rx="10" fill="#EDF7F0" stroke="#15803D" stroke-width="1.5"/>
+<text x="1248" y="176.5" font-size="20" font-weight="600" fill="#15803D" text-anchor="start" data-role="label">Executed (T1)</text>
+<text x="1248" y="207.5" font-size="16" font-weight="400" fill="#0B1B33" text-anchor="start" data-role="sub">known payee, under the auto cap,</text>
+<text x="1248" y="229.5" font-size="16" font-weight="400" fill="#0B1B33" text-anchor="start" data-role="sub">inside the bands</text>
+</g>
+<g data-box="1">
+<rect x="1224" y="378" width="320" height="124" rx="10" fill="#FDF4EA" stroke="#B45309" stroke-width="1.5"/>
+<text x="1248" y="420.5" font-size="20" font-weight="600" fill="#B45309" text-anchor="start" data-role="label">Asks you (T2)</text>
+<text x="1248" y="451.5" font-size="16" font-weight="400" fill="#0B1B33" text-anchor="start" data-role="sub">new payee or above the auto cap:</text>
+<text x="1248" y="473.5" font-size="16" font-weight="400" fill="#0B1B33" text-anchor="start" data-role="sub">one Face ID, single use, 15 min</text>
+</g>
+<g data-box="1">
+<rect x="1224" y="622" width="320" height="124" rx="10" fill="#FCEEEE" stroke="#B91C1C" stroke-width="1.5"/>
+<text x="1248" y="664.5" font-size="20" font-weight="600" fill="#B91C1C" text-anchor="start" data-role="label">Refused (T0)</text>
+<text x="1248" y="695.5" font-size="16" font-weight="400" fill="#0B1B33" text-anchor="start" data-role="sub">sanctioned, frozen, above bank caps:</text>
+<text x="1248" y="717.5" font-size="16" font-weight="400" fill="#0B1B33" text-anchor="start" data-role="sub">logged on-chain with its reason</text>
+</g>
+<path d="M1028,370 L1028,196 L1224,196" fill="none" stroke="#15803D" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah2)"/>
+<path d="M1160,440 L1224,440" fill="none" stroke="#B45309" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah3)"/>
+<path d="M1028,510 L1028,684 L1224,684" fill="none" stroke="#B91C1C" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah4)"/>
+<path d="M1312,502 L1312,554 L1124,554 L1124,510" fill="none" stroke="#B45309" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="6 5" marker-end="url(#ah3)"/>
+<text x="1140" y="582" font-size="18" font-weight="500" fill="#B45309" text-anchor="start" data-role="sub">approved once, then resubmitted</text>
+<text x="56" y="836" font-size="20" font-weight="400" fill="#475569" text-anchor="start" data-role="sub">The rules are checked by the wallet contract before any money moves, not by the agent or our servers.</text>
+</svg>
