@@ -342,7 +342,7 @@ sequenceDiagram
   HOOK->>HOOK: replace every owner key, clear the WeChat binding, new epoch, revoke the agent key
 ```
 
-After execution the old approvals are void (the epoch changed) and the owner installs a new agent key. The flow is covered by `test/e2e/F10-rotation-recovery.test.ts` and, because it moves the fork clock 48 h, by `test/warp/F10-recovery-execute.test.ts`, which `make e2e` runs last; both are written and wait for the M15 gate. Its risks are in the [self-assessment](security/SELF_ASSESSMENT.md), known risk 31.
+After execution the old approvals are void (the epoch changed) and the owner installs a new agent key. The flow is covered by `test/e2e/F10-rotation-recovery.test.ts` and, because it moves the fork clock 48 h, by `test/warp/F10-recovery-execute.test.ts`, which `make e2e` runs last; both passed at the M15 gate on fresh forks. Its risks are in the [self-assessment](security/SELF_ASSESSMENT.md), known risk 31.
 
 ### 4.14 The web app and the consortium console
 
@@ -351,7 +351,7 @@ After execution the old approvals are void (the epoch changed) and the owner ins
 - **What you see is what you sign** (D46). Before the passkey signs, the page recomputes the Tier2Approval digest from the request's preimage and, for every owner action, checks the kind it asked for, the account, `payloadHash` against the payload and the EIP-712 digest; for a policy, an agent key, a new passkey, a revocation and a recovery cancellation it rebuilds the payload from what it shows (`apps/web/src/lib/ownerAction.ts`). A lying api gets no signature.
 - **Console.** One panel per member (bank, regulator, operator) side by side; each panel signs in with its own member service's staff passkey and asserts with that enrolled credential. A proposal opened from the console shows in every member's panel with a tracker of who signed and how many signatures it needs: the regulator freezes alone, loosening needs a second member. The api only relays; the member service verifies the staff assertion over the digest it reads from FISCO. The list of accounts needs a staff session (D70).
 - **Browser controls** (D71). Caddy sends a CSP with scripts from self only and no framing, HSTS, nosniff and no-referrer; the api refuses a write from another Origin and rate-limits the public sign-in, onboarding and recovery routes per client.
-- **Tests.** Unit tests in `make test` (`apps/web/src/lib/web.test.ts`, `apps/web/src/pages/Settings.test.tsx`); the Playwright journey F1 to F10 with a virtual authenticator, screenshots at 1440 and 390 px and axe checks (`apps/web/e2e`, `make e2e-web`), written and waiting for the M13 gate.
+- **Tests.** Unit tests in `make test` (`apps/web/src/lib/web.test.ts`, `apps/web/src/pages/Settings.test.tsx`); the Playwright journey F1 to F10 with a virtual authenticator, screenshots at 1440 and 390 px and axe checks (`apps/web/e2e`, `make e2e-web`), green at the M13 gate (15/15 with the sandbox spec, 34 screenshots in `docs/screens/web`, each with axe).
 
 ### 4.15 The WeChat mini program
 
@@ -399,10 +399,10 @@ The tiers in one line each: **T0** never (hook refuses); **T1** the agent alone;
 | Area | Status |
 |---|---|
 | Base and FISCO contracts, protocol, bundler, member services, identity, TEEs on the simulator, agent with MCP, api, standing orders and payouts, audit and camt.053 | Built and tested; gates M1 to M11 passed |
-| WeCross transport | Built (M12); its gate (F9 with `BRIDGE=wecross`) is pending |
-| Web app with the consortium console, payees, devices, recovery page, web push, interim sandbox | Built (M13); the Playwright journey F1 to F10 and the sandbox spec are written; gate pending |
+| WeCross transport | Built and tested (M12, gate passed: integration 16/16 files and e2e 41/41 on a fresh fork with `BRIDGE=wecross`, F9's freeze delivered through WeCross) |
+| Web app with the consortium console, payees, devices, recovery page, web push, interim sandbox | Built and tested (M13, gate passed: the Playwright journey F1 to F10 and the sandbox spec 15/15, 34 screenshots at 1440 and 390 px, each with axe) |
 | WeChat mini program | Built (M14, gate passed: logic tests, MANUAL steps written); the phone steps run in Phase C |
-| Agent key rotation, devices and owner recovery (F10) | Built; `test/e2e/F10-rotation-recovery.test.ts` and the 48 h `test/warp/F10-recovery-execute.test.ts` are written; the M15 gate (F1 to F10 on the fork) is pending |
+| Agent key rotation, devices and owner recovery (F10) | Built and tested (M15); gate passed on fresh forks: `test/e2e/F10-rotation-recovery.test.ts` 3/3 (stop, rotate, recovery scheduled and cancelled) and the 48 h `test/warp/F10-recovery-execute.test.ts` (`executeRecovery`: only the new passkey signs in, the agent key is revoked) |
 | Guomi (SM) profile smoke | Run and recorded in [SMOKE.md](SMOKE.md): 11 self-test and 37 on-chain checks pass; WeIdentity scenario 39 of 43 (BLOCKERS B3) |
 | Base Sepolia deployment and live mode | Contracts deployed on Base Sepolia and the consortium on FISCO (D74, D75); the live evidence run is not collected yet (M16 gate pending) |
 | Red-team suite | Not built at this commit (`make redteam` is a placeholder) |

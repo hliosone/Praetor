@@ -346,7 +346,7 @@ sequenceDiagram
   HOOK->>HOOK: 替换全部所有者密钥、清除微信绑定、新的 epoch、撤销智能体密钥
 ```
 
-执行之后旧审批作废（epoch 已改变），所有者需要安装新的智能体密钥。该流程由 `test/e2e/F10-rotation-recovery.test.ts` 覆盖；由于它会把分叉链的时钟向前拨 48 小时，执行部分由 `test/warp/F10-recovery-execute.test.ts` 覆盖，`make e2e` 最后运行它；两者均已编写，等待 M15 关卡。其风险见[安全自评](SELF_ASSESSMENT.md)的已知风险 31。
+执行之后旧审批作废（epoch 已改变），所有者需要安装新的智能体密钥。该流程由 `test/e2e/F10-rotation-recovery.test.ts` 覆盖；由于它会把分叉链的时钟向前拨 48 小时，执行部分由 `test/warp/F10-recovery-execute.test.ts` 覆盖，`make e2e` 最后运行它；两者均已在全新分叉上通过 M15 关卡。其风险见[安全自评](SELF_ASSESSMENT.md)的已知风险 31。
 
 ### 4.14 Web 应用与联盟控制台
 
@@ -355,7 +355,7 @@ sequenceDiagram
 - **所见即所签**（D46）。在 passkey 签名之前，页面根据请求的原像重新计算 Tier2Approval 摘要；对每个所有者操作，核对它所请求的类型、账户、`payloadHash` 与载荷是否一致以及 EIP-712 摘要；对策略、智能体密钥、新 passkey、撤销和取消恢复，它根据页面所显示的内容重建载荷（`apps/web/src/lib/ownerAction.ts`）。撒谎的 api 得不到任何签名。
 - **控制台。** 每个成员（银行、监管方、运营方）一个面板并排显示；每个面板用各自成员服务的员工 passkey 登录，并以该已登记凭证进行断言。从控制台开启的提案会出现在每个成员的面板中，附带追踪器，显示谁已签名以及还需要多少签名：监管方单独即可冻结，放宽需要第二个成员。api 只做中继；成员服务根据它自己从 FISCO 读取的摘要验证员工断言。账户列表需要员工会话（D70）。
 - **浏览器防护**（D71）。Caddy 发送仅允许本站脚本、禁止嵌入的 CSP，以及 HSTS、nosniff 和 no-referrer；api 拒绝来自其他 Origin 的写请求，并对公开的登录、开户和恢复接口按客户端限流。
-- **测试。** `make test` 中的单元测试（`apps/web/src/lib/web.test.ts`、`apps/web/src/pages/Settings.test.tsx`）；使用虚拟认证器的 Playwright 旅程 F1 至 F10，在 1440 和 390 px 下截图并进行 axe 检查（`apps/web/e2e`，`make e2e-web`），已编写，等待 M13 关卡。
+- **测试。** `make test` 中的单元测试（`apps/web/src/lib/web.test.ts`、`apps/web/src/pages/Settings.test.tsx`）；使用虚拟认证器的 Playwright 旅程 F1 至 F10，在 1440 和 390 px 下截图并进行 axe 检查（`apps/web/e2e`，`make e2e-web`），已通过 M13 关卡（连同沙盒用例 15/15，34 张截图位于 `docs/screens/web`，每张均经 axe 检查）。
 
 ### 4.15 微信小程序
 
@@ -403,10 +403,10 @@ spec 00 中独立的沙盒部署（域名 `Praetor-sandbox`，SANDBOX 密钥集�
 | 范围 | 状态 |
 |---|---|
 | Base 与 FISCO 合约、协议、bundler、成员服务、身份、模拟器上的 TEE、带 MCP 的智能体、api、定期付款与出款、审计与 camt.053 | 已构建并测试；M1 至 M11 关卡已通过 |
-| WeCross 传输 | 已构建（M12）；其关卡（`BRIDGE=wecross` 下的 F9）尚待完成 |
-| 带联盟控制台、收款方、设备、恢复页面、Web 推送、临时沙盒的 Web 应用 | 已构建（M13）；Playwright 旅程 F1 至 F10 和沙盒用例已编写；关卡尚待完成 |
+| WeCross 传输 | 已构建并测试（M12，关卡已通过：在全新分叉上以 `BRIDGE=wecross` 运行，集成测试 16/16 个文件、e2e 41/41，F9 的冻结经由 WeCross 送达） |
+| 带联盟控制台、收款方、设备、恢复页面、Web 推送、临时沙盒的 Web 应用 | 已构建并测试（M13，关卡已通过：Playwright 旅程 F1 至 F10 和沙盒用例 15/15，34 张 1440 与 390 px 截图，每张均经 axe 检查） |
 | 微信小程序 | 已构建（M14，关卡已通过：逻辑测试，MANUAL 步骤已编写）；手机上的步骤在 Phase C 中执行 |
-| 智能体密钥轮换、设备与所有者恢复（F10） | 已构建；`test/e2e/F10-rotation-recovery.test.ts` 与 48 小时的 `test/warp/F10-recovery-execute.test.ts` 已编写；M15 关卡（分叉链上的 F1 至 F10）尚待完成 |
+| 智能体密钥轮换、设备与所有者恢复（F10） | 已构建并测试（M15）；关卡已在全新分叉上通过：`test/e2e/F10-rotation-recovery.test.ts` 3/3（停止、轮换、恢复的安排与取消）以及 48 小时的 `test/warp/F10-recovery-execute.test.ts`（`executeRecovery` 之后只有新 passkey 能登录，智能体密钥被撤销） |
 | 国密（SM）配置冒烟测试 | 已运行并记录在 [SMOKE.md](../SMOKE.md) 中：11 项自检和 37 项链上检查通过；WeIdentity 场景 43 项中 39 项通过（BLOCKERS B3） |
 | Base Sepolia 部署与实链模式 | 合约已部署到 Base Sepolia，联盟已部署到 FISCO（D74、D75）；实链证据尚未采集（M16 关卡尚待完成） |
 | 红队测试套件 | 本次提交时尚未构建（`make redteam` 只是占位） |

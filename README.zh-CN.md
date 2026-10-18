@@ -89,7 +89,7 @@ spikes/             第 0 阶段的验证实验
 
 ## 状态
 
-已在本地分叉上构建并测试：Base 与 FISCO 合约、协议、bundler 与 paymaster、联盟成员服务、WeIdentity 身份与 KYC、dstack 模拟器上的两个 TEE、智能体及其 MCP 服务器、api、定期付款与出款、带锚定和 camt.053 的审计链、WeCross 传输、网页应用（含联盟控制台与临时评委沙盒，D48）、微信小程序（逻辑与 api；真机测试在 Phase C）、智能体密钥轮换与所有者恢复（F10）、国密配置冒烟测试、生产 compose 覆盖文件及其拒绝检查。流程 F1 至 F10 已编写为通过 api 和通过网页应用运行的测试（Playwright，虚拟认证器）；运行它们的 M12、M13 和 M15 里程碑关卡尚待完成。合约已部署到 Base Sepolia（MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`）。待完成：Base Sepolia 上的实链证据运行与红队测试套件（M16）、部署演练（M18），以及 Phase C（真机、Phala Cloud、服务器）。详见 [docs/PROGRESS.md](docs/PROGRESS.md)。
+已在本地分叉上构建并测试：Base 与 FISCO 合约、协议、bundler 与 paymaster、联盟成员服务、WeIdentity 身份与 KYC、dstack 模拟器上的两个 TEE、智能体及其 MCP 服务器、api、定期付款与出款、带锚定和 camt.053 的审计链、WeCross 传输、网页应用（含联盟控制台与临时评委沙盒，D48）、微信小程序（逻辑与 api；真机测试在 Phase C）、智能体密钥轮换与所有者恢复（F10）、国密配置冒烟测试、生产 compose 覆盖文件及其拒绝检查。流程 F1 至 F10 通过 api 和通过网页应用（Playwright，虚拟认证器）在全新分叉上运行通过：M12（以 WeCross 为传输，2026-10-17）、M13（网页旅程、沙盒以及 34 张带 axe 检查的截图）和 M15（F10 与 48 小时恢复）的里程碑关卡均已通过，后两者于 2026-10-18 通过。合约已部署到 Base Sepolia（MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`）。待完成：Base Sepolia 上的实链证据运行与红队测试套件（M16）、部署演练（M18），以及 Phase C（真机、Phala Cloud、服务器）。详见 [docs/PROGRESS.md](docs/PROGRESS.md)。
 
 ## 许可
 
