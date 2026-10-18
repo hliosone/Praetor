@@ -8,11 +8,15 @@
 #   account-manager  run the account manager in the foreground
 #   router           run the router in the foreground
 # /data holds TLS keys and passwords: it is git-ignored (infra/wecross/generated) and never logged.
-set -euo pipefail
+set -Eeuo pipefail
 ROUTER_IP="${WECROSS_ROUTER_IP:-10.88.0.30}"
 AM_IP="${WECROSS_AM_IP:-10.88.0.31}"
 R="/data/router"
 AM="/data/account-manager"
+# A failure names its line and command, unexpanded (never `set -x`: it would print the keys), then the build tools'
+# output: they report errors on stdout, which would otherwise be lost.
+LOG=/tmp/wecross-setup.log
+trap 'echo "wecross: failed at line $LINENO: $BASH_COMMAND" >&2; [ ! -s "$LOG" ] || tail -n 20 "$LOG" >&2' ERR
 
 pem_of_hex() { # secp256k1 hex key -> PKCS#8 PEM on stdout
   local hex="${1#0x}"
@@ -24,14 +28,16 @@ address_of_hex() { # 0x-address of a secp256k1 hex key: keccak256 of the uncompr
 }
 
 setup() {
+  : > "$LOG"
   : "${WECROSS_FISCO_KEY:?}" "${WECROSS_ADMIN_PASSWORD:?}" "${MYSQL_PASSWORD_WECROSS:?}" "${WECROSS_AM_ENCRYPT_KEY:?}"
+  [ -w /data ] || { echo "wecross: /data (infra/wecross/generated) is not writable by uid $(id -u): create it as that user before compose runs (make up does)" >&2; exit 1; }
   local WECROSS_FISCO_ADDRESS
   WECROSS_FISCO_ADDRESS="$(address_of_hex "$WECROSS_FISCO_KEY")"
   if [ -f /data/.ready ]; then echo "wecross: configuration present"; base_chain; deploy_system; return; fi
   rm -rf /data/routers "$R" "$AM"
   # The build tool writes next to itself: run it from a copy the container user owns.
   rm -rf /tmp/wecross-pkg && cp -r /opt/WeCross /tmp/wecross-pkg && cd /tmp/wecross-pkg
-  bash build_wecross.sh -n payment -l "${ROUTER_IP}:8250:25500" -o /data/routers >/dev/null
+  bash build_wecross.sh -n payment -l "${ROUTER_IP}:8250:25500" -o /data/routers >>"$LOG"
   mv "/data/routers/${ROUTER_IP}-8250-25500" "$R"
   cd "$R"
   # Router RPC without TLS on the internal network only (never published); the account manager login keeps TLS.
@@ -46,7 +52,7 @@ s = re.sub(r"password\s*=\s*'[^']*'", f"password = '{sys.argv[2]}'", s)
 open(p, 'w').write(s)
 PY
   # FISCO (BCOS3 stub): node0's SDK certs, the stub admin account is WeCross's own FISCO key.
-  bash add_chain.sh -t BCOS3_ECDSA_EVM -n fisco -d conf/chains >/dev/null
+  bash add_chain.sh -t BCOS3_ECDSA_EVM -n fisco -d conf/chains >>"$LOG"
   cp /fisco-sdk/ca.crt /fisco-sdk/sdk.crt /fisco-sdk/sdk.key conf/chains/fisco/
   sed -i "s/connectionsStr = .*/connectionsStr = ['${FISCO_CHANNEL:-10.88.1.10:20200}']/" conf/chains/fisco/stub.toml
   rm -f conf/chains/fisco/admin/*

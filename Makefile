@@ -18,7 +18,7 @@ PROFILES := $(filter-out dev,$(PROFILES))
 endif
 PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 
-.PHONY: help setup install up down ps logs smoke-sm test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-web e2e-smoke rehearsal tunnel-stop e2e-live redteam redteam-live redteam-global slither deploy-contracts deploy-fisco tunnel reset-fork up-base
+.PHONY: help setup install up down ps logs smoke-sm test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-web e2e-smoke rehearsal tunnel-stop e2e-live redteam redteam-live redteam-global slither deploy-contracts deploy-fisco tunnel reset-fork up-base up-services
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -29,6 +29,9 @@ setup: ## Install the commit-msg hook and dependencies
 	pnpm install --frozen-lockfile
 
 up: ## Start the local stack (waits for healthchecks; deploys the contracts on a fresh fork)
+	@# Bind-mounted output directories: Docker would create missing ones as root, which vite and wecross-setup cannot write.
+	mkdir -p apps/web/dist infra/wecross/generated
+	@for d in apps/web/dist infra/wecross/generated; do [ -w "$$d" ] || { echo "$$d is not writable (created by Docker as root?): sudo chown -R $$(id -u):$$(id -g) $$d" >&2; exit 1; }; done
 	bash scripts/dev/compose-env.sh
 	bash infra/fisco/gen.sh
 	$(MAKE) --no-print-directory fisco-image
@@ -36,9 +39,14 @@ up: ## Start the local stack (waits for healthchecks; deploys the contracts on a
 	bash scripts/dev/sync-fork-time.sh
 	bash scripts/dev/ensure-fork-deploy.sh
 	pnpm -s --filter @praetor/web build
+	@# A sub-make: make expands a whole recipe before running it, so a compose call here would miss .run/compose.env.
+	$(MAKE) --no-print-directory up-services
+
+up-services:
+	@# bridge-relayer stays unhealthy until the outbox has its WeCross hub: start the router and wire it before the wait.
+	@case " $(PROFILES) " in *" wecross "*) $(COMPOSE) $(PROFILE_FLAGS) up -d --wait --build wecross-router && COMPOSE="$(COMPOSE) $(PROFILE_FLAGS)" bash scripts/wecross/up.sh ;; esac
 	$(COMPOSE) $(PROFILE_FLAGS) up -d --wait --build
 	@if [ -f .run/deployments-changed ]; then $(COMPOSE) $(PROFILE_FLAGS) restart bundler bank regulator operator bridge-relayer && rm .run/deployments-changed; fi
-	@case " $(PROFILES) " in *" wecross "*) bash scripts/wecross/up.sh ;; esac
 
 reset-fork: ## Fresh anvil fork, contracts and consortium redeployed, services restarted
 	$(COMPOSE) --profile dev rm -sf anvil
@@ -49,7 +57,8 @@ fisco-image: ## Build the FISCO node image once (the nodes never rebuild it: see
 	@docker image inspect praetor/fisco-bcos:3.17.1 >/dev/null 2>&1 || docker build -t praetor/fisco-bcos:3.17.1 infra/fisco
 
 up-base:
-	$(COMPOSE) --profile core $(if $(LIVE),,--profile dev) up -d --wait $(if $(LIVE),,anvil) mysql caddy
+	@# The FISCO nodes too: ensure-fork-deploy bootstraps the consortium on them before the rest of the stack starts.
+	$(COMPOSE) --profile core $(if $(LIVE),,--profile dev) $(if $(filter chain,$(PROFILES)),--profile chain) up -d --wait $(if $(LIVE),,anvil) mysql caddy $(if $(filter chain,$(PROFILES)),fisco-node0 fisco-node1 fisco-node2 fisco-node3)
 	@# The init script only runs on an empty volume; it is idempotent, so rerun it to add new service databases.
 	$(COMPOSE) exec -T mysql bash /docker-entrypoint-initdb.d/01-databases.sh
 
