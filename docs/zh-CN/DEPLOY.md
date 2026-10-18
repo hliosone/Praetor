@@ -11,7 +11,7 @@
 | 模式 | 启动方式 | `PRAETOR_ENV` | Base | FISCO | TEE | 公开 URL |
 |---|---|---|---|---|---|---|
 | 本地 | `make up`（`infra/compose.yml`） | `local` | Base Sepolia 的 anvil 分叉（`CHAIN_MODE=fork`，`LOCAL_` 密钥） | Docker 中的 4 个节点 | dstack 模拟器（`ATTESTATION_MODE=simulator`） | `https://praetor.localhost`（Caddy 内部 CA） |
-| 本地实链 | `make up LIVE=1`（加入 `infra/live.env`） | `local`（`LIVE=1` 不改变它） | Base Sepolia（`CHAIN_MODE=live`，`LIVE_` 密钥，不启动 anvil） | 同一条本地链，由 `LOCAL` 密钥集治理（`FISCO_KEYSET=LOCAL`，D75） | 模拟器 | 同上，另加供手机使用的 `make tunnel` |
+| 本地实链 | `make up LIVE=1`（加入 `infra/live.env`） | `local`（`LIVE=1` 不改变它） | Base Sepolia（`CHAIN_MODE=live`，`LIVE_` 密钥，不启动 anvil；通过 `https://base-sepolia-rpc.publicnode.com` 读取，D92） | 同一条本地链，由 `LOCAL` 密钥集治理（`FISCO_KEYSET=LOCAL`，D75） | 模拟器 | 同上，另加供手机使用的 `make tunnel` |
 | 演练 | `make rehearsal`（`compose.yml` + `compose.prod.yml`） | `rehearsal` | 取自 `.env` 的 `CHAIN_MODE`：除非 `.env` 设置了实链值，否则为分叉（该目标不传 `LIVE=1`） | 同上 | 模拟器（生产拒绝规则单独检查） | `https://praetor.localhost` |
 | 生产 | 服务器，`compose.yml` + `compose.prod.yml`（第 9 节） | `prod` | Base Sepolia | 服务器自己的 4 个节点 | Phala Cloud CVM（`ATTESTATION_MODE=phala`） | `https://app.<domain>` |
 
@@ -35,7 +35,7 @@
 | `PRAETOR_ENV` | `prod` |
 | `PUBLIC_HOST`、`PUBLIC_URL` | `app.<domain>`、`https://app.<domain>`（passkey 绑定到这个主机名） |
 | `CADDY_TLS` | ACME 账户邮箱（`compose.prod.yml` 把它传给 Caddy；默认为 `internal`） |
-| `CHAIN_MODE`、`BASE_RPC_URL` | `live`，一个 Base Sepolia RPC |
+| `CHAIN_MODE`、`BASE_RPC_URL` | `live`，一个支持宽范围 `eth_getLogs` 的 Base Sepolia RPC：`https://base-sepolia-rpc.publicnode.com`，与 `infra/live.env` 相同（D92）。`sepolia.base.org` 把 `eth_getLogs` 限制在 200 个区块以内，对 payout partner、scheduler、api、notifier、oracle feeder 和 reader 来说太少；publicnode 允许 50,000 个区块（从部署区块起约 28 小时），因此连续运行数天的服务器需要 Base 客户端拆分宽范围的 `eth_getLogs`（后续工作，尚未构建） |
 | `DEPLOYMENTS_FILE`、`FISCO_DEPLOYMENTS_FILE` | `infra/deployments/base-sepolia.json`、`infra/deployments/fisco-live.json` |
 | `DOMAIN_NAME` | `Praetor` |
 | `ATTESTATION_MODE` | `phala` |
@@ -55,7 +55,7 @@
 
 ## 4. 为 LIVE 地址充值
 
-实链预算有意保持很小（D74）：由人工为部署者充值，而 Base Sepolia 的 gas 价格（测量时约 0.006 gwei）使运行成本很低。实链运行按部署者 0.0133 ETH、treasury 44 USDC 的预算规划。
+实链预算有意保持很小（D74）：由人工为部署者充值，而 Base Sepolia 的 gas 价格（测量时约 0.006 gwei）使运行成本很低。实链运行按部署者 0.0133 ETH、treasury 44 USDC 的预算规划，2026-10-18 的 M16 证据运行也控制在这一预算之内（D74、D96）。
 
 ```bash
 pnpm exec tsx scripts/deploy/fund-live.ts           # 试运行：每个需要 gas 的 LIVE 账户还缺多少
