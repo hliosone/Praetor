@@ -1,6 +1,9 @@
 // Per-account OpenCode configuration and prompts (spec 05, Q34). The built-in tools stay advertised (the free tier
 // refuses requests without them, V6) but every call to them asks for permission, which the runner rejects at once;
-// only the praetor_* MCP tools run. The MCP bearer reaches OpenCode through {env:...}: the file holds no secret.
+// only the praetor_* MCP tools run. Some are denied outright, which takes them out of the model's tool list: OpenCode
+// 1.19 cannot list pending permissions once one carries an undefined field (webfetch's timeout, glob's and grep's
+// path, websearch's options, lsp's), so none would be rejected and the turn would hang (RT-84, RT-05); question asks
+// nothing and waits for a user. The MCP bearer reaches OpenCode through {env:...}: the file holds no secret.
 
 export function opencodeConfig(o: { account: string; model: string; mcpUrl: string; fakeLlmUrl?: string }) {
   return {
@@ -9,7 +12,7 @@ export function opencodeConfig(o: { account: string; model: string; mcpUrl: stri
     small_model: o.model,
     autoupdate: false,
     share: 'disabled',
-    permission: { '*': 'ask', 'praetor_*': 'allow' },
+    permission: { '*': 'ask', webfetch: 'deny', websearch: 'deny', glob: 'deny', grep: 'deny', lsp: 'deny', question: 'deny', 'praetor_*': 'allow' },
     ...(o.fakeLlmUrl
       ? {
           provider: {

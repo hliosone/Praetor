@@ -1,0 +1,18 @@
+# scripts/deploy/prod-refusals.sh only: each service starts once, alone, beside the running stack. No network (a
+# second copy cannot take the service's fixed IP); a service must refuse its test-only settings before it needs one.
+services:
+  bank:
+    networks: !reset {}
+    network_mode: none
+  agent-signer:
+    networks: !reset {}
+    network_mode: none
+  soter-attester:
+    networks: !reset {}
+    network_mode: none
+  agent-runner:
+    networks: !reset {}
+    network_mode: none
+  api:
+    networks: !reset {}
+    network_mode: none

@@ -12,16 +12,20 @@ const servers: Server[] = [];
 afterEach(() => { for (const s of servers.splice(0)) s.close(); });
 
 /** A fake `opencode serve`: one session; the message blocks until its permission request is rejected. */
-function fakeOpencode(port: number, opts: { askPermission?: boolean } = {}) {
+function fakeOpencode(port: number, opts: { askPermission?: boolean; hangFirst?: boolean; brokenPermissionList?: boolean } = {}) {
   const app = express();
   app.use(express.json());
-  const state = { permissions: [] as { id: string }[], rejected: [] as string[], messages: [] as unknown[], auth: '' as string, directories: [] as string[] };
+  const state = { permissions: [] as { id: string }[], rejected: [] as string[], messages: [] as unknown[], auth: '' as string, directories: [] as string[], sessions: 0, aborted: [] as string[], posted: [] as string[] };
   app.use((req, _res, next) => { state.auth = req.header('authorization') ?? ''; state.directories.push(String(req.query.directory ?? '')); next(); });
   app.get('/doc', (_req, res) => res.json({}));
-  app.post('/session', (_req, res) => res.json({ id: 'ses_1' }));
-  app.get('/permission', (_req, res) => res.json(state.permissions));
+  app.post('/session', (_req, res) => res.json({ id: `ses_${++state.sessions}` }));
+  app.post('/session/:id/abort', (req, res) => { state.aborted.push(req.params.id); res.json(true); });
+  app.get('/permission', (_req, res) => (opts.brokenPermissionList ? res.status(400).json({ error: 'schema rejection' }) : res.json(state.permissions)));
   app.post('/permission/:id/reply', (req, res) => { state.rejected.push(`${req.params.id}:${req.body.reply}`); state.permissions = state.permissions.filter((p) => p.id !== req.params.id); res.json(true); });
   app.post('/session/:id/message', async (req, res) => {
+    state.posted.push(req.params.id);
+    // A tool that never completes: the message stays open until the client gives up.
+    if (opts.hangFirst && state.posted.length === 1) return;
     state.messages.push(req.body);
     if (opts.askPermission) {
       state.permissions.push({ id: 'per_1' });
@@ -38,7 +42,7 @@ function fakeOpencode(port: number, opts: { askPermission?: boolean } = {}) {
   return state;
 }
 
-function setup(o: { askPermission?: boolean; max?: number } = {}) {
+function setup(o: { askPermission?: boolean; hangFirst?: boolean; brokenPermissionList?: boolean; max?: number } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'runner-'));
   const states: ReturnType<typeof fakeOpencode>[] = [];
   const envs: Record<string, string>[] = [];
@@ -127,5 +131,24 @@ describe('turns', () => {
     ]);
     expect(states[0]!.auth).toBe(`Basic ${Buffer.from('opencode:pw').toString('base64')}`);
     expect((states[0]!.messages[0] as { model: unknown }).model).toEqual({ providerID: 'fake', modelID: 'scripted' });
+  });
+
+  it('a turn that times out aborts its session and the next turn starts a new one (RT-84: a stuck tool blocked every later turn)', async () => {
+    const { m, states } = setup({ hangFirst: true });
+    const runner = new Runner(m, 300);
+    await expect(runner.turn(ACCOUNT, 'fetch this page')).rejects.toThrow();
+    expect(states[0]!.aborted).toEqual(['ses_1']);
+    const r = await runner.turn(ACCOUNT, 'Pay the café 12.50');
+    expect(states[0]!.posted).toEqual(['ses_1', 'ses_2']);
+    expect(r.sessionId).toBe('ses_2');
+  });
+
+  it('aborts the turn at once when OpenCode cannot list its pending permissions: nothing could be rejected (RT-05)', async () => {
+    const { m, states } = setup({ hangFirst: true, brokenPermissionList: true });
+    const runner = new Runner(m, 60_000);
+    const t0 = Date.now();
+    await expect(runner.turn(ACCOUNT, 'look at your files')).rejects.toThrow(/permission/);
+    expect(Date.now() - t0).toBeLessThan(5_000);
+    expect(states[0]!.aborted).toEqual(['ses_1']);
   });
 });

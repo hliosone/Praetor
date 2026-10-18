@@ -42,19 +42,33 @@ export async function getLogsChunked<E extends AbiEvent>(
   return out as Awaited<ReturnType<typeof client.getLogs<E>>>;
 }
 
+// One transaction in flight per sender: concurrent sends read the same nonce and the pool refused the second (FISCO,
+// and the bank's Base desk account, red team D62).
+const inFlight = new Map<string, Promise<unknown>>();
+export function oneAtATime<T>(sender: Address, f: () => Promise<T>): Promise<T> {
+  const key = sender.toLowerCase();
+  const next = (inFlight.get(key) ?? Promise.resolve()).catch(() => undefined).then(f);
+  inFlight.set(key, next);
+  return next;
+}
+
 /** A FISCO transaction: legacy, gasPrice 0, explicit gas, waits for the receipt and fails on revert. */
 export async function sendFisco(pub: PublicClient, wallet: WalletClient, p: { address: Address; abi: Abi; functionName: string; args?: readonly unknown[] }) {
-  const hash = await wallet.writeContract({ ...p, args: p.args ?? [], account: wallet.account!, chain: wallet.chain, gas: FISCO_GAS, ...LEGACY_TX } as never);
-  const receipt = await pub.waitForTransactionReceipt({ hash });
-  if (receipt.status !== 'success') throw new Error(`FISCO tx reverted: ${p.functionName} ${hash}`);
-  return receipt;
+  return oneAtATime(wallet.account!.address, async () => {
+    const hash = await wallet.writeContract({ ...p, args: p.args ?? [], account: wallet.account!, chain: wallet.chain, gas: FISCO_GAS, ...LEGACY_TX } as never);
+    const receipt = await pub.waitForTransactionReceipt({ hash });
+    if (receipt.status !== 'success') throw new Error(`FISCO tx reverted: ${p.functionName} ${hash}`);
+    return receipt;
+  });
 }
 
 export async function deployFisco(pub: PublicClient, wallet: WalletClient, abi: Abi, bytecode: Hex, args: readonly unknown[] = []): Promise<Address> {
-  const hash = await wallet.deployContract({ abi, bytecode, args, account: wallet.account!, chain: wallet.chain, gas: FISCO_GAS, ...LEGACY_TX } as never);
-  const r = await pub.waitForTransactionReceipt({ hash });
-  if (r.status !== 'success' || !r.contractAddress) throw new Error(`FISCO deploy failed (${hash}): is the deployer whitelisted?`);
-  return r.contractAddress;
+  return oneAtATime(wallet.account!.address, async () => {
+    const hash = await wallet.deployContract({ abi, bytecode, args, account: wallet.account!, chain: wallet.chain, gas: FISCO_GAS, ...LEGACY_TX } as never);
+    const r = await pub.waitForTransactionReceipt({ hash });
+    if (r.status !== 'success' || !r.contractAddress) throw new Error(`FISCO deploy failed (${hash}): is the deployer whitelisted?`);
+    return r.contractAddress;
+  });
 }
 
 /** Message kinds of the boards, by number: WeCrossInbox's args[0] and the relayer's type names. */

@@ -24,7 +24,7 @@ const env = z.object({
   INTERNAL_TOKEN_MCP: z.string().min(32),
   INTERNAL_TOKEN_API: z.string().min(32),
   API_URL: z.string().url().optional(),
-  AGENT_SUBNET: z.string().default('10.90.0.0/24'),
+  AGENT_SUBNET: z.string().default('10.90.0.10/32'),
   PUBLIC_URL: z.string().url().default('https://praetor.localhost'),
   SESSION_SECRET: z.string().min(32),
   EXPLORER_URL: z.string().url().default(BASESCAN_SEPOLIA),

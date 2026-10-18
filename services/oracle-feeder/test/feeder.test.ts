@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { decide, normalisePyth, SEEDED } from '../src/feeder.js';
+import { decide, feedMode, normalisePyth, SEEDED } from '../src/feeder.js';
 import { PriceSource } from '@praetor/protocol';
 
 const NOW = 1_800_000_000n;
@@ -42,5 +42,14 @@ describe('decide', () => {
     const next = { price8: SEEDED.XAU, publishTime: NOW, source: PriceSource.DEMO };
     expect(decide({ now: NOW, last: last(SEEDED.XAU, 60n, PriceSource.DEMO), next, holdS: 600n })).toBeNull();
     expect(decide({ now: NOW, last: last(SEEDED.XAU, 1801n, PriceSource.DEMO), next, holdS: 600n })).toEqual({ price8: SEEDED.XAU, publishTime: NOW, source: PriceSource.DEMO });
+  });
+});
+
+describe('feedMode (D89)', () => {
+  it('reads Pyth only on live Base Sepolia with a key: the fork keeps the demo prices its tests set', () => {
+    expect(feedMode({ pythKey: 'k', chainMode: 'live' })).toBe('pyth');
+    // Real prices are more than 25% from the demo ones: the oracle would refuse the tests' demo prices after them.
+    expect(feedMode({ pythKey: 'k', chainMode: 'fork' })).toBe('seeded');
+    expect(feedMode({ pythKey: '', chainMode: 'live' })).toBe('seeded');
   });
 });

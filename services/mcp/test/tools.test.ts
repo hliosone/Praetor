@@ -83,6 +83,21 @@ describe('pay', () => {
     expect(r.text).not.toContain('basescan');
   });
 
+  it('a payee name resolves to its exact label first, a unique partial name to its label, an ambiguous one to nothing (red team D62)', async () => {
+    const BISTRO = '0x00000000000000000000000000000000000b1570' as Address;
+    const LUMEN = '0x000000000000000000000000000000000001ee11' as Address;
+    const labels = { [BISTRO.toLowerCase()]: 'Lumen Bistro', [LUMEN.toLowerCase()]: 'Lumen', [CAFE.toLowerCase()]: 'Café Lumen' };
+    const t = () => new PraetorTools(ACCOUNT, { ...ports(), labels: async () => labels });
+    await t().pay({ payee: 'lumen', amount: '1' });
+    expect(decodeFunctionData({ abi: erc20Abi, data: sent[0]!.calls[0]!.data }).args![0]).toBe(getAddress(LUMEN));
+    await t().pay({ payee: 'bistro', amount: '1' });
+    expect(decodeFunctionData({ abi: erc20Abi, data: sent[1]!.calls[0]!.data }).args![0]).toBe(getAddress(BISTRO));
+    const r = await t().pay({ payee: 'Lum', amount: '1' });
+    expect(r.isError).toBe(true);
+    expect(r.text).toMatch(/several payees match "Lum": Lumen Bistro, Lumen, Café Lumen/);
+    expect(sent).toHaveLength(2);
+  });
+
   it('T0: still submits (on-chain evidence), then reports a final refusal with the reason and both links', async () => {
     verdict = { reason: Reason.SANCTIONED, tier: Tier.T0_NEVER };
     const r = await tools().pay({ payee: BAD, amount: '5000' });

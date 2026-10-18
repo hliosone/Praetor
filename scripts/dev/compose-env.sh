@@ -16,4 +16,5 @@ fisco_roles='(BANK|REGULATOR|OPERATOR|RELAYER|WECROSS)_FISCO_KEY|WEID_ADMIN_KEY'
 fset="${FISCO_KEYSET:-$set_prefix}"
 grep -E "^${set_prefix}_[A-Z0-9_]+=" .env | sed -E "s/^${set_prefix}_//" | grep -vE "^(${fisco_roles})=" >> .run/compose.env
 grep -E "^${fset}_(${fisco_roles})=" .env | sed -E "s/^${fset}_//" >> .run/compose.env
+echo "CADDYFILE_SHA=$(sha256sum infra/Caddyfile | cut -c1-16)" >> .run/compose.env
 echo "compose.env: ${set_prefix} key set for CHAIN_MODE=${mode}, FISCO keys from ${fset}"

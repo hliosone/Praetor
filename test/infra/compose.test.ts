@@ -77,6 +77,10 @@ describe('infra/compose.yml', () => {
     expect(Object.keys(compose.services['fake-llm']!.networks as Record<string, unknown>)).toEqual(['agent']);
     const members = services.filter(([, s]) => on(s, 'agent')).map(([n]) => n).sort();
     expect(members).toEqual(['agent-runner', 'api', 'fake-llm', 'mcp', 'scheduler']);
+    // mcp takes an agent bearer only from agent-runner's address: the agent network also holds the host's gateway.
+    const runnerIp = (runner.networks as Record<string, { ipv4_address: string }>).agent!.ipv4_address;
+    expect(compose.services.mcp!.environment!.AGENT_SUBNET).toBe(`${runnerIp}/32`);
+    expect(read('services/mcp/src/main.ts')).toContain(`AGENT_SUBNET: z.string().default('${runnerIp}/32')`);
   });
 
   it('keeps the custodial WeIdentity services on their own network, joined only by bank, MySQL and one FISCO node', () => {
@@ -113,6 +117,16 @@ describe('infra/compose.yml', () => {
     // The partner holds its own Base key and the merchant's Alipay+ key, never the gateway's private key.
     expect(Object.keys(c['payout-partner']!.environment!)).not.toContain('ALIPAYPLUS_TEST_GATEWAY_PRIVATE_KEY');
     expect(Object.keys(c['alipayplus-mock']!.environment!)).not.toContain('ALIPAYPLUS_TEST_MERCHANT_PRIVATE_KEY');
+  });
+
+  it('recreates caddy when the Caddyfile changes: a single-file mount keeps the old file once git replaces it (red team D62)', () => {
+    expect(compose.services.caddy!.labels).toEqual({ 'praetor.caddyfile-sha': '${CADDYFILE_SHA}' });
+    expect(read('scripts/dev/compose-env.sh')).toMatch(/CADDYFILE_SHA=.*sha256sum infra\/Caddyfile/);
+  });
+
+  it('polls Pyth gently: the feeder knows the chain mode and its interval comes from the env, 5 minutes on live (D89)', () => {
+    expect(compose.services['oracle-feeder']!.environment).toMatchObject({ CHAIN_MODE: '${CHAIN_MODE}', FEED_INTERVAL_S: '${FEED_INTERVAL_S}' });
+    expect(read('infra/live.env')).toMatch(/^FEED_INTERVAL_S=300$/m);
   });
 
   it('documents in infra/.env.example every variable compose interpolates', () => {

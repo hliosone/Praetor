@@ -3,7 +3,7 @@
 # exits instead of starting. Runs each service once, without its dependencies, through the production compose files.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-COMPOSE=(docker compose -f infra/compose.yml -f infra/compose.prod.yml --env-file infra/.env.example)
+COMPOSE=(docker compose -f infra/compose.yml -f infra/compose.prod.yml -f infra/compose.refusals.yml --env-file infra/.env.example)
 [ -f .env ] && COMPOSE+=(--env-file .env)
 [ -f .run/compose.env ] && COMPOSE+=(--env-file .run/compose.env)
 fail=0

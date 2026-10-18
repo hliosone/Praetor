@@ -9,6 +9,7 @@ import { MandateHookAbi, PriceOracleAbi, StandingOrdersAbi, baseClients, baseNow
 import { PriceSource, type Policy } from '@praetor/protocol';
 import { Cooldown, bandWake, weightsOf } from './bands.js';
 import { dueOrders } from './standing.js';
+import { repeat } from './loop.js';
 
 const env = z.object({
   BASE_RPC_URL: z.string().url(),
@@ -60,7 +61,11 @@ async function checkAccount(account: Address) {
 
 async function checkAll() {
   try {
-    for (const a of await accounts()) await checkAccount(a).catch((e) => log.error({ account: a, error: (e as Error).message.split('\n')[0] }, 'check failed'));
+    for (const a of await accounts()) {
+      await checkAccount(a).catch((e) => log.error({ account: a, error: (e as Error).message.split('\n')[0] }, 'check failed'));
+      // Health is progress, not a finished pass: with hundreds of accounts one pass outlasts the health window.
+      lastCheck = Date.now();
+    }
     lastCheck = Date.now();
     lastError = '';
   } catch (e) {
@@ -113,8 +118,7 @@ async function standingOrders() {
 }
 void standingOrders();
 
-setInterval(() => void checkAll(), env.PRICE_CHECK_INTERVAL_S * 1000);
-void checkAll();
+repeat(checkAll, env.PRICE_CHECK_INTERVAL_S * 1000);
 void watchDemo();
 
 const app = express();
