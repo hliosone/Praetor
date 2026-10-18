@@ -129,7 +129,7 @@ export function Console() {
           {(['bank', 'regulator', 'operator'] as const).map((r) => <RolePanel key={r} role={r} selected={selected} proposals={proposals} onOpened={(o) => setProposals((l) => [o, ...l.filter((x) => x.board !== o.board || x.proposalId !== o.proposalId)])} onDone={() => void agents.reload()} />)}
         </section>
         <section className="panel" style={{ maxHeight: 520, overflow: 'auto' }} aria-label="Agents">
-          <table>
+          <div className="table-wrap"><table>
             <thead><tr><th>Account</th><th>Status</th><th>KYA</th><th>Jurisdiction</th><th /></tr></thead>
             <tbody>
               {agents.data?.agents.map((a) => (
@@ -142,7 +142,7 @@ export function Console() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </section>
 
       </main>

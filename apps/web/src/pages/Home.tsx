@@ -53,7 +53,7 @@ export function Home() {
       </section>
       <section className="panel">
         <h2>{t('home.feed')}</h2>
-        <table>
+        <div className="table-wrap"><table>
           <thead><tr><th>Action</th><th>Reason</th><th>Tier</th><th className="num">USD</th><th>{t('common.tx')}</th></tr></thead>
           <tbody>
             {feed.data?.items.map((i) => (
@@ -66,7 +66,7 @@ export function Home() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </section>
       {(portfolio.error || status.error) && <p className="error" role="alert">{t('common.error', { e: portfolio.error ?? status.error ?? '' })}</p>}
     </div>

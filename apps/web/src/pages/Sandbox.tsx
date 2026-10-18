@@ -131,14 +131,14 @@ export function Sandbox() {
         )}
         {lines.length > 0 && (
           <section className="panel">
-            <table>
+            <div className="table-wrap"><table>
               <thead><tr><th>{t('sandbox.scenario')}</th><th>{t('sandbox.outcome')}</th><th>{t('common.tx')}</th></tr></thead>
               <tbody>
                 {lines.map((l, i) => (
                   <tr key={i}><td>{l.what}</td><td>{l.outcome}</td><td>{l.tx ? <TxLink hash={l.tx} explorer={cfg.data?.explorer} /> : ''}</td></tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </section>
         )}
         {error && <p className="error" role="alert">{t('common.error', { e: error })}</p>}

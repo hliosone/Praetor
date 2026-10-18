@@ -41,7 +41,7 @@ export function Payments() {
     <div className="stack">
       <section className="panel">
         <h1 style={{ fontSize: 'var(--s-30)' }}>{t('payments.title')}</h1>
-        <table>
+        <div className="table-wrap"><table>
           <thead><tr><th>#</th><th>To</th><th className="num">USDC</th><th>Every</th><th>Next due</th><th /></tr></thead>
           <tbody>
             {l.data?.orders.map((o) => (
@@ -58,7 +58,7 @@ export function Payments() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
         {l.data?.proposals.filter((p) => p.state === 'pending').map((p) => (
           <div className="card row between" key={p.id} style={{ marginTop: '0.75rem' }}>
             <span>Your agent proposes: {p.summary}</span>

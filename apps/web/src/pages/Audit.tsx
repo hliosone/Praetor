@@ -31,7 +31,7 @@ export function Audit() {
         {v && <p className="muted small">{v.entries} entries; FISCO head at #{v.fisco.seq}; Base anchor #{v.anchor.seq} covers #{v.anchor.auditSeq ?? '?'}.</p>}
       </section>
       <section className="panel">
-        <table>
+        <div className="table-wrap"><table>
           <thead><tr><th>#</th><th>Kind</th><th>Reason</th><th className="num">USD</th><th>Base</th><th>FISCO</th><th>When</th></tr></thead>
           <tbody>
             {l.data?.entries.slice().reverse().map((e) => (
@@ -44,7 +44,7 @@ export function Audit() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </section>
     </div>
   );

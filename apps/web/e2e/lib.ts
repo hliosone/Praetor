@@ -15,7 +15,7 @@ export async function withPasskeys(context: BrowserContext, page: Page) {
   });
 }
 
-/** docs/screens/web/<name>-1440.png and -390.png, then no serious or critical axe violation on the page. */
+/** docs/screens/web/<name>-1440.png and -390.png (no sideways scroll at 390 px), then no serious or critical axe violation. */
 export async function shoot(page: Page, name: string) {
   await page.waitForLoadState('networkidle').catch(() => undefined);
   await page.waitForTimeout(1000);
@@ -23,6 +23,9 @@ export async function shoot(page: Page, name: string) {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${SHOTS}/${name}-390.png`, fullPage: true });
+  // No horizontal page scroll on a phone (#3): long hashes wrap and tables scroll inside their own box. Soft, so one
+  // wide page does not hide the next.
+  expect.soft(await page.evaluate(() => document.documentElement.scrollWidth), `${name}: page width at 390 px`).toBeLessThanOrEqual(390);
   await page.setViewportSize({ width: 1440, height: 900 });
   const axe = await new AxeBuilder({ page }).analyze();
   const serious = axe.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
