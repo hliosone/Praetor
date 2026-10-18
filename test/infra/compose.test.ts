@@ -115,6 +115,11 @@ describe('infra/compose.yml', () => {
     expect(Object.keys(c['alipayplus-mock']!.environment!)).not.toContain('ALIPAYPLUS_TEST_MERCHANT_PRIVATE_KEY');
   });
 
+  it('recreates caddy when the Caddyfile changes: a single-file mount keeps the old file once git replaces it (red team D62)', () => {
+    expect(compose.services.caddy!.labels).toEqual({ 'praetor.caddyfile-sha': '${CADDYFILE_SHA}' });
+    expect(read('scripts/dev/compose-env.sh')).toMatch(/CADDYFILE_SHA=.*sha256sum infra\/Caddyfile/);
+  });
+
   it('documents in infra/.env.example every variable compose interpolates', () => {
     const vars = new Set([...read('infra/compose.yml').matchAll(/\$\{([A-Z0-9_]+)/g)].map((m) => m[1]!));
     const example = read('infra/.env.example');
