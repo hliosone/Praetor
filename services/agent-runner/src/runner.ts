@@ -32,10 +32,11 @@ export class Runner {
     return s ? ((await this.call(i, 'GET', `/session/${s}/message`)) as Message[]) : [];
   }
 
-  private async call(i: Instance, method: string, path: string, body?: unknown, timeoutMs = 30_000): Promise<unknown> {
+  private async call(i: Instance, method: string, path: string, body?: unknown, timeoutMs = 30_000, stop?: AbortSignal): Promise<unknown> {
     const sep = path.includes('?') ? '&' : '?';
+    const signal = stop ? AbortSignal.any([AbortSignal.timeout(timeoutMs), stop]) : AbortSignal.timeout(timeoutMs);
     const r = await fetch(`${i.base}${path}${sep}directory=${encodeURIComponent(i.project)}`, {
-      method, headers: { authorization: i.auth, 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs),
+      method, headers: { authorization: i.auth, 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), signal,
     });
     if (!r.ok) throw new Error(`opencode ${method} ${path}: ${r.status}`);
     return r.json();
@@ -46,9 +47,18 @@ export class Runner {
     this.log?.info({ account, queuedMs: Date.now() - this.enqueued.get(account)! }, 'turn starts');
     i.busy++;
     let rejecting = true;
+    // A pending permission the runner cannot see is never rejected and hangs the turn: if OpenCode cannot list them,
+    // the turn stops at once (fail closed).
+    const stop = new AbortController();
     const rejector = (async () => {
       while (rejecting) {
-        const pending = (await this.call(i, 'GET', '/permission').catch(() => [])) as { id: string }[];
+        let pending: { id: string }[];
+        try {
+          pending = (await this.call(i, 'GET', '/permission')) as { id: string }[];
+        } catch (e) {
+          stop.abort(new Error(`opencode cannot list its pending permissions (${(e as Error).message}): turn stopped`));
+          return;
+        }
         for (const p of pending) await this.call(i, 'POST', `/permission/${p.id}/reply`, { reply: 'reject' }).catch(() => undefined);
         await new Promise((r) => setTimeout(r, 200));
       }
@@ -61,12 +71,12 @@ export class Runner {
       }
       const [providerID, ...rest] = i.model.split('/');
       const before = ((await this.call(i, 'GET', `/session/${session}/message`).catch(() => [])) as Message[]).length;
-      const last = (await this.call(i, 'POST', `/session/${session}/message`, { model: { providerID, modelID: rest.join('/') }, parts: [{ type: 'text', text }] }, this.turnTimeoutMs).catch(async (e) => {
+      const last = (await this.call(i, 'POST', `/session/${session}/message`, { model: { providerID, modelID: rest.join('/') }, parts: [{ type: 'text', text }] }, this.turnTimeoutMs, stop.signal).catch(async (e) => {
         // A turn left running (a tool that never completes) would block every later message of the session: stop it
         // and let the next turn start a new session.
         this.sessions.delete(account);
         await this.call(i, 'POST', `/session/${session}/abort`).catch(() => undefined);
-        throw e;
+        throw stop.signal.aborted ? stop.signal.reason : e;
       })) as Message;
       const all = (await this.call(i, 'GET', `/session/${session}/message`)) as Message[];
       const turn = all.slice(before).filter((m) => m.info.role === 'assistant');
