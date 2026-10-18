@@ -11,6 +11,7 @@
       </view>
       <view class="small muted">{{item.tierText}}<text wx:if="{{item.amount}}"> · {{item.amount}} USD</text> · {{item.target}}</view>
       <view wx:if="{{item.url}}" class="small muted">{{t.activity.copyTx}}</view>
+      <view wx:elif="{{fork}}" class="small muted">{{t.activity.localFork}}</view>
     </view>
   </view>
 </view>

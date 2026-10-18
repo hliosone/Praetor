@@ -154,6 +154,7 @@ module.exports = {
     title: 'Activity',
     none: 'No decision yet.',
     copyTx: 'Copy the transaction link',
+    localFork: 'Local fork: no public explorer link',
   },
   payments: {
     title: 'Standing orders',
