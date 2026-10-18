@@ -31,7 +31,11 @@ export function summarize(results: CaseResult[]) {
   return { attacks: results.length, executed: n('EXECUTED'), blocked: n('BLOCKED'), elsewhere: n('BLOCKED_ELSEWHERE'), declined: n('NOT_ATTEMPTED'), errors: n('ERROR') };
 }
 
-export const headline = (results: CaseResult[]) => `${results.length} attacks, ${summarize(results).executed} executed`;
+/** "N attacks, M executed": a case that could not run (ERROR) is no attack, and is counted apart. */
+export function headline(results: CaseResult[]): string {
+  const s = summarize(results);
+  return `${s.attacks - s.errors} attacks, ${s.executed} executed${s.errors ? ` (${s.errors} could not run)` : ''}`;
+}
 
 /** The headline of one run, unless it did not run every planned case: then it says so instead. */
 const runHeadline = (r: RunFile) => (r.results.length < (r.planned ?? 0)

@@ -23,6 +23,10 @@ describe('headline and summary', () => {
     expect(headline([result({}), result({ id: 'RT-02', verdict: 'EXECUTED' })])).toBe('2 attacks, 1 executed');
   });
 
+  it('a case that could not run (ERROR) is not counted as an attack, and the headline says how many did not run', () => {
+    expect(headline([result({}), result({ id: 'RT-02', verdict: 'ERROR' })])).toBe('1 attacks, 0 executed (1 could not run)');
+  });
+
   it('summarizes verdicts per run', () => {
     const s = summarize([result({}), result({ id: 'b', verdict: 'BLOCKED_ELSEWHERE' }), result({ id: 'c', verdict: 'NOT_ATTEMPTED' }), result({ id: 'd', verdict: 'ERROR' })]);
     expect(s).toEqual({ attacks: 4, executed: 0, blocked: 1, elsewhere: 1, declined: 1, errors: 1 });

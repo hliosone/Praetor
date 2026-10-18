@@ -17,7 +17,9 @@ from a worktree against another checkout's stack: its `.env` must be symlinked h
 is read from that root).
 
 Each run writes `.run/redteam-<scripted|live|global>.json` (read later by `scripts/evidence`) and re-renders
-`docs/security/redteam.md` from every run file present.
+`docs/security/redteam.md` from every run file present (`pnpm exec tsx test/redteam/render.ts` re-renders it alone).
+The headline counts the attacks that ran; a case that could not run (ERROR) is counted apart, and a run that stopped
+before its planned cases is marked INCOMPLETE instead of getting a headline.
 
 ## What "executed" means
 
