@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.10-labs@sha256:940282bab7a18daad689c238d407ad22393369ad53c6125c9c00f8be8a9da678
 # agent-runner (spec 05): OpenCode 1.19.3 with its first-start downloads baked in (no runtime fetch), plus the runner.
 # The base and store stages are those of infra/node-service.Dockerfile, verbatim, so BuildKit shares them.
 FROM node:22.22.0-bookworm-slim@sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94 AS base

@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.10-labs@sha256:940282bab7a18daad689c238d407ad22393369ad53c6125c9c00f8be8a9da678
 # One recipe for every Node service (spec 05): the pnpm workspace filtered to the service and its packages.
 # Build from the repo root: docker build -f infra/node-service.Dockerfile --build-arg SERVICE=bundler .
 # Everything runs as node, so nothing needs a chown afterwards. The services/ Dockerfiles repeat the store stage

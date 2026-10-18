@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.10-labs@sha256:940282bab7a18daad689c238d407ad22393369ad53c6125c9c00f8be8a9da678
 # alipayplus-mock and wechatpay-mock (spec 05, labelled mocks). The Alipay+ MCP client always dials HTTPS 443 (V7): a
 # self-signed certificate is made at build time; the port is never published outside the Docker network.
 # The base and store stages are those of infra/node-service.Dockerfile, verbatim, so BuildKit shares them.

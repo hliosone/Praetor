@@ -19,6 +19,7 @@ const nodeDockerfiles = [
     }),
   ),
 ];
+const SYNTAX = 'docker/dockerfile:1.10-labs@sha256:940282bab7a18daad689c238d407ad22393369ad53c6125c9c00f8be8a9da678';
 const runtimeUser: Record<string, string> = { 'services/payout-partner/Dockerfile': 'partner' };
 
 type Instruction = { op: string; args: string };
@@ -43,6 +44,10 @@ describe('Node service Dockerfiles (rebuild only what a code change touches)', (
       'services/alipayplus-mock/Dockerfile',
       'services/payout-partner/Dockerfile',
     ]);
+  });
+
+  it('pins the Dockerfile syntax (COPY --parents is a labs feature: older built-in frontends reject it)', () => {
+    for (const f of nodeDockerfiles) expect(read(f).split('\n')[0], f).toBe(`# syntax=${SYNTAX}`);
   });
 
   it('keeps large files no image reads out of the root build context (copied into every image otherwise)', () => {

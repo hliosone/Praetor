@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.10-labs@sha256:940282bab7a18daad689c238d407ad22393369ad53c6125c9c00f8be8a9da678
 # payout-partner (spec 05, mock PSP): Node for the partner, uv for the official Alipay+ MCP server, installed at build
 # time with mcp pinned to 1.29.1 (an unpinned mcp crashes it, V7) so nothing is fetched at runtime.
 # The base and store stages are those of infra/node-service.Dockerfile, verbatim, so BuildKit shares them.
