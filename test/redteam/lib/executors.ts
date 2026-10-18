@@ -19,7 +19,7 @@ import { ENTRY_POINT, fromJson, toJson, userOpHash, withPaymasterSignature } fro
 import { agentChat, bundler, http2, labelAddress, localKey, openAndSign, root, scriptAgent, signer, waitFor } from '../../../scripts/demo/lib.js';
 import type { Case, Driver, Input, Layer } from './case.js';
 import { aaLayer, analyzeTurn, toolText, type Observation } from './classify.js';
-import { encodeCall, encodeCallData, resolveValue, type Vars } from './resolve.js';
+import { encodeCall, encodeCallData, interpolate, resolveValue, type Vars } from './resolve.js';
 import { URLS, runTag, type Fixture, type Fixtures } from './fixtures.js';
 import type { Chain } from './chain.js';
 
@@ -205,7 +205,7 @@ async function chat(e: Env, i: Extract<Input, { kind: 'chat' }>): Promise<Outcom
   const fakeBefore = driver === 'live' ? await fakeCalls() : 0;
   let t;
   try {
-    t = await agentChat(s, account, resolveValue(i.message, e.vars, now) as string);
+    t = await agentChat(s, account, interpolate(i.message, { ...e.vars, now: now.toString() }));
   } catch (err) {
     const hung = await hungBuiltinTool(e);
     if (!hung) throw err;

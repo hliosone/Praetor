@@ -42,7 +42,9 @@ const runHeadline = (r: RunFile) => (r.results.length < (r.planned ?? 0)
   ? `INCOMPLETE: ${r.results.length} of ${r.planned} planned cases ran (${summarize(r.results).executed} executed)`
   : `**${headline(r.results)}**`);
 
-const cell = (s: string) => s.replace(/\r?\n/g, ' ').replace(/\|/g, '\\|');
+// Model answers may carry the em dash the repo never writes (scripts/checks/no-emdash.sh).
+const EM_DASH = new RegExp(String.fromCharCode(0x2014), 'g');
+const cell = (s: string) => s.replace(/\r?\n/g, ' ').replace(/\|/g, '\\|').replace(EM_DASH, '-');
 const outcome = (o: { layer: string; reason?: string; tier?: string; error?: string }) => [o.layer, o.reason, o.tier, o.error].filter(Boolean).join(' ');
 
 function evidence(r: CaseResult): string {

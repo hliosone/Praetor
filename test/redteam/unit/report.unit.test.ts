@@ -67,6 +67,12 @@ describe('renderReport', () => {
     expect(renderReport([run([], 'scripted', 83)])).toContain('INCOMPLETE: 0 of 83 planned cases ran');
   });
 
+  it('never writes the em dash, even when the real model used one in its answer', () => {
+    const dash = String.fromCharCode(0x2014);
+    const md = renderReport([run([result({ observed: { executed: false, layer: 'model', detail: `answer ${dash}${dash} refused`, txHashes: [], effects: [] } })])]);
+    expect(md).not.toContain(dash);
+  });
+
   it('says so when no run exists yet', () => {
     expect(renderReport([])).toMatch(/No run yet/);
   });

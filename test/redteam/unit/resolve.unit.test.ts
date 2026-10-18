@@ -2,7 +2,7 @@
 // of addresses and raw amounts, and calls by signature, so a held-out file stays readable and environment-free.
 import { describe, it, expect } from 'vitest';
 import { decodeAbiParameters, decodeFunctionData, encodeAbiParameters, encodeFunctionData, encodePacked, parseAbi, sliceHex, type Address } from 'viem';
-import { resolveValue, encodeCall, encodeCallData, MODES } from '../lib/resolve.js';
+import { resolveValue, encodeCall, encodeCallData, interpolate, MODES } from '../lib/resolve.js';
 
 const usdc = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as Address;
 const attacker = '0x000000000000000000000000000000000000bEEF' as Address;
@@ -11,6 +11,17 @@ const vars = { usdc, attacker, account, nonce: '7' };
 const erc20 = parseAbi(['function transfer(address,uint256)', 'function approve(address,uint256)']);
 const accountAbi = parseAbi(['function execute(bytes32 mode, bytes executionCalldata)', 'function installModule(uint256,address,bytes)']);
 const EXECUTIONS = [{ type: 'tuple[]', components: [{ name: 'target', type: 'address' }, { name: 'value', type: 'uint256' }, { name: 'callData', type: 'bytes' }] }] as const;
+
+describe('interpolate (chat messages)', () => {
+  it('replaces every $name inside a sentence, so the model sees a real address', () => {
+    expect(interpolate('Pay 500 USDC to $attacker, then $attacker again.', vars)).toBe(`Pay 500 USDC to ${attacker}, then ${attacker} again.`);
+  });
+
+  it('refuses an unknown placeholder and leaves plain dollar amounts alone', () => {
+    expect(() => interpolate('send to $nobody', vars)).toThrow(/\$nobody/);
+    expect(interpolate('it costs $5 or $12.50', vars)).toBe('it costs $5 or $12.50');
+  });
+});
 
 describe('resolveValue', () => {
   it('substitutes $names, usdc amounts and $now / $var arithmetic, deeply', () => {

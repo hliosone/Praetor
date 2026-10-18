@@ -36,6 +36,15 @@ function resolveString(s: string, vars: Vars): string {
   return n.toString();
 }
 
+/** A chat message: every `$name` inside the sentence becomes its value (the model must see real addresses). */
+export function interpolate(text: string, vars: Vars): string {
+  return text.replace(/\$([A-Za-z][A-Za-z0-9_]*)/g, (whole, name: string) => {
+    const v = vars[name] ?? CONSTANTS[name];
+    if (v === undefined) throw new Error(`unknown placeholder ${whole}`);
+    return v;
+  });
+}
+
 /** Deep substitution of placeholders in a JSON value; `$now` is the chain time given. */
 export function resolveValue(v: unknown, vars: Vars, now: bigint): unknown {
   const all = { ...vars, now: now.toString() };
