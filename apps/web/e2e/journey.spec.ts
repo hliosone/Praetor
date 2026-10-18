@@ -89,8 +89,9 @@ test('F4 rebalancing: a gold shock wakes the agent, its rebalance shows in the d
   await setDemoPrices(s);
   const tx = /0x[0-9a-fA-F]{64}/.exec(String(turn.tools.find((x) => x.tool === 'praetor_rebalance')!.output))![0];
   await page.goto('/home');
-  // The rebalance is one transaction with two decisions (approve, swap): its link shows on both rows.
-  await expect(page.getByRole('link', { name: tx.slice(0, 10) }).first()).toBeVisible({ timeout: 60_000 });
+  // The rebalance is one transaction with two decisions (approve, swap): its short hash shows on both rows (a BaseScan
+  // link when live, plain text on the fork, #9).
+  await expect(page.getByText(tx.slice(0, 10), { exact: true }).first()).toBeVisible({ timeout: 60_000 });
 });
 
 test('F3 mandate: the owner raises the autonomous cap; FISCO check, passkey, bank, Base', async () => {

@@ -5,9 +5,11 @@ import { OwnerActionKind as K } from '@praetor/protocol';
 import { useI18n } from '../i18n/index.js';
 import { Rings } from '../components/Rings.js';
 import { StatusPill, TierBadge } from '../components/StatusPill.js';
+import { TxLink } from '../components/TxLink.js';
 import { api, usd, type Activity, type ApprovalView, type Portfolio, type Prepared, type Status } from '../lib/api.js';
 import { useLoad } from '../lib/useLoad.js';
 import { signAndSubmit } from '../lib/passkey.js';
+import type { Config } from '../lib/policy.js';
 
 export function Home() {
   const { t } = useI18n();
@@ -16,6 +18,7 @@ export function Home() {
   const agent = useLoad(() => api<{ agentKey: string; validUntil: string; riskProfile: string; kycLevel: number; jurisdiction: string }>('GET', '/agent'), []);
   const feed = useLoad(() => api<{ items: Activity[] }>('GET', '/activity?limit=12'), [], 6000);
   const pending = useLoad(() => api<{ approvals: ApprovalView[] }>('GET', '/approvals?state=pending'), [], 5000);
+  const cfg = useLoad(() => api<Config>('GET', '/config'), []);
 
   return (
     <div className="stack">
@@ -59,7 +62,7 @@ export function Home() {
                 <td>{i.reason}</td>
                 <td><TierBadge tier={i.tier} /></td>
                 <td className="num">{i.valueUsd6 ? usd(i.valueUsd6) : ''}</td>
-                <td><a className="mono" href={`https://sepolia.basescan.org/tx/${i.txHash}`} target="_blank" rel="noopener">{i.txHash.slice(0, 10)}</a></td>
+                <td><TxLink hash={i.txHash} explorer={cfg.data?.explorer} /></td>
               </tr>
             ))}
           </tbody>
