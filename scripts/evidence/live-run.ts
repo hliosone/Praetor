@@ -4,7 +4,7 @@
 // Usage: CHAIN_MODE=live pnpm exec tsx scripts/evidence/live-run.ts
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { createPublicClient, encodeFunctionData, erc20Abi, http, type Address } from 'viem';
-import { baseNow } from '@praetor/chain';
+import { PriceOracleAbi, baseNow } from '@praetor/chain';
 import {
   DEMO_SANCTIONED, agentChat, agentOp, bootstrapConsortium, ensureDeskLiquidity, fund, labelAddress, linPolicy, openAndSign, pub, root, setDemoPrices,
   stack, waitFor, waitHeartbeat, type Stack,
@@ -35,9 +35,18 @@ const web = new WebClient(s, `evidence-${tag}`);
 const cafe = labelAddress(`evidence-cafe-${tag}`);
 let agent: Address = '0x0000000000000000000000000000000000000000';
 
-await flow('C0', 'Consortium bootstrap (caps, assets, partner, CN payouts blocked, demo sanctions, heartbeat)', [], async () => {
+await flow('C0', 'Consortium bootstrap (caps, assets, partner, CN payouts blocked, demo sanctions, heartbeat); prices from Pyth on live', [], async (notes) => {
   await bootstrapConsortium(s);
-  await setDemoPrices(s);
+  if (s.set !== 'LIVE') await setDemoPrices(s);
+  else {
+    // The feeder pushes Pyth's prices (D89); the oracle could not take demo prices back after them (25% rule).
+    const fresh = async (token: Address) => pub(s).readContract({ address: s.base.priceOracle, abi: PriceOracleAbi, functionName: 'isFresh', args: [token] });
+    await waitFor('Pyth prices on Base', async () => (await fresh(s.base.txau)) && (await fresh(s.base.txag)), 600_000);
+    for (const [name, token] of [['tXAU', s.base.txau], ['tXAG', s.base.txag]] as const) {
+      const [price] = (await pub(s).readContract({ address: s.base.priceOracle, abi: PriceOracleAbi, functionName: 'getPrice', args: [token] })) as readonly [bigint, bigint];
+      notes.push(`${name} ${(Number(price) / 1e8).toFixed(2)} USD (Pyth)`);
+    }
+  }
   // The treasury holds 44 USDC on live (D74): 2 for the desk, 30 for the account.
   await ensureDeskLiquidity(s, usd6(200));
 });

@@ -336,7 +336,9 @@ export async function fund(s: Stack, acc: Account, usdc = 5_300_000_000n, xauUsd
   const p = pub(s);
   await mintUsdc(s, acc.address, usdc);
   const desk = createWalletClient({ chain: baseSepolia, transport: http(s.baseRpc), account: privateKeyToAccount(localKey(s, 'DESK_OPERATOR_KEY')) });
-  for (const [token, usd6, price] of [[s.base.txau, xauUsd6, 265_000_000_000n], [s.base.txag, xagUsd6, 3_112_000_000n]] as const) {
+  for (const [token, usd6, seeded] of [[s.base.txau, xauUsd6, 265_000_000_000n], [s.base.txag, xagUsd6, 3_112_000_000n]] as const) {
+    // On live the oracle holds Pyth prices (D89): value the metals at them, so the account starts at its targets.
+    const price = s.set === 'LIVE' ? ((await p.readContract({ address: s.base.priceOracle, abi: PriceOracleAbi, functionName: 'getPrice', args: [token] })) as readonly [bigint, bigint])[0] : seeded;
     await p.waitForTransactionReceipt({ hash: await desk.writeContract({ address: token, abi: PraetorTokenAbi, functionName: 'mint', args: [acc.address, usd6 * 10n ** 20n / price], chain: baseSepolia }) });
   }
 }
