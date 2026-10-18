@@ -16,9 +16,17 @@ export function Home() {
   const agent = useLoad(() => api<{ agentKey: string; validUntil: string; riskProfile: string; kycLevel: number; jurisdiction: string }>('GET', '/agent'), []);
   const feed = useLoad(() => api<{ items: Activity[] }>('GET', '/activity?limit=12'), [], 6000);
   const pending = useLoad(() => api<{ approvals: ApprovalView[] }>('GET', '/approvals?state=pending'), [], 5000);
+  // No policy: the onboarding stopped before its last step (a discarded tab), and the way back is here.
+  const policy = useLoad(() => api<{ policy: unknown }>('GET', '/policy'), []);
 
   return (
     <div className="stack">
+      {policy.data && !policy.data.policy && (
+        <section className="panel row between">
+          <p>{t('onb.unfinished')}</p>
+          <Link className="button primary" to="/start">{t('onb.finish')}</Link>
+        </section>
+      )}
       <section className="grid two">
         <article className="panel stack">
           <div className="row between">
