@@ -4,10 +4,11 @@
 import pino from 'pino';
 import express from 'express';
 import { z } from 'zod';
-import { encodeFunctionData, erc20Abi, parseAbiItem, type Address } from 'viem';
-import { MandateHookAbi, PriceOracleAbi, StandingOrdersAbi, baseClients, baseNow, boundedGetLogs, loadDeployments } from '@praetor/chain';
+import { encodeFunctionData, erc20Abi, parseAbiItem, type Address, type Hex } from 'viem';
+import { AgentKeyValidatorAbi, MandateHookAbi, PriceOracleAbi, StandingOrdersAbi, baseClients, baseNow, boundedGetLogs, loadDeployments } from '@praetor/chain';
 import { PriceSource, type Policy } from '@praetor/protocol';
 import { Cooldown, bandWake, weightsOf } from './bands.js';
+import { wakeable } from './active.js';
 import { dueOrders } from './standing.js';
 import { repeat } from './loop.js';
 
@@ -41,10 +42,22 @@ async function accounts(): Promise<Address[]> {
   return ((await r.json()) as { accounts: Address[] }).accounts;
 }
 
-async function checkAccount(account: Address) {
+async function checkAccount(account: Address, now: bigint) {
   const hook = { address: d.mandateHook, abi: MandateHookAbi } as const;
   const policy = (await pub.readContract({ ...hook, functionName: 'policyOf', args: [account] })) as unknown as Policy;
-  if (policy.validUntil === 0n) return;
+  if (policy.validUntil < now) return;
+  // Only active accounts are woken (spec 05); these reads come before the six balance and price reads.
+  const [status, kya, paused, recoveryPending, agent] = await Promise.all([
+    pub.readContract({ ...hook, functionName: 'statusOf', args: [account] }) as Promise<readonly [number, number, number, bigint]>,
+    pub.readContract({ ...hook, functionName: 'kyaOf', args: [account] }) as Promise<readonly [Address, number, number, Hex, bigint]>,
+    pub.readContract({ ...hook, functionName: 'isPaused', args: [account] }) as Promise<boolean>,
+    pub.readContract({ ...hook, functionName: 'isRecoveryPending', args: [account] }) as Promise<boolean>,
+    pub.readContract({ address: d.agentKeyValidator, abi: AgentKeyValidatorAbi, functionName: 'agentOf', args: [account] }) as Promise<readonly [Address, number, boolean]>,
+  ]);
+  if (!wakeable({
+    now, policyValidUntil: policy.validUntil, kya: { kycLevel: kya[1], validUntil: BigInt(kya[4]) },
+    agent: { key: agent[0], validUntil: BigInt(agent[1]), revoked: agent[2] }, effectiveStatus: status[0], paused, recoveryPending,
+  })) return;
   const tokens = [d.usdc, d.txau, d.txag];
   const holdings = await Promise.all(tokens.map(async (t) => {
     const balance = await pub.readContract({ address: t, abi: erc20Abi, functionName: 'balanceOf', args: [account] });
@@ -63,8 +76,9 @@ async function checkAccount(account: Address) {
 
 async function checkAll() {
   try {
+    const now = await baseNow(pub);
     for (const a of await accounts()) {
-      await checkAccount(a).catch((e) => log.error({ account: a, error: (e as Error).message.split('\n')[0] }, 'check failed'));
+      await checkAccount(a, now).catch((e) => log.error({ account: a, error: (e as Error).message.split('\n')[0] }, 'check failed'));
       // Health is progress, not a finished pass: with hundreds of accounts one pass outlasts the health window.
       lastCheck = Date.now();
     }
