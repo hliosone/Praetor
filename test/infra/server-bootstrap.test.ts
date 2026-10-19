@@ -2,6 +2,7 @@
 // library mode (BOOTSTRAP_LIB=1 defines the functions and returns). The whole script runs twice in a throwaway
 // ubuntu:24.04 container when BOOTSTRAP_CONTAINER_TEST=1 (minutes and network, so not in make test): the second run
 // must find every step already done.
+import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
 import { execFile, execFileSync, spawnSync } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -15,6 +16,11 @@ const lib = (code: string, env: Record<string, string> = {}) =>
   execFileSync('bash', ['-c', `BOOTSTRAP_LIB=1 source "$0"; ${code}`, script], { encoding: 'utf8', env: { ...process.env, ...env } });
 
 describe('server-bootstrap.sh checks', () => {
+  it('runs the deploy user\'s commands from that user\'s home (sudo from another home left corepack unable to read the cwd)', () => {
+    // On the first VM: `sudo bash server-bootstrap.sh` from /home/sstelcher, then corepack as praetor: EACCES on ./package.json.
+    expect(readFileSync(script, 'utf8')).toMatch(/^as_user\(\) \{ local h; h="\$\(getent passwd "\$DEPLOY_USER" \| cut -d: -f6\)"; runuser -u "\$DEPLOY_USER" -- env -C "\$h" HOME="\$h" "\$@"; \}$/m);
+  });
+
   it('passes the routes of a GCP VM in the default VPC (asia-east2, 10.170.0.0/20)', () => {
     const gcp = [
       'default via 10.170.0.1 dev ens4 proto dhcp src 10.170.0.2 metric 100',

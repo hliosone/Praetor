@@ -71,7 +71,8 @@ version_ge() { [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -1)" = "$2" ]; 
 
 in_container() { [ -f /.dockerenv ] || [ -f /run/.containerenv ]; }
 has_systemd() { [ -d /run/systemd/system ]; }
-as_user() { runuser -u "$DEPLOY_USER" -- env HOME="$(getent passwd "$DEPLOY_USER" | cut -d: -f6)" "$@"; }
+# From the user's own home: sudo keeps the caller's cwd, which the deploy user may not read (corepack opens ./package.json).
+as_user() { local h; h="$(getent passwd "$DEPLOY_USER" | cut -d: -f6)"; runuser -u "$DEPLOY_USER" -- env -C "$h" HOME="$h" "$@"; }
 
 if [ "${BOOTSTRAP_LIB:-}" = 1 ]; then return 0 2>/dev/null || exit 0; fi
 
