@@ -2,7 +2,8 @@
 // transactions are read back from the chain (the events of Praetor's contracts touching the flow's accounts, in the
 // flow's block range) with BaseScan links; FISCO transactions are read from the consortium chain's blocks in the
 // flow's range (contract and method decoded). Input: .run/evidence/<env>.json written by live-run.ts.
-// Usage: pnpm exec tsx scripts/evidence/collect.ts <env>   (env: base-sepolia on live; fork works for a dry run)
+// Usage: pnpm exec tsx scripts/evidence/collect.ts <env> [base deployments file]   (env: base-sepolia on live; fork works
+// for a dry run). The M16 run's contracts, after the redeploy of D101: base-sepolia infra/deployments/base-sepolia-m16.json
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createPublicClient, decodeEventLog, decodeFunctionData, http, type Abi, type Address, type Hex, type Log } from 'viem';
 import { baseSepolia } from 'viem/chains';
@@ -21,6 +22,11 @@ export function noteLine(n: string): string {
   return n.replace(/\s*\u2014\s*/g, ', ').replace(/\s+/g, ' ').trim();
 }
 
+/** The Base deployment a collection reads: the environment's own unless a file is given (an earlier deployment). */
+export function baseDeploymentsFile(envName: string, file?: string): string {
+  return file ?? `infra/deployments/${envName}.json`;
+}
+
 /** The Base events of one flow, grouped by transaction: the events touching its accounts, plus anchors. */
 export function baseRows(logs: (Log & { decoded: { eventName: string; args: Record<string, unknown> } })[], accounts: Address[]) {
   const mine = new Set(accounts.map((a) => a.toLowerCase()));
@@ -35,9 +41,9 @@ export function baseRows(logs: (Log & { decoded: { eventName: string; args: Reco
   return [...rows].map(([tx, events]) => ({ tx, events }));
 }
 
-async function main(envName: string) {
+async function main(envName: string, baseFile?: string) {
   const run = JSON.parse(readFileSync(new URL(`.run/evidence/${envName}.json`, root), 'utf8')) as Run;
-  const d = loadDeployments(new URL(`infra/deployments/${envName}.json`, root).pathname);
+  const d = loadDeployments(new URL(baseDeploymentsFile(envName, baseFile), root).pathname);
   const fiscoFile = JSON.parse(readFileSync(new URL(`infra/deployments/fisco-${envName === 'base-sepolia' ? 'live' : 'local'}.json`, root), 'utf8')) as Record<string, string>;
   const live = envName === 'base-sepolia';
   const base = createPublicClient({ chain: baseSepolia, transport: http(live ? (process.env.BASE_LIVE_RPC_URL ?? 'https://base-sepolia-rpc.publicnode.com') : (process.env.ANVIL_URL ?? 'http://127.0.0.1:18545')) });
@@ -90,4 +96,4 @@ async function main(envName: string) {
   console.log(`docs/EVIDENCE.md: ${run.flows.length} flows`);
 }
 
-if (process.argv[1]?.endsWith('collect.ts')) await main(process.argv[2] ?? 'base-sepolia');
+if (process.argv[1]?.endsWith('collect.ts')) await main(process.argv[2] ?? 'base-sepolia', process.argv[3]);
