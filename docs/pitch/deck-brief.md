@@ -144,7 +144,7 @@ Speaker notes on every slide: 2 to 4 sentences to say, plus the duration. Total 
 ### 10. "The bank knows Lin, and knows her agent." (0:50)
 
 - `04-identity.png`, full width.
-- Notes: KYC and the agent's mandate are WeIdentity credentials. Personal data stays encrypted in the bank; on-chain there are only identifiers, hashes and a country code. Without a valid agent credential, the contract refuses every call.
+- Notes: KYC and the agent's mandate are WeIdentity credentials. Personal data stays encrypted in the bank; on-chain there are only identifiers, hashes and three pseudonymous attributes the rules need (KYC level, risk profile, country). Without a valid agent credential, the contract refuses every call.
 
 ### 11. "One signature stops it. Two of three let it go." (0:50)
 
