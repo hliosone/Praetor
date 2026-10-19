@@ -9,7 +9,7 @@
   "pillar.regulated": "受监管", "pillar.regulated.text": "联盟一个签名即可冻结智能体；放宽需要三方中的两方签名。",
   "step.wallet": "用面容 ID 创建钱包", "step.identity": "验证你的身份", "step.mandate": "给智能体一份授权",
   "phone.approve": "批准 {amount} USDC", "phone.to": "付给 {payee}", "phone.frozen": "已被监管方冻结", "phone.portfolio": "你的资产",
-  "status.ACTIVE": "运行中", "status.RESTRICTED": "受限", "status.FROZEN": "已冻结", "status.heartbeat": "心跳 {age}",
+  "status.ACTIVE": "运行中", "status.RESTRICTED": "受限", "status.FROZEN": "已冻结",
   "home.total": "总价值", "home.agent": "你的智能体", "home.feed": "决策记录", "home.pending": "等待你确认", "home.none": "暂无待办。", "home.pause": "暂停智能体", "home.chat": "对话",
   "home.frozen": "你的账户已被联盟冻结。在其三名成员中的两名解除冻结之前，任何付款、调仓或定期付款都不能动用资金，你自己的操作也不例外。",
   "approve.title": "批准这笔付款？", "approve.why": "为什么需要你确认", "approve.details": "你签署的内容", "approve.passkey": "用面容 ID 批准", "approve.reject": "拒绝", "approve.expires": "{s} 秒后过期", "approve.done": "已批准并执行。",

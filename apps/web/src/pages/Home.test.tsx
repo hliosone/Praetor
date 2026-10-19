@@ -62,3 +62,13 @@ describe('Home of a frozen account', () => {
     expect(screen.queryByTestId('frozen-banner')).toBeNull();
   });
 });
+
+describe('Home status', () => {
+  it('shows the account status alone, without the consortium heartbeat timer (noise for the owner)', async () => {
+    policy = POLICY;
+    effective = 'ACTIVE';
+    show();
+    expect((await screen.findByTestId('status')).textContent).toBe('Active');
+    expect(document.body.textContent).not.toMatch(/heartbeat|stale/i);
+  });
+});
