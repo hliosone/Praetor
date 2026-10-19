@@ -48,10 +48,15 @@ export function stack(over: Partial<Stack> = {}): Stack {
     mcp: process.env.MCP_URL_HOST ?? 'http://10.88.0.60:3080',
     agentRunner: process.env.AGENT_RUNNER_URL_HOST ?? 'http://10.90.0.10:3100',
     fakeLlm: process.env.FAKE_LLM_URL_HOST ?? 'http://10.90.0.20:3090',
-    rpId: 'praetor.localhost',
-    origin: 'https://praetor.localhost',
+    ...publicOrigin(env),
     ...over,
   };
+}
+
+/** The WebAuthn rpId and origin the member services and the api verify assertions against (their PUBLIC_HOST and
+ *  PUBLIC_URL): the shell first, then .env, as compose resolves them, then infra/.env.example's local host. */
+export function publicOrigin(file: Record<string, string>, proc: Record<string, string | undefined> = process.env): { rpId: string; origin: string } {
+  return { rpId: proc.PUBLIC_HOST || file.PUBLIC_HOST || 'praetor.localhost', origin: proc.PUBLIC_URL || file.PUBLIC_URL || 'https://praetor.localhost' };
 }
 
 export const pub = (s: Stack) => createPublicClient({ chain: baseSepolia, transport: http(s.baseRpc) });
