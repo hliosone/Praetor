@@ -18,10 +18,10 @@ PROFILES := $(filter-out dev,$(PROFILES))
 endif
 PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 
-.PHONY: help setup install up down ps logs smoke-sm test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-web e2e-smoke rehearsal tunnel-stop e2e-live redteam redteam-live redteam-global slither deploy-contracts deploy-fisco tunnel reset-fork up-base up-services
+.PHONY: help setup install up down ps logs smoke-sm test test-guards test-unit test-scripts test-contracts test-wecross test-contracts-full test-fork lint gitleaks test-int e2e e2e-web e2e-smoke rehearsal tunnel-stop e2e-live redteam redteam-live redteam-global slither deploy-contracts deploy-fisco tunnel reset-fork up-base up-services i19-scan
 
 help: ## List targets
-	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-z0-9-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
 setup: ## Install the commit-msg hook and dependencies
 	git config core.hooksPath scripts/git-hooks
@@ -146,6 +146,9 @@ redteam-global: ## Red-team cases that change shared state, restored after (REDT
 
 slither: ## Static analysis of the Base and FISCO contracts (fails on unexplained High/Medium)
 	bash scripts/checks/slither.sh
+
+i19-scan: ## I19: scan Praetor's Base txs and logs for personal data, read-only (ENV=fork|live|m16, MAX_RPC=calls)
+	pnpm -s exec tsx scripts/checks/i19-scan.ts $(or $(ENV),fork) $(if $(MAX_RPC),--max-rpc $(MAX_RPC))
 
 smoke-sm: ## Guomi profile smoke: fresh SM chain, SM build, Java SDK checks, torn down (Docker, minutes; not in make test)
 	bash infra/fisco/sm/run.sh
