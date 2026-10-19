@@ -188,7 +188,7 @@ Passed on 2026-10-18 (D90): smoke F1, F5, F8 16 of 16 and the five prod refusals
 
    ```bash
    grep -E '^(LIVE_[A-Z0-9_]+|SIGNER_HMAC_(MCP|API|BANK)|ATTESTER_HMAC_API|MP_APPID|MP_SECRET|PYTH_API_KEY|OPENCODE_API_KEY|OA_[A-Z_]+)=' .env \
-     | ssh praetor@<ip> 'umask 077; cat > ~/praetor/.env'
+     | ssh praetor@<ip> 'set -C; umask 077; cat > ~/praetor/.env'   # once: refuses to overwrite an existing .env
    ssh praetor@<ip>
    cd ~/praetor && cat >> .env <<'END'
    PRAETOR_ENV=prod

@@ -190,7 +190,7 @@ make rehearsal     # PRAETOR_ENV=rehearsal make up PROD=1，然后 make e2e-smok
 
    ```bash
    grep -E '^(LIVE_[A-Z0-9_]+|SIGNER_HMAC_(MCP|API|BANK)|ATTESTER_HMAC_API|MP_APPID|MP_SECRET|PYTH_API_KEY|OPENCODE_API_KEY|OA_[A-Z_]+)=' .env \
-     | ssh praetor@<ip> 'umask 077; cat > ~/praetor/.env'
+     | ssh praetor@<ip> 'set -C; umask 077; cat > ~/praetor/.env'   # 只执行一次：已有 .env 时拒绝覆盖
    ssh praetor@<ip>
    cd ~/praetor && cat >> .env <<'END'
    PRAETOR_ENV=prod
