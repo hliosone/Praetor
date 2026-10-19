@@ -2,13 +2,13 @@
   "env": "local",
   "chainId": 20200,
   "baseDeployment": "fork",
-  "memberRegistry": "0x5c1BB63A57E0cB42BE60CBa49174d8c55c57Db95",
-  "baseOutbox": "0xb16a5bF57257aC3174a651b8e75315883Ef4EABE",
-  "agentStatus": "0xC4D44627cfAF486B1D1763BE385800a8816971E4",
-  "assetRegistry": "0x8BC25ffeC3879fa24b66Ef17D2f808bA4BBCe40d",
-  "sanctionsList": "0x5ec44044b67Fd23cba43c37Ed7de922B4BE2b0d6",
-  "jurisdictionRules": "0xCa2c3b825c5315A143Bf8D9970C3d76FBa5Fe766",
-  "attesterRegistry": "0x8d381332065c2357503Bbc0AC10b11588F36dC65",
-  "mandateRegistry": "0x1C0DfBF05bD80772812B90a031667A6cCE4618f5",
-  "auditLog": "0x483aE8D29746e7AA744AfA3CA9fEc868E0346357"
+  "memberRegistry": "0xdc3715a5308570A905fA22aAE59bD1BB01453c49",
+  "baseOutbox": "0xa407DE6Efe3199e0A2A86A5EEbCA06bb1D345Db6",
+  "agentStatus": "0x7596298c243C64D1c71CD9880a6B16Dd27A95d70",
+  "assetRegistry": "0x26b972CcA18FA54c926F20f4B6Ec4b4aC6971e25",
+  "sanctionsList": "0x12e2dA997bA998e5E9F362acB111cDfff1Afb7c6",
+  "jurisdictionRules": "0xd29F6e70Df7752Cc09406bBF6C4bc42e587d44Bb",
+  "attesterRegistry": "0x2D533074302495eeA8DA74F57e5416F58025e467",
+  "mandateRegistry": "0xEB9c91DE029e3ff8959A7B8C3410cC1Aae05b74b",
+  "auditLog": "0xc43fB4de43fCB8C1D1FD19fA55a20613E6204feF"
 }
