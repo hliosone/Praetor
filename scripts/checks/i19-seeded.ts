@@ -30,6 +30,8 @@ export const SEEDED_VALUES: SeededValue[] = [
   ...v('label', 'scripts/evidence/live-run.ts, test/e2e/F5, apps/web/e2e, test/redteam', 'Café Lumen', 'Landlord', 'Utilities', 'Mallory', 'Escrow'),
   ...v('merchant', 'test/e2e/F7, scripts/evidence/live-run.ts, payout-partner', 'KOWLOON-LETTINGS', 'Kowloon Lettings', 'HK-ELECTRIC', 'HK Electric', 'DECLINE-TEST', 'Decline test merchant'),
   ...v('memo', 'test/e2e/F5, apps/web/e2e, test/redteam', 'rent october', 'coffee'),
+  ...v('label', 'apps/web/e2e/deck.spec.ts', 'Harbour Power & Water'),
+  ...v('memo', 'apps/web/e2e/deck.spec.ts', 'electricity bill', 'dental check-up'),
 ];
 
 // Not searched, on purpose: `X1` (kyc-routes.test.ts) is two characters and would match by chance; nationalities
