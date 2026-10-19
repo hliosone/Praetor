@@ -1,6 +1,6 @@
 # Speaker notes
 
-The spoken text for each of the 13 slides of the pitch deck (the deck brief, `docs/pitch/deck-brief.md`), in the deck's order, with the brief's timings: **8:45 in all**, which leaves about a minute for a short live demo inside the 10 minutes. Each slide's text runs at 100 to 130 words per minute (about 1,045 words in all), so it can be said calmly with a pause for each click; the word count is given under each.
+The spoken text for each of the 13 slides of the pitch deck (the deck brief, `docs/pitch/deck-brief.md`), in the deck's order, with the brief's timings: **8:45 in all**, which leaves about a minute for a short live demo inside the 10 minutes. Each slide's text runs at 90 to 130 words per minute (about 1,045 words in all), so it can be said calmly with a pause for each click; the word count is given under each.
 
 How to say it:
 

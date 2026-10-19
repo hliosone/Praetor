@@ -1,6 +1,6 @@
 # Submission checklist
 
-FinTechathon 2026, International Track, Topic F "Agent Wallet". **Deadline: 20 October 2026, 16:00 UTC** (18:00 in Switzerland, CEST; midnight in Shenzhen and Beijing). English is the official language; Chinese is a plus. Repository: https://github.com/hliosone/Praetor (**private**: see [TODO: GitHub access for judges] below).
+FinTechathon 2026, International Track, Topic F "Agent Wallet". **Deadline: 20 October 2026, 16:00 UTC** (18:00 on 20 October in Switzerland, CEST; 00:00 on 21 October, Beijing time). English is the official language; Chinese is a plus. Repository: https://github.com/hliosone/Praetor (**private**: see [TODO: GitHub access for judges] below).
 
 Status as of 2026-10-19, before the server and Phala deployment. Items marked **[TODO: ...]** need a person; **[CHECK AFTER DEPLOY]** depend on the deployment.
 
@@ -67,7 +67,7 @@ These pages contradict the facts the deck and the video use. The owners of these
    - Slides 10 and 13 give the 6.3 s ("in our phone test", "Base enforces, in 6.3 s") without "local fork".
    - Slide 12's "Tested on a real iPhone, 270 USDC approved" does not say "local fork" either.
    - Slide 11's "Personal data never leaves the bank" is stronger than the facts: identifiers, hashes and a country code are on-chain.
-   - Slide 9's "1,000+ automated tests" is not in the brief, and these documents do not support it.
+   - Slide 9's "1,000+ automated tests" is not in the brief and was not checked against the test runners' totals: verify it or drop it.
 
 ## 4. Final pre-submit checklist
 

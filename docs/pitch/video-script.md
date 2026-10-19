@@ -133,11 +133,11 @@ Three full takes spend 1.50 USDC (inside the 3 USDC daily budget and the 10 paym
 
 **Caption:** Live on Base Sepolia · fast-forward · KYC provider: labelled mock · TEE: [CHECK AFTER DEPLOY: "Phala Cloud, Intel TDX" or "simulator"]
 
-**Alternative line** for subtitle 9 (14 words, same length). Only if the agent-signer runs on Phala Cloud (Intel TDX) with `ATTESTATION_MODE=phala` and the Agent step no longer says SIMULATOR [CHECK AFTER DEPLOY]. Same word count.
+**Alternative line** for subtitle 8 (15 words, same length). Only if the agent-signer runs on Phala Cloud (Intel TDX) with `ATTESTATION_MODE=phala` and the Agent step no longer says SIMULATOR [CHECK AFTER DEPLOY].
 
-> Her agent gets its own key inside an Intel TDX enclave on Phala Cloud.
+> Her agent gets its own key inside an Intel TDX confidential VM on Phala Cloud.
 >
-> 她的智能体在 Phala Cloud 的 Intel TDX 可信执行环境中获得自己的密钥。
+> 她的智能体在 Phala Cloud 的 Intel TDX 机密虚拟机中获得自己的密钥。
 
 ### S3 · Her mandate (0:46 to 1:07, 21 s)
 
