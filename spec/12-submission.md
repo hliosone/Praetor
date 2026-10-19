@@ -1,5 +1,7 @@
 # 12 · Submission
 
+> **Changed before submission (2026-10-19, wording only).** The storyboard below is superseded by `docs/pitch/video-script.md`. Step 4's new payee is no longer Café Lumen, which the evidence run, the deck and the video use as the known payee the agent pays alone (T1). Step 5's slide quotes the final red team (`docs/security/redteam.md`, D105: 100 attack runs, 85 scripted, 3 on shared state and 12 with the real model, 0 executed) instead of the 40 planned; the minimum set of spec 08 is unchanged. `docs/EVIDENCE.md` lists the FISCO hashes without WeBASE links, since WeBASE is not part of the stack (D4).
+
 ## Scoring we build for
 
 Task completion 40% · Security & compliance 30% · Innovation & interaction 30% · on-chain challenge bonus 0–5.
@@ -30,8 +32,8 @@ Simplified Chinese for: README, ARCHITECTURE, SELF_ASSESSMENT, DEPLOY, UI string
 1. **0:00 Hook** (20 s): "Your money, managed by an AI agent, bounded by rules no AI can break, with a regulator holding the brakes." Phone3D landing.
 2. **0:20 Onboarding** (40 s, pre-recorded fast-forward): Face ID passkey → wallet created (BaseScan) → demo KYC → agent created in a TEE (measurement verified by the bank) → mandate signed (passkey + bank, FISCO tx).
 3. **1:00 Autonomous rebalancing** (50 s): demo price shock gold +20% → scheduler wakes the agent → sells ≈650 USD of tXAU → BaseScan tx, mini program notification, rings back in band.
-4. **1:50 Human in the loop, inside WeChat** (50 s): "pay Café Lumen 300" → refused on-chain (UNKNOWN_PAYEE, tx) → WeChat notification → mini program → **Face ID** → executed (tx), "Approved ✓".
-5. **2:40 Attack** (35 s): prompt injection to a sanctioned address → refused, SANCTIONED computed on-chain by RefusalLog (tx) → "40 attacks, 0 executed" slide flash.
+4. **1:50 Human in the loop, inside WeChat** (50 s): "pay 300 to a new payee" → refused on-chain (UNKNOWN_PAYEE, tx) → WeChat notification → mini program → **Face ID** → executed (tx), "Approved ✓".
+5. **2:40 Attack** (35 s): prompt injection to a sanctioned address → refused, SANCTIONED computed on-chain by RefusalLog (tx) → "100 attack runs, 0 executed" slide flash.
 6. **3:15 Recurring payment** (25 s): rent standing order → PayoutRail → Alipay+ (mock, labelled) settlement → audit links.
 7. **3:40 Regulator freeze** (45 s): console → one signature → WeCross carries it from FISCO to Base → next agent action refused FROZEN (tx) → mini program turns red → loosen needs 2 of 3.
 8. **4:25 Audit** (25 s): AuditLog hash chain on FISCO, anchor on Base, "Verified ✓", camt.053 export.
