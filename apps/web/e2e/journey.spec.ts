@@ -222,6 +222,7 @@ test('F9 governance: the regulator freezes with one signature, loosening needs t
   await expect(regulator.getByText('Ready: the bridge delivers it to Base.')).toBeVisible({ timeout: 60_000 });
   await page.goto('/home');
   await expect(status()).toHaveText('Frozen', { timeout: 180_000 });
+  await expect(page.getByTestId('frozen-banner')).toBeVisible();
   await shoot(page, 'home-frozen');
   await shoot(cons, 'console-freeze');
 

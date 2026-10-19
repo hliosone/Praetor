@@ -30,6 +30,8 @@ export function Home() {
           <Link className="button primary" to="/start">{t('onb.finish')}</Link>
         </section>
       )}
+      {/* The pill alone is easy to miss: a frozen account says what it means where the owner looks first. */}
+      {status.data?.effective === 'FROZEN' && <p className="notice frozen" role="alert" data-testid="frozen-banner">{t('home.frozen')}</p>}
       <section className="grid two">
         <article className="panel stack">
           <div className="row between">
