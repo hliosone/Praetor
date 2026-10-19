@@ -198,3 +198,10 @@ export function Onboarding() {
     </>
   );
 }
+
+/** Where the demo KYC provider sends its own tab back (`/onboarding/kyc`): the onboarding tab notices the decision by
+ *  itself, and only that tab holds the passkey session the next steps sign with. */
+export function KycReturned() {
+  const { t } = useI18n();
+  return <main className="panel stack" style={{ maxWidth: 560, margin: '48px auto' }}><p role="status">{t('onb.kycReturned')}</p></main>;
+}

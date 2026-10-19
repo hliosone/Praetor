@@ -132,3 +132,14 @@ describe('the five suitability questions (issue #2)', () => {
     expect(api).toHaveBeenCalledWith('POST', '/onboarding/suitability', { answers: [1, 2, 1, 1, 1] });
   });
 });
+
+describe('the demo KYC provider sends its tab back to /onboarding/kyc', () => {
+  it('says the check reached the bank and to return to the Praetor tab, instead of a landing page', async () => {
+    const { App } = await import('../App.js');
+    window.history.pushState({}, '', '/onboarding/kyc?session=7b1d2c9e');
+    render(<App />);
+    expect(await screen.findByText(en['onb.kycReturned'])).toBeTruthy();
+    expect(zh['onb.kycReturned']).toBeTruthy();
+    window.history.pushState({}, '', '/');
+  });
+});

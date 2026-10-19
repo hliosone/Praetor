@@ -4,7 +4,7 @@ import { I18nProvider } from './i18n/index.js';
 import { AppLayout } from './components/Layout.js';
 import { api, type Me } from './lib/api.js';
 import { Landing } from './pages/Landing.js';
-import { Onboarding } from './pages/Onboarding.js';
+import { KycReturned, Onboarding } from './pages/Onboarding.js';
 import { Home } from './pages/Home.js';
 import { Approve } from './pages/Approve.js';
 import { Mandate } from './pages/Mandate.js';
@@ -31,6 +31,7 @@ export function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/start" element={<Onboarding />} />
+          <Route path="/onboarding/kyc" element={<KycReturned />} />
           <Route path="/console/*" element={<Console />} />
           <Route path="/recover" element={<Recover />} />
           <Route path="/sandbox" element={<Sandbox />} />

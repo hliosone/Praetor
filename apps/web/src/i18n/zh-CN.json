@@ -19,7 +19,7 @@
   "audit.title": "审计链", "audit.verify": "验证", "audit.verified": "已验证：记录与 FISCO 及 Base 锚点一致", "audit.mismatch": "第 {n} 条不一致", "audit.export": "导出 camt.053",
   "settings.title": "设置", "settings.wechat": "绑定微信", "settings.unlink": "解除微信绑定", "settings.language": "语言",
   "onb.title": "创建你的 Praetor 账户", "onb.passkey": "通行密钥", "onb.account": "钱包", "onb.kyc": "身份", "onb.suitability": "风险画像", "onb.agent": "智能体", "onb.mandate": "授权", "onb.policy": "策略",
-  "onb.email": "邮箱", "onb.create": "创建通行密钥", "onb.deploy": "创建我的钱包", "onb.kycStart": "通过演示 KYC 机构验证", "onb.kycWait": "等待机构的审核结果", "onb.answers": "关于风险偏好的五个问题", "onb.saveProfile": "保存风险画像", "onb.createAgent": "在 TEE 中创建智能体", "onb.review": "查看并签署授权", "onb.sign": "用面容 ID 签署", "onb.policySet": "设置我的策略", "onb.done": "你的智能体已就绪。",
+  "onb.email": "邮箱", "onb.create": "创建通行密钥", "onb.deploy": "创建我的钱包", "onb.kycStart": "通过演示 KYC 机构验证", "onb.kycWait": "等待机构的审核结果", "onb.kycReturned": "身份核验已送达银行。请回到原来的 Praetor 标签页继续，可以关闭此页。", "onb.answers": "关于风险偏好的五个问题", "onb.saveProfile": "保存风险画像", "onb.createAgent": "在 TEE 中创建智能体", "onb.review": "查看并签署授权", "onb.sign": "用面容 ID 签署", "onb.policySet": "设置我的策略", "onb.done": "你的智能体已就绪。",
   "onb.q1": "这笔钱可以投资多久？", "onb.q1.a0": "不到一年", "onb.q1.a1": "一到五年", "onb.q1.a2": "五年以上",
   "onb.q2": "如果你的投资组合一个月内亏损 20%，你会怎么做？", "onb.q2.a0": "卖出止损", "onb.q2.a1": "持有，等待回升", "onb.q2.a2": "趁低价加仓",
   "onb.q3": "对这笔钱，你最看重什么？", "onb.q3.a0": "保住价值", "onb.q3.a1": "稳健增长，波动较小", "onb.q3.a2": "追求最大增长，接受较大波动",
