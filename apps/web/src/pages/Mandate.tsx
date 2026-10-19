@@ -10,7 +10,7 @@ import { signAndSubmit } from '../lib/passkey.js';
 import { policyFromJson, type PolicyJson } from '../lib/policy.js';
 
 type Caps = { perTx: string; daily: string; monthly: string };
-const FIELDS = [['autoCap', 'Pay alone up to'], ['hardCap', 'Never more than'], ['dailyBudget', 'Daily budget'], ['monthlyBudget', 'Monthly budget'], ['bufferUsdc', 'Keep at least (USDC)'], ['maxTradeUsd', 'Largest rebalance']] as const;
+const FIELDS = [['autoCap', 'Pay alone up to'], ['hardCap', 'Never more than'], ['dailyBudget', 'Daily budget'], ['monthlyBudget', 'Monthly budget'], ['bufferUsdc', 'Keep at least'], ['maxTradeUsd', 'Largest rebalance']] as const;
 
 export function Mandate() {
   const { t } = useI18n();

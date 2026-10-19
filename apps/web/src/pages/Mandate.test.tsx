@@ -39,4 +39,10 @@ describe('Mandate in plain words when approved payments passed the daily budget'
     expect(screen.getByTestId('mandate-budget').textContent).toBe('Without asking you, it spends at most 500.00 a day and 3,000.00 a month, 10 payments a day; beyond that it asks you.');
     expect(screen.getByTestId('mandate-spent').textContent).toBe('Spent today (UTC day on Base): 1,060.00 in 4 payments; this 30-day period: 1,060.00. Payments you approve count too and can go past your budget, never past the bank\'s limit of 2,000.00 a day and 10,000.00 a month.');
   });
+
+  it('names the unit of each amount in the form once (the deck shot read "Keep at least (USDC) (USDC)")', async () => {
+    render(<I18nProvider><MemoryRouter><Mandate /></MemoryRouter></I18nProvider>);
+    expect(await screen.findByLabelText('Keep at least (USDC)')).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/\(USDC\)\s*\(USDC\)/);
+  });
 });
