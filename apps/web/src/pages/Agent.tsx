@@ -1,6 +1,7 @@
 // Chat with the agent (spec 07): the api relays agent-runner's server-sent events; each turn shows the agent's
 // answer and the tools it called. The agent reaches the money only through mcp, inside the mandate.
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useI18n } from '../i18n/index.js';
 import { api } from '../lib/api.js';
 import { useLoad } from '../lib/useLoad.js';
@@ -8,6 +9,9 @@ import { installAgent, prepareRotation, stopAgent, type MandateDraft, type NewAg
 
 type Turn = { text: string; tools: { tool: string; status: string; output?: unknown }[] };
 type Line = { who: 'me' | 'agent'; text: string; tools?: Turn['tools'] };
+
+/** The approval a refused payment opened: mcp's tool text names its request ("Request <uuid> is waiting for the owner"). */
+const approvalOf = (output: unknown) => /Request ([0-9a-f-]{36}) is waiting for the owner/.exec(typeof output === 'string' ? output : JSON.stringify(output ?? ''))?.[1];
 
 const csrf = () => document.cookie.split('; ').find((c) => c.startsWith('praetor_csrf='))?.slice('praetor_csrf='.length) ?? '';
 
@@ -83,6 +87,7 @@ export function Agent() {
           <div key={i} className={`bubble ${l.who}`}>
             {l.text}
             {l.tools?.map((tool, j) => <div className="tool" key={j}>{tool.tool.replace(/^praetor_/, '')}: {tool.status}</div>)}
+            {l.tools?.map((tool) => approvalOf(tool.output)).filter(Boolean).map((id) => <Link key={id} className="button primary" to={`/approve/${id}`}>{t('agent.approve')}</Link>)}
           </div>
         ))}
         {thinking && (

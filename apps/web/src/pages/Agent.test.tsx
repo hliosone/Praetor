@@ -33,6 +33,19 @@ describe('Agent chat', () => {
     vi.unstubAllGlobals();
   });
 
+  it('links to the approval a refused payment opened, from the chat itself (a tester did not know where to approve)', async () => {
+    const output = "Not done yet: UNKNOWN_PAYEE needs the owner's approval. Request 3f8a1c2e-1111-4222-8333-944445555666 is waiting for the owner (WeChat or the web app).";
+    const turn = { text: 'This one needs you.', tools: [{ tool: 'praetor_pay', status: 'completed', output }] };
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(`event: result\ndata: ${JSON.stringify(turn)}\n\n`)));
+    render(<I18nProvider><MemoryRouter><Agent /></MemoryRouter></I18nProvider>);
+    await screen.findByRole('log', { name: 'Chat with your agent' });
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Pay 50 to a new payee' } });
+    fireEvent.submit(screen.getByRole('textbox').closest('form')!);
+    const link = await screen.findByRole('link', { name: 'Review and approve' });
+    expect(link.getAttribute('href')).toBe('/approve/3f8a1c2e-1111-4222-8333-944445555666');
+    vi.unstubAllGlobals();
+  });
+
   it('shows the agent typing while it works (a tester could not tell a slow turn from a bug)', async () => {
     let answer!: (r: Response) => void;
     vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((ok) => { answer = ok; })));
