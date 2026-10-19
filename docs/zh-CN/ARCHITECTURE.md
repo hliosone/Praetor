@@ -409,7 +409,7 @@ spec 00 中独立的沙盒部署（域名 `Praetor-sandbox`，SANDBOX 密钥集�
 | 智能体密钥轮换、设备与所有者恢复（F10） | 已构建并测试（M15）；关卡已在全新分叉上通过：`test/e2e/F10-rotation-recovery.test.ts` 3/3（停止、轮换、恢复的安排与取消）以及 48 小时的 `test/warp/F10-recovery-execute.test.ts`（`executeRecovery` 之后只有新 passkey 能登录，智能体密钥被撤销） |
 | 国密（SM）配置冒烟测试 | 已运行并记录在 [SMOKE.md](../SMOKE.md) 中：11 项自检和 37 项链上检查通过；WeIdentity 场景 43 项中 39 项通过（BLOCKERS B3） |
 | Base Sepolia 部署与实链模式 | 合约已部署到 Base Sepolia，联盟已部署到 FISCO（D74、D75）；仅在实链上使用来自 Pyth Hermes 的真实 XAU 与 XAG 价格，每 5 分钟一次请求（D89；分叉保留其测试设定的预置演示价格）；实链证据运行已于 2026-10-18 05:35 UTC 通过 M16 关卡（D96）：在同一个账户上运行 C0 至 F8，`DEMO_SCALE=100`，使用 Pyth 价格、真实模型和 WeCross，共 10 个流程（F6 出现两次：第一次因智能体使用旧指令而失败，issue #4，D93 之后在同一账户上重新运行），21 个指向 Base 交易的 BaseScan 链接以及 FISCO 调用见 [EVIDENCE.md](../EVIDENCE.md)；实链模式通过 publicnode 读取 Base（D92） |
-| 红队测试套件 | 已构建，并于 2026-10-18 针对本地栈运行（[security/redteam.md](../security/redteam.md)）：脚本化运行 85 个攻击，0 个得逞；全局运行（`make redteam-global`，共享状态事后恢复）3 个攻击，0 个得逞；真实模型（经 OpenCode 调用 DeepSeek）12 个攻击，0 个得逞（3 个被系统拦截，9 个被模型拒绝；对应的脚本化用例证明系统同样会拦截这些攻击）。早先运行中的发现均未转移任何价值，已全部修复并重新测试（D86 至 D88）。留出用例通过 `REDTEAM_HELDOUT_DIR` 运行（D64），尚未运行。属于 M16 关卡，该关卡已于 2026-10-18 随实链证据运行通过（D96） |
+| 红队测试套件 | 已构建，并于 2026-10-18 针对本地栈运行，2026-10-19 作为公开服务器上线前的最终运行再次运行，数字相同（[security/redteam.md](../security/redteam.md)）：脚本化运行 85 个攻击，0 个得逞；全局运行（`make redteam-global`，共享状态事后恢复）3 个攻击，0 个得逞；真实模型（经 OpenCode 调用 DeepSeek）12 个攻击，0 个得逞（3 个被系统拦截，9 个被模型拒绝；对应的脚本化用例证明系统同样会拦截这些攻击）。早先运行中的发现均未转移任何价值，已全部修复并重新测试（D86 至 D88）。留出用例通过 `REDTEAM_HELDOUT_DIR` 运行（D64），尚未运行。属于 M16 关卡，该关卡已于 2026-10-18 随实链证据运行通过（D96） |
 | 生产 compose、演练目标、生产拒绝检查、手机隧道 | 已构建并完成演练（M18，关卡已通过，D90）：在分叉上以 `compose.prod.yml` 运行 `make rehearsal`，冒烟测试 F1、F5、F8 16/16（脚本化模型），五项生产拒绝检查均通过。未演练：实链 Base、Phala TEE、真实证书；云端部署属于 Phase C |
 
 WeBASE 浏览器在 Phase 0（V9）中得到验证，但不属于该栈（削减清单，D4）。
