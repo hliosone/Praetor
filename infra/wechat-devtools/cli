@@ -1,0 +1,4 @@
+#!/bin/bash
+# Adapted from Alex's walking skeleton (ahuou/Praetor infra/wechat-devtools/cli), see docs/PREEXISTING.md.
+# Upstream wrapper drops argv[0] of the CLI (slice(4) bug); pad with a dummy arg.
+exec "${WECHAT_DEVTOOLS_HOME:-$HOME/wechat-devtools}/current/bin/wechat-devtools-cli" _ "$@"
