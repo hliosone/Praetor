@@ -82,7 +82,8 @@ if [ "${BOOTSTRAP_LIB:-}" = 1 ]; then return 0 2>/dev/null || exit 0; fi
 [ "$(uname -m)" = x86_64 ] || die "expects x86_64 (found $(uname -m)): the FISCO release binary is x86_64 only"
 export DEBIAN_FRONTEND=noninteractive
 
-packages=(ca-certificates curl gnupg git make jq python3 openssl xz-utils iproute2 dnsutils rsync tmux ufw unattended-upgrades)
+# uuid-runtime: build_chain.sh (infra/fisco/gen.sh) calls uuidgen.
+packages=(ca-certificates curl gnupg git make jq python3 openssl xz-utils uuid-runtime iproute2 dnsutils rsync tmux ufw unattended-upgrades)
 missing=()
 for p in "${packages[@]}"; do dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q 'install ok installed' || missing+=("$p"); done
 if [ ${#missing[@]} -eq 0 ]; then
