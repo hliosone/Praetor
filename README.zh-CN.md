@@ -4,16 +4,16 @@
 
 FinTechathon 2026（深圳，微众银行 x 清华五道口），国际赛道，赛题 F「智能体钱包」（Agent Wallet）。English: [README.md](README.md)。
 
-一个 AI 智能体管理您的投资组合（USDC、代币化黄金和白银），并从 **Base Sepolia** 上的 ERC-4337 智能账户自主支付账单。账户发出的每一笔调用都要经过链上的 **Mandate hook（授权委托钩子）**：它执行您的规则和银行的限额，默认拒绝；任何异常操作都需要您用 Face ID 确认（通行密钥 passkey，或微信内的 SOTER）。由银行、监管机构和运营方组成的 **FISCO BCOS** 联盟链掌握权力：身份（WeIdentity）、获准资产、制裁名单、智能体状态，以及只能追加的审计日志。联盟的决定以成员签名的形式到达 Base，由钩子自行验证，经 **WeCross** 传输，并由一个中继器（relayer）作为看门狗。智能体的密钥保存在 **TEE** 中（Phala dstack，Intel TDX）。监管者一个签名即可在合约层面冻结智能体（监管冻结）；放宽则需要三分之二成员签名。
+一个 AI 智能体管理您的投资组合（USDC、代币化黄金和白银），并从 **Base Sepolia** 上的 ERC-4337 智能账户自主支付账单。账户发出的每一笔调用都要经过链上的 **Mandate hook（授权委托钩子）**：它执行您的规则和银行的限额，默认拒绝；任何异常操作都需要您用 Face ID 确认（通行密钥 passkey，或微信内的 SOTER）。由银行、监管机构和运营方组成的 **FISCO BCOS** 联盟链掌握权力：身份（WeIdentity）、获准资产、制裁名单、智能体状态，以及只能追加的审计日志。联盟的决定以成员签名的形式到达 Base，由钩子自行验证，经 **WeCross** 传输，并由一个中继器（relayer）作为看门狗。智能体的密钥由一个为 **TEE**（Phala dstack，Intel TDX）构建的独立签名服务持有：在公开服务器上，它部署到 Phala Cloud 后运行在 Phala Cloud CVM 中；本地和分叉运行使用 dstack 模拟器。监管者一个签名即可在合约层面冻结智能体（监管冻结）；放宽则需要三分之二成员签名。
 
 ![首页：3D 手机显示向 Café Lumen 批准 300 USDC](docs/screens/web/landing-1440.png)
 
 ## 五句话看懂演示
 
-1. **用 Face ID 开户**：通行密钥创建智能账户，在银行完成演示 KYC，智能体密钥在 TEE 中派生并经银行核验，授权委托由您签署、银行联签。
-2. **金价上涨 20 %**（演示价格）：智能体被唤醒，独自卖出约 650 美元的 tXAU，回到区间内（T1）。
-3. **「向 Café Lumen 支付 300」**：被链上拒绝（未知收款方），您用通行密钥批准（或在微信中用 Face ID，M14），随后完成支付（T2）。
-4. **一次提示词注入**要求智能体向受制裁地址付款：被拒绝，`RefusalLog` 记录钩子计算出的原因（SANCTIONED）。
+1. **用 Face ID 开户**：通行密钥创建智能账户，在银行完成演示 KYC，智能体密钥由 TEE 签名服务派生（Phala Cloud 之外为 dstack 模拟器）并经银行核验，授权委托由您签署、银行联签。
+2. **金价上涨 20 %**（演示价格，在本地分叉上）：智能体被唤醒，独自卖出约 650 美元的 tXAU，回到区间内（T1）。
+3. **「向一个新收款方支付 300」**：被链上拒绝（未知收款方），您用通行密钥批准（或在微信中用 Face ID，M14），随后完成支付（T2）。
+4. **一次提示词注入**要求智能体向受制裁地址付款：模型拒绝执行；用智能体自己的密钥签名的同一笔付款在链上被拒，`RefusalLog` 记录钩子计算出的原因（SANCTIONED）。
 5. **监管者在控制台用一个签名冻结智能体**：FISCO、WeCross、Base；下一笔操作被拒绝，原因为 FROZEN；解冻需要两个成员。随后审计链对照 FISCO 及其 Base 锚点完成校验，并导出为 ISO 20022 camt.053 对账单。
 
 ## 分级授权：边界如何设定
@@ -83,13 +83,13 @@ spikes/             第 0 阶段的验证实验
 | [docs/PROGRESS.md](docs/PROGRESS.md)、[docs/DECISIONS.md](docs/DECISIONS.md) | 构建进度；规范之后所做的决策 |
 | [docs/MANUAL.md](docs/MANUAL.md) | 需要人工参与的引导式验收步骤（手机、微信、云） |
 | [docs/TESTER.md](docs/TESTER.md) | 供在真机上测试的队友使用：自己的环境、微信测试账号、隧道、需要报告的内容 |
-| [docs/EVIDENCE.md](docs/EVIDENCE.md) | 2026-10-18 在 Base Sepolia 上实链运行（D96）的交易哈希，包括已执行与被拒绝的，以及每个流程的 FISCO 调用 |
+| [docs/EVIDENCE.md](docs/EVIDENCE.md) | 2026-10-18 在 Base Sepolia 上实链运行（D96；M16 部署，`infra/deployments/base-sepolia-m16.json`）的交易哈希，包括已执行与被拒绝的，以及每个流程的 FISCO 调用 |
 | [docs/PREEXISTING.md](docs/PREEXISTING.md) | 复用自团队早期项目的代码 |
 | 中文 | [README.zh-CN.md](README.zh-CN.md)、[docs/zh-CN/](docs/zh-CN/README.md) |
 
 ## 状态
 
-已在本地分叉上构建并测试：Base 与 FISCO 合约、协议、bundler 与 paymaster、联盟成员服务、WeIdentity 身份与 KYC、dstack 模拟器上的两个 TEE、智能体及其 MCP 服务器、api、定期付款与出款、带锚定和 camt.053 的审计链、WeCross 传输、网页应用（含联盟控制台与临时评委沙盒，D48）、微信小程序（逻辑与 api；真机测试见下文）、智能体密钥轮换与所有者恢复（F10）、国密配置冒烟测试、生产 compose 覆盖文件及其拒绝检查。流程 F1 至 F10 通过 api 和通过网页应用（Playwright，虚拟认证器）在全新分叉上运行通过：M12（以 WeCross 为传输，2026-10-17）、M13（网页旅程、沙盒以及 34 张带 axe 检查的截图）和 M15（F10 与 48 小时恢复）的里程碑关卡均已通过，后两者于 2026-10-18 通过。合约已部署到 Base Sepolia（MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`），预言机在那里每 5 分钟从 Pyth Hermes 获取一次真实的 XAU 与 XAG 价格（分叉仍使用预置的演示价格，D89）。红队测试（spec 08）已于 2026-10-18 针对本地栈运行，并于 2026-10-19 作为公开服务器上线前的最终运行再次运行：85 个脚本化攻击、3 个涉及共享状态的攻击和 12 个使用真实模型的攻击，0 个得逞（[docs/security/redteam.md](docs/security/redteam.md)）；早先运行中的发现均未转移任何价值，已全部修复并重新测试（D86 至 D88）。部署演练已通过（M18，D90）：在分叉上以 `compose.prod.yml` 运行 `make rehearsal`，冒烟测试 F1、F5、F8 16/16，五项生产拒绝检查均通过。2026-10-18 团队在 iPhone 上通过了微信相关步骤（绑定、SOTER Face ID 审批、重放被拒、监管冻结、解绑、中文界面；[docs/MANUAL.md](docs/MANUAL.md) 第 5 节）。M16 已于 2026-10-18 随实链证据运行关闭（D96）：在 Base Sepolia 上运行，使用来自 Pyth 的真实价格（周五收盘时 tXAU 4,165.33 USD、tXAG 56.99 USD）、真实模型（经 OpenCode 调用 DeepSeek），以 WeCross 为传输，`DEMO_SCALE` 为 100，并在人工给定的预算之内（D74）。根据链上数据生成的 [docs/EVIDENCE.md](docs/EVIDENCE.md) 列出 10 个流程（C0 至 F8，F6 出现两次）、21 个指向 Base 交易的 BaseScan 链接以及 FISCO 调用：一笔智能体自主完成的 T1 付款；一次指向受制裁地址的提示注入在链上被拒（SANCTIONED）；一个新收款方先被拒绝（UNKNOWN_PAYEE），再经所有者的 passkey 批准并只执行一次；房租定期付款经出款通道支付（Alipay+ 模拟服务）；监管冻结经由 WeCross 送达，智能体的一笔付款被拒（FROZEN），随后由两个成员放宽；以及 Base 上的审计锚定。F6 第一次运行失败（智能体使用的是旧指令，issue #4），在 D93 之后于同一账户上重新运行；两次尝试都记录在证据中。队友在真机测试中提出的 issue #1 至 #11 均已修复并合并（D88、D91、D93 至 D95）。后续将在 Phase C 中与人工一起完成：云端部署（服务器、域名、真实证书）、Phala Cloud 上的 TEE（证明目前仍来自 dstack 模拟器）、微信公众号、EUDI 钱包扫码、演示视频、Android 指纹、手机上的 Web 推送以及红队留出用例。针对 Base 数据的 I19 扫描已经构建（`make i19-scan`，D102），在 M16 部署上以及最终红队运行之后的本地分叉上均未发现个人数据。详见 [docs/PROGRESS.md](docs/PROGRESS.md)。
+已在本地分叉上构建并测试：Base 与 FISCO 合约、协议、bundler 与 paymaster、联盟成员服务、WeIdentity 身份与 KYC、dstack 模拟器上的两个 TEE、智能体及其 MCP 服务器、api、定期付款与出款、带锚定和 camt.053 的审计链、WeCross 传输、网页应用（含联盟控制台与临时评委沙盒，D48）、微信小程序（逻辑与 api；真机测试见下文）、智能体密钥轮换与所有者恢复（F10）、国密配置冒烟测试、生产 compose 覆盖文件及其拒绝检查。流程 F1 至 F10 通过 api 和通过网页应用（Playwright，虚拟认证器）在全新分叉上运行通过：M12（以 WeCross 为传输，2026-10-17）、M13（网页旅程、沙盒以及 34 张带 axe 检查的截图）和 M15（F10 与 48 小时恢复）的里程碑关卡均已通过，后两者于 2026-10-18 通过。合约已两次部署到 Base Sepolia：2026-10-18 的 M16 部署（MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`，`infra/deployments/base-sepolia-m16.json`），证据运行使用的就是它；以及 2026-10-19 为服务器进行的部署（MandateHook `0x6411cc907Ace53F1Bdf8607a85991d3b38E79a5f`，`infra/deployments/base-sepolia.json`，D101）。在 Base Sepolia 上，预言机每 5 分钟从 Pyth Hermes 获取一次真实的 XAU 与 XAG 价格（分叉仍使用预置的演示价格，D89）。红队测试（spec 08）已于 2026-10-18 针对本地栈运行，并于 2026-10-19 作为公开服务器上线前的最终运行再次运行：85 个脚本化攻击、3 个涉及共享状态的攻击和 12 个使用真实模型的攻击，0 个得逞（[docs/security/redteam.md](docs/security/redteam.md)）；早先运行中的发现均未转移任何价值，已全部修复并重新测试（D86 至 D88）。部署演练已通过（M18，D90）：在分叉上以 `compose.prod.yml` 运行 `make rehearsal`，冒烟测试 F1、F5、F8 16/16，五项生产拒绝检查均通过。2026-10-18 团队在 iPhone 上通过了微信相关步骤（绑定、SOTER Face ID 审批、重放被拒、监管冻结、解绑、中文界面；[docs/MANUAL.md](docs/MANUAL.md) 第 5 节）。M16 已于 2026-10-18 随实链证据运行关闭（D96）：在 Base Sepolia 上运行，使用来自 Pyth 的真实价格（周五收盘时 tXAU 4,165.33 USD、tXAG 56.99 USD）、真实模型（经 OpenCode 调用 DeepSeek），以 WeCross 为传输，`DEMO_SCALE` 为 100，并在人工给定的预算之内（D74）。根据链上数据生成的 [docs/EVIDENCE.md](docs/EVIDENCE.md) 列出 10 个流程（C0 至 F8，F6 出现两次）、21 个指向 Base 交易的 BaseScan 链接以及 FISCO 调用：一笔智能体自主完成的 T1 付款；一次指向受制裁地址的提示注入被真实模型拒绝，而用智能体密钥签名的同一笔付款在链上被拒（SANCTIONED）；一个新收款方先被拒绝（UNKNOWN_PAYEE），再经所有者的 passkey 批准并只执行一次；房租定期付款经出款通道支付（Alipay+ 模拟服务）；监管冻结经由 WeCross 送达，智能体的一笔付款被拒（FROZEN），随后由两个成员放宽；以及 Base 上的审计锚定。F6 第一次运行失败（智能体使用的是旧指令，issue #4），在 D93 之后于同一账户上重新运行；两次尝试都记录在证据中。队友在真机测试中提出的 issue #1 至 #11 均已修复并合并（D88、D91、D93 至 D95）。后续将在 Phase C 中与人工一起完成：云端部署（服务器、域名、真实证书）、Phala Cloud 上的 TEE（证明目前仍来自 dstack 模拟器）、微信公众号、EUDI 钱包扫码、演示视频、Android 指纹、手机上的 Web 推送以及红队留出用例。针对 Base 数据的 I19 扫描已经构建（`make i19-scan`，D102），在 M16 部署上以及最终红队运行之后的本地分叉上均未发现个人数据。详见 [docs/PROGRESS.md](docs/PROGRESS.md)。
 
 ## 许可
 
