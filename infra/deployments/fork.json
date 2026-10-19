@@ -4,7 +4,7 @@
   "bank": "0xdFA99022817755d44675Ca221303842dF73E8EB5",
   "chainId": 84532,
   "compliance": "0x0B6f43Ab6dF5F3AD7a72A2e3Ce18bFD8e91750a0",
-  "deployBlock": 48226010,
+  "deployBlock": 48226007,
   "domainName": "Praetor-local",
   "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
   "env": "fork",
