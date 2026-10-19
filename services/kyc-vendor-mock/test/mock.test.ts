@@ -69,6 +69,14 @@ describe('the hosted flow', () => {
     expect(posts).toHaveLength(0);
   });
 
+  it('names what is missing, so the person knows what to fix (a tester sent no document number and got no hint)', async () => {
+    const { app } = setup();
+    const r = await request(app).post('/kyc-mock/api/submit').send(submission({ person: { fullName: 'Lin Wei', birthdate: '1990-04-02', nationality: 'HK', documentNumber: '' } })).expect(400);
+    expect(r.body.error).toBe('incomplete document or capture: document number');
+    const heic = await request(app).post('/kyc-mock/api/submit').send(submission({ idImage: 'data:image/heic;base64,AAAA' })).expect(400);
+    expect(heic.body.error).toBe('incomplete document or capture: photo of the document (JPEG, PNG or WebP, under 6 MB)');
+  });
+
   it('reports a bank refusal as an error', async () => {
     const { app } = setup(409);
     await request(app).post('/kyc-mock/api/submit').send(submission()).expect(502);

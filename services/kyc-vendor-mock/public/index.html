@@ -26,11 +26,11 @@
   <section id="doc">
     <h2>1. Identity document</h2>
     <label for="idImage">Photo of the ID document (any image)</label>
-    <input id="idImage" type="file" accept="image/*" capture="environment">
-    <label for="fullName">Full name (as in the MRZ)</label><input id="fullName" autocomplete="off">
-    <label for="birthdate">Date of birth</label><input id="birthdate" type="date">
-    <label for="nationality">Nationality (2 letters)</label><input id="nationality" maxlength="2" value="HK">
-    <label for="documentNumber">Document number</label><input id="documentNumber" autocomplete="off">
+    <input id="idImage" type="file" accept="image/png,image/jpeg,image/webp" capture="environment" required>
+    <label for="fullName">Full name (as in the MRZ)</label><input id="fullName" autocomplete="off" required minlength="2">
+    <label for="birthdate">Date of birth</label><input id="birthdate" type="date" required>
+    <label for="nationality">Nationality (2 letters)</label><input id="nationality" maxlength="2" value="HK" required pattern="[A-Za-z]{2}">
+    <label for="documentNumber">Document number</label><input id="documentNumber" autocomplete="off" required minlength="3">
     <button id="toSelfie">Continue</button>
   </section>
   <section id="selfieStep" class="hidden">
@@ -50,7 +50,15 @@ const snap = () => { const v = $('video'); const c = document.createElement('can
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 $('toSelfie').onclick = async () => {
   const f = $('idImage').files[0];
-  if (!f) return alert('Add a photo of the document');
+  // The same rules as the server's, checked before the camera step rather than after it.
+  const problems = [];
+  if (!f) problems.push('a photo of the document');
+  else if (!/^image\/(png|jpeg|webp)$/.test(f.type) || f.size > 5900000) problems.push('a photo of the document as JPEG, PNG or WebP, under 6 MB');
+  if ($('fullName').value.trim().length < 2) problems.push('the full name');
+  if (!$('birthdate').value) problems.push('the date of birth');
+  if (!/^[A-Za-z]{2}$/.test($('nationality').value)) problems.push('the nationality (2 letters)');
+  if ($('documentNumber').value.trim().length < 3) problems.push('the document number (3 characters or more)');
+  if (problems.length) return alert('Please add ' + problems.join(', ') + '.');
   state.idImage = await fileToDataUrl(f);
   $('doc').classList.add('hidden'); $('selfieStep').classList.remove('hidden');
   try { $('video').srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } }); } catch { $('prompt').textContent = 'No camera: allow camera access to continue'; }

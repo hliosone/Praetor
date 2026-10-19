@@ -30,6 +30,13 @@ const submission = z.object({
   liveness: z.object({ steps: z.array(z.string().max(16)).max(8), frames: z.array(dataUrl).max(8) }),
 });
 
+/** What the person must fix, in the page's own words (the schema's paths mean nothing to them). */
+const FIELD: Record<string, string> = {
+  fullName: 'full name', birthdate: 'date of birth', nationality: 'nationality (2 letters)', documentNumber: 'document number',
+  idImage: 'photo of the document (JPEG, PNG or WebP, under 6 MB)', selfie: 'selfie and liveness capture', liveness: 'selfie and liveness capture', session: 'session',
+};
+const missing = (issues: z.ZodIssue[]) => [...new Set(issues.map((i) => FIELD[String(i.path[0] === 'person' ? i.path[1] : i.path[0])] ?? 'form'))].join(', ');
+
 const hashImage = (d: string) => `0x${createHash('sha256').update(Buffer.from(d.slice(d.indexOf(',') + 1), 'base64')).digest('hex')}`;
 
 export type MockDeps = { bankUrl: string; hmacSecret: string; publicUrl: string; fetch?: typeof fetch };
@@ -45,7 +52,7 @@ export function createMockApp(d: MockDeps) {
   app.post('/kyc-mock/api/submit', (req: Request, res: Response, next: NextFunction) => {
     (async () => {
       const parsed = submission.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: 'incomplete document or capture' });
+      if (!parsed.success) return res.status(400).json({ error: `incomplete document or capture: ${missing(parsed.error.issues)}` });
       const s = parsed.data;
       const decision = {
         sessionId: s.session,
