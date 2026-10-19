@@ -25,7 +25,7 @@
 
 ## 3. 配置与密钥
 
-- `.env` 保存所有密钥和机密，权限 600，被 git 忽略。`pnpm keys` 只填充缺失的值（三套钱包密钥、共享机密、用于 Web 推送的 VAPID 密钥对），并且只打印公开地址。spec 11 要求生产密钥**在服务器上生成**；第 5 节说明为何复用现有的 Base 部署需要把笔记本电脑的 `LIVE_` 成员密钥放到服务器上。
+- `.env` 保存所有密钥和机密，权限 600，被 git 忽略。`pnpm keys` 只填充缺失的值（三套钱包密钥、共享机密、用于 Web 推送的 VAPID 密钥对），并且只打印公开地址。spec 11 要求生产密钥**在服务器上生成**；服务器改为复用笔记本电脑上已充值的 `LIVE_` 密钥进行新的 Base 部署（第 5 节，D100），并由 `pnpm keys` 生成其共享机密。
 - 密钥集（D1）：`.env` 为每个钱包密钥保存 `LOCAL_*`、`LIVE_*` 和 `SANDBOX_*` 三份。`make up` 会写入 `.run/compose.env`，以不带前缀的名称保存当前密钥集（`CHAIN_MODE=live` 时为 `LIVE`，否则为 `LOCAL`）；设置了 `FISCO_KEYSET` 时，FISCO 侧的密钥取自它（D75）。
 - EIP-712 域名必须与部署一致：live Base Sepolia 使用 `DOMAIN_NAME=Praetor`，评委自己的沙盒部署使用 `Praetor-sandbox`（尚未构建；临时的 `/sandbox` 页面运行在主部署上，其水龙头在线上 Base 拒绝工作）。
 - 与 `infra/.env.example` 不同的生产值：
@@ -73,10 +73,34 @@ PAYMASTER_DEPOSIT_WEI=4000000000000000 make deploy-contracts ENV=base-sepolia
 
 `scripts/deploy/contracts.sh` 将 `LIVE_` 密钥映射为 `contracts/base/script/Deploy.s.sol` 读取的名称（不打印任何值），以域名 `Praetor` 部署所有合约，最后把 hook 与其模块连接起来，充入 paymaster 押金（live 上默认 0.02 ETH；上面的命令为 0.004 ETH，约可赞助 1,600 次操作），并写入 `infra/deployments/base-sepolia.json`。RPC 为 `BASE_LIVE_RPC_URL`（默认 `https://sepolia.base.org`）。`make deploy-contracts ENV=sandbox` 使用 `SANDBOX_` 密钥和域名 `Praetor-sandbox` 部署。
 
-**现有部署。** 2026-10-18，这一流程在 Base Sepolia 的区块 48253270 部署了 Praetor，总共约花费 0.0045 ETH。hook 的三个成员地址是不可更改的构造函数参数（bank `0x9D45C4755CD26acAf3DAb12fE2c1B42AAdd1d52e`、regulator `0x5faaf3F8CC672A5357E648C9dfD81cD84d21e4e0`、operator `0x353046676e122D8eCb6F474A3aA57DBb338A525f`），因此 Phase C 开始前要在两条路径中二选一：
+**现有部署。** 2026-10-18，这一流程在 Base Sepolia 的区块 48253270 部署了 Praetor，总共约花费 0.0045 ETH（MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`，即 M16 证据运行）。hook 的三个成员地址是不可更改的构造函数参数（bank `0x9D45C4755CD26acAf3DAb12fE2c1B42AAdd1d52e`、regulator `0x5faaf3F8CC672A5357E648C9dfD81cD84d21e4e0`、operator `0x353046676e122D8eCb6F474A3aA57DBb338A525f`）。
 
-- **复用它**：服务器持有笔记本电脑的 `LIVE_` 成员 Base 签名密钥（以及 Base 信任的其他 `LIVE_` 密钥），这偏离了 spec 11 的“在服务器上生成生产密钥”；或者
-- **重新部署**：服务器用 `pnpm keys` 生成自己的密钥，由人工为其部署者充值，然后在服务器上重新执行第 4 和第 5 节。
+**服务器使用同一套 `LIVE_` 密钥重新部署 Base 合约；不要在现有部署后面接一条新的 FISCO 链（D100）。** hook 只接受其键的下一个 nonce 的联盟消息（`ConsortiumLib._fresh`：`nonce == stored + 1`；`Anchor`：`seq == stored + 1`；I18），而全新的 FISCO 联盟会让每个键重新从 1 开始编号（`Board._allocate`）。2026-10-19 时，hook 上的心跳 epoch 为 6，anchor seq 为 3，风险档 2 的限额 nonce 为 1，各资产已激活。如果在它后面接服务器的新链：
+
+- `bootstrapConsortium`（`scripts/demo/lib.ts`）读取 Base，发现限额和资产已设置，于是不发起任何提案；服务器上的 `MandateRegistry` 和 `AssetRegistry` 保持为空，每次策略检查（`submitPolicy`）都以 `RULE_HARD_CAP` 或 `RULE_ASSET_NOT_ACTIVE` 失败：开户流程停在 mandate 这一步。
+- 即使强行发起提案，Base 上也不会改变：relayer 发现 hook 已处于这些 nonce（`BadNonce`，标记为已应用），Base 保留旧值。
+- 心跳 epoch 1 到 6 和 anchor 1 到 3 同样被丢弃：在 epoch 7 之前 Base 状态一直过期，每笔 agent 支付都是 `STALE_STATUS`，anchor 要到 seq 4 才恢复。
+
+在服务器克隆仓库之前，从笔记本电脑（它有 forge、子模块和 `.env`）重新部署：
+
+```bash
+cp infra/deployments/base-sepolia.json infra/deployments/base-sepolia-m16.json   # 保留 M16 的地址记录
+# 1. 取回旧 paymaster 在 EntryPoint 的押金（约 0.004 ETH）：其 owner 是 LIVE 部署者。
+EP=0x0000000071727De22E5E9d8BAf0edAc6f37da032; OLD_PM=0x1A5514F4752683b2f7e032c36529260dacf98c94; RPC=https://sepolia.base.org
+DEP=$(cast call $EP "balanceOf(address)(uint256)" $OLD_PM --rpc-url $RPC | cut -d' ' -f1)
+cast send $OLD_PM "withdrawTo(address,uint256)" 0x7b5bB06482513F6032baD053018ee387A7dac771 $DEP \
+  --private-key "$(grep -E '^LIVE_DEPLOYER_KEY=' .env | cut -d= -f2-)" --rpc-url $RPC
+# 2. 先模拟，再以 0.003 ETH 的 paymaster 押金部署。
+DRY_RUN=1 make deploy-contracts ENV=base-sepolia
+PAYMASTER_DEPOSIT_WEI=3000000000000000 make deploy-contracts ENV=base-sepolia
+# 3. 提交 infra/deployments/base-sepolia.json 和 base-sepolia-m16.json，并推送。
+```
+
+- **费用**：2026-10-18 的部署用了 42 笔交易、约 3,040 万 gas，按 0.006 gwei 约 0.0002 ETH，另加新的 paymaster 押金。2026-10-19 时部署者只有约 0.0023 ETH，所以必须先取回旧押金，这不是可选项；取回后重新部署的成本基本可以抵消。成员、喂价者、交易台运营者、paymaster 签名者和金库的地址都不变，无需再为其他地址充值。新的 `deployBlock` 也会让 `eth_getLogs` 的范围重新开始（D92、D98）。
+- **模拟运行**会在不广播的情况下执行 `Deploy.s.sol`，而脚本即使这样也会写入 `infra/deployments/base-sepolia.json`（`vm.writeJson`）：如果在模拟后停止，或部署失败，用 `git checkout infra/deployments/base-sepolia.json` 恢复该文件。
+- **顺序**：服务镜像会把 `infra/deployments` 打包进去，所以要在服务器克隆和构建之前提交新文件。随后第 6 节部署绑定到新 hook 的服务器联盟。
+- **密钥**：服务器持有笔记本电脑的 `LIVE_` 密钥（Base 信任的、已充值的地址），这偏离了 spec 11 的“在服务器上生成生产密钥”；服务器上的 `pnpm keys` 仍会重新生成所有共享机密。用服务器新生成的密钥部署也可行，但需要人工重新为每个新地址充值（第 4 节）。服务器上线后，笔记本电脑不再运行 live 模式：两者会从同一批 `LIVE_` 地址发送交易（D97）。
+- **M16 部署**在押金取回后不再有赞助（这是预期的）；`docs/EVIDENCE.md` 继续引用它的地址，由 `base-sepolia-m16.json` 作为依据。
 
 `SOTER_COUNTER_STRICT` 是 hook 的构造函数参数（默认 true）；如果 Phase C 发现 iOS 上 SOTER 计数器不递增，就需要用 `SOTER_COUNTER_STRICT=0` 重新部署（已知风险 16）。
 
@@ -124,7 +148,7 @@ make rehearsal     # PRAETOR_ENV=rehearsal make up PROD=1，然后 make e2e-smok
 ```bash
 git clone --recurse-submodules <repository> praetor && cd praetor
 make setup                     # commit-msg 钩子，pnpm install --frozen-lockfile
-pnpm keys                      # 将服务器的密钥生成到 .env（权限 600）；若复用部署，则使用第 5 节所述的 LIVE_ 密钥
+pnpm keys                      # 先把笔记本电脑的 LIVE_ 密钥复制到 .env（第 5 节），再填充其余的值（权限 600）
 # 将人工提供的值和第 3 节的生产值填入 .env（CHAIN_MODE=live、CADDY_TLS、PUBLIC_HOST 等）
 ```
 
@@ -150,7 +174,7 @@ make down && make up PROD=1 LIVE=1 FISCO_KEYSET=LIVE PROFILES="core chain mocks 
 
 ## 11. 冒烟检查与记录
 
-spec 11 第 7 步要求运行 `make e2e BASE_URL=https://app.<domain> CHAIN_MODE=live`。测试套件目前并不读取 `BASE_URL`：`scripts/demo/lib.ts` 把 origin 固定为 `https://praetor.localhost`，并通过 Docker 网络（10.88.x）访问各服务，而且 `make e2e` 最后运行需要 anvil 的 48 小时 warp 测试。目前存在的是：笔记本电脑上的 `make rehearsal`，以及针对同一台机器上运行的栈的 `make e2e-smoke`。在测试套件能从环境读取主机名之前，针对已部署域名的检查需要人工完成：在 `https://app.<domain>` 上执行 [MANUAL.md](../MANUAL.md) 的第 4、8 和 11 步，然后从中国大陆多个城市进行可达性检查（17CE）。
+spec 11 第 7 步要求运行 `make e2e BASE_URL=https://app.<domain> CHAIN_MODE=live`。测试套件目前并不读取 `BASE_URL`：`scripts/demo/lib.ts` 通过 Docker 网络（10.88.x）访问各服务，因此其辅助脚本在服务器本机上运行（它从 `PUBLIC_HOST` 和 `PUBLIC_URL` 读取 WebAuthn 主机，D99），而且 `make e2e` 最后运行需要 anvil 的 48 小时 warp 测试。目前存在的是：笔记本电脑上的 `make rehearsal`，以及针对同一台机器上运行的栈的 `make e2e-smoke`。在测试套件能通过域名访问整套服务之前，针对已部署域名的检查需要人工完成：在 `https://app.<domain>` 上执行 [MANUAL.md](../MANUAL.md) 的第 4、8 和 11 步，然后从中国大陆多个城市进行可达性检查（17CE）。
 
 在下表记录所部署的内容（不含任何密钥）：
 
@@ -158,7 +182,7 @@ spec 11 第 7 步要求运行 `make e2e BASE_URL=https://app.<domain> CHAIN_MODE
 |---|---|
 | 日期、commit | Phase C |
 | 域名、服务器 | Phase C |
-| Base 部署 | `infra/deployments/base-sepolia.json`：MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`，区块 48253270，2026-10-18 用笔记本电脑的 `LIVE_` 密钥部署；Phase C：复用或重新部署（第 5 节） |
+| Base 部署 | `infra/deployments/base-sepolia.json`：MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`，区块 48253270，2026-10-18 用笔记本电脑的 `LIVE_` 密钥部署；Phase C：用同一套密钥重新部署（第 5 节，D100），M16 的地址保留在 `base-sepolia-m16.json` |
 | FISCO 部署 | `infra/deployments/fisco-live.json`：目前位于笔记本电脑的本地链上（D75）；Phase C：服务器自己的链 |
 | agent-signer CVM：app id、compose 哈希 | Phase C |
 | soter-attester CVM：app id、compose 哈希 | Phase C |
