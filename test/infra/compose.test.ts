@@ -90,6 +90,18 @@ describe('infra/compose.yml', () => {
     }
   });
 
+  it('gives every TEE caller the TEE URLs of the env, so Phala CVMs replace the in-stack TEEs; the local defaults stay the same', () => {
+    const env = (s: string) => compose.services[s]!.environment!;
+    for (const s of ['api', 'mcp', 'bank']) {
+      expect(env(s).AGENT_SIGNER_URL, s).toBe('${AGENT_SIGNER_URL}');
+      expect(read(`services/${s}/src/main.ts`), s).toContain("AGENT_SIGNER_URL: z.string().url().default('http://agent-signer:3050')");
+    }
+    expect(env('api').SOTER_ATTESTER_URL).toBe('${SOTER_ATTESTER_URL}');
+    expect(read('services/api/src/main.ts')).toContain("SOTER_ATTESTER_URL: z.string().url().default('http://soter-attester:3060')");
+    expect(read('infra/.env.example')).toMatch(/^AGENT_SIGNER_URL=http:\/\/agent-signer:3050$/m);
+    expect(read('infra/.env.example')).toMatch(/^SOTER_ATTESTER_URL=http:\/\/soter-attester:3060$/m);
+  });
+
   it('keeps the custodial WeIdentity services on their own network, joined only by bank, MySQL and one FISCO node', () => {
     // weid-rest and weid-helper hold every hosted key with no auth (spec 05): nothing agent-side may reach them.
     const on = (s: Service, n: string) => (Array.isArray(s.networks) ? s.networks.includes(n) : Object.keys(s.networks ?? {}).includes(n));
