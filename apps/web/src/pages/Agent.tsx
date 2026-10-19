@@ -72,7 +72,7 @@ export function Agent() {
     </section>
     <section className="panel stack">
       <h1 style={{ fontSize: 'var(--s-30)' }}>{t('agent.title')}</h1>
-      <div className="chat" aria-live="polite">
+      <div className="chat" role="log" aria-live="polite" aria-label={t('agent.title')} tabIndex={0}>
         {lines.map((l, i) => (
           <div key={i} className={`bubble ${l.who}`}>
             {l.text}
