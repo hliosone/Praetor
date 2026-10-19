@@ -15,7 +15,7 @@
   "approve.title": "批准这笔付款？", "approve.why": "为什么需要你确认", "approve.details": "你签署的内容", "approve.passkey": "用面容 ID 批准", "approve.reject": "拒绝", "approve.expires": "{s} 秒后过期", "approve.done": "已批准并执行。",
   "mandate.title": "你的授权", "mandate.propose": "提议修改", "mandate.caps": "你所属风险等级的银行上限",
   "payments.title": "定期付款", "payments.add": "新增定期付款", "payments.trigger": "到期则立即支付", "payments.cancel": "取消", "payments.payees": "收款人", "payments.addPayee": "添加收款人", "payments.payeeName": "名称", "payments.payeeAddress": "地址",
-  "agent.title": "与智能体对话", "agent.send": "发送", "agent.placeholder": "问问资产状况，或让它付款、再平衡", "agent.identity": "您的智能体", "agent.stop": "停止我的智能体", "agent.rotate": "轮换密钥", "agent.stopped": "智能体已停止：其密钥已在 Base 上撤销。", "agent.rotated": "新的智能体密钥已安装。", "agent.review": "请核对新密钥，然后签署其授权委托。",
+  "agent.title": "与智能体对话", "agent.send": "发送", "agent.thinking": "你的代理正在思考...", "agent.placeholder": "问问资产状况，或让它付款、再平衡", "agent.identity": "您的智能体", "agent.stop": "停止我的智能体", "agent.rotate": "轮换密钥", "agent.stopped": "智能体已停止：其密钥已在 Base 上撤销。", "agent.rotated": "新的智能体密钥已安装。", "agent.review": "请核对新密钥，然后签署其授权委托。",
   "audit.title": "审计链", "audit.verify": "验证", "audit.verified": "已验证：记录与 FISCO 及 Base 锚点一致", "audit.mismatch": "第 {n} 条不一致", "audit.export": "导出 camt.053",
   "settings.title": "设置", "settings.wechat": "绑定微信", "settings.unlink": "解除微信绑定", "settings.language": "语言",
   "onb.title": "创建你的 Praetor 账户", "onb.passkey": "通行密钥", "onb.account": "钱包", "onb.kyc": "身份", "onb.suitability": "风险画像", "onb.agent": "智能体", "onb.mandate": "授权", "onb.policy": "策略",

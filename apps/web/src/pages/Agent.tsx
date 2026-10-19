@@ -16,9 +16,10 @@ export function Agent() {
   const [lines, setLines] = useState<Line[]>([]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [thinking, setThinking] = useState(false);
   const log = useRef<HTMLDivElement>(null);
   // The chat scrolls inside its own box: keep the newest message in view, or on a phone the reply sits below the box.
-  useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [lines, busy]);
+  useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [lines, thinking]);
   const me = useLoad(() => api<{ agentKey: `0x${string}`; validUntil: string; riskProfile: string; kycLevel: number; jurisdiction: string; revoked?: boolean }>('GET', '/agent'), []);
   const [rotation, setRotation] = useState<{ agent: NewAgent; draft: MandateDraft }>();
   const [msg, setMsg] = useState<string>();
@@ -32,6 +33,7 @@ export function Agent() {
     if (!message) return;
     setText('');
     setBusy(true);
+    setThinking(true);
     setLines((l) => [...l, { who: 'me', text: message }]);
     try {
       const r = await fetch('/api/agent/chat', { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': csrf() }, body: JSON.stringify({ message }) });
@@ -42,6 +44,7 @@ export function Agent() {
       setLines((l) => [...l, { who: 'agent', text: turn.text, tools: turn.tools }]);
     } finally {
       setBusy(false);
+      setThinking(false);
     }
   };
   return (
@@ -82,7 +85,11 @@ export function Agent() {
             {l.tools?.map((tool, j) => <div className="tool" key={j}>{tool.tool.replace(/^praetor_/, '')}: {tool.status}</div>)}
           </div>
         ))}
-        {busy && <div className="bubble agent muted">...</div>}
+        {thinking && (
+          <div className="bubble agent muted typing" role="status" data-testid="agent-typing">
+            <span className="dots" aria-hidden="true"><span className="dot" /><span className="dot" /><span className="dot" /></span>{t('agent.thinking')}
+          </div>
+        )}
       </div>
       <form className="row" onSubmit={(e) => { e.preventDefault(); void send(); }}>
         <input aria-label={t('agent.placeholder')} placeholder={t('agent.placeholder')} value={text} onChange={(e) => setText(e.target.value)} style={{ flex: 1 }} />

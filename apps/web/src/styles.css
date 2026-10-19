@@ -168,6 +168,12 @@ td.mono, td .mono { white-space: nowrap; }
 .bubble { padding: 0.6rem 0.85rem; border-radius: 14px; max-width: 80%; white-space: pre-wrap; }
 .bubble.me { align-self: flex-end; background: var(--ink); color: var(--paper); }
 .bubble.agent { align-self: flex-start; background: var(--well); }
+.typing { display: inline-flex; align-items: center; gap: 0.6rem; }
+.typing .dots { display: inline-flex; gap: 4px; }
+.typing .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: typing 1.2s infinite ease-in-out; }
+.typing .dot:nth-child(2) { animation-delay: 0.15s; }
+.typing .dot:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typing { 0%, 60%, 100% { opacity: 0.3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
 .tool { font-family: var(--mono); font-size: var(--s-13); color: var(--graphite); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

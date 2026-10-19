@@ -32,4 +32,20 @@ describe('Agent chat', () => {
     expect(scrolled).toHaveBeenLastCalledWith(640);
     vi.unstubAllGlobals();
   });
+
+  it('shows the agent typing while it works (a tester could not tell a slow turn from a bug)', async () => {
+    let answer!: (r: Response) => void;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((ok) => { answer = ok; })));
+    render(<I18nProvider><MemoryRouter><Agent /></MemoryRouter></I18nProvider>);
+    await screen.findByRole('log', { name: 'Chat with your agent' });
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'How am I doing?' } });
+    fireEvent.submit(screen.getByRole('textbox').closest('form')!);
+    const typing = await screen.findByTestId('agent-typing');
+    expect(typing.textContent).toContain('Your agent is thinking');
+    expect(typing.querySelectorAll('.dot')).toHaveLength(3);
+    answer(new Response('event: result\ndata: {"text":"All within your bands.","tools":[]}\n\n'));
+    await screen.findByText('All within your bands.');
+    expect(screen.queryByTestId('agent-typing')).toBeNull();
+    vi.unstubAllGlobals();
+  });
 });
