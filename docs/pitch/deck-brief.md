@@ -54,6 +54,7 @@ No generic claims ("secure", "scalable", "revolutionary"): show the mechanism in
   - `05-wechat-approval.png`
 - Phone-size screens: `landing-390.png`, `home-390.png`, `approve-390.png`, `home-frozen-390.png`.
 - Desktop screens: `mandate-1440.png`, `console-freeze-1440.png`, `audit-1440.png`, `payments-1440.png`.
+- Optional desktop screen: `agent-1440.png`, the chat: two payments the agent makes alone, then a new payee it sends to Lin for approval.
 
 ## Slides
 
