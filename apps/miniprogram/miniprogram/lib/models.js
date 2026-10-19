@@ -7,10 +7,15 @@ const calls = require('./calls.js');
 const countdown = require('./countdown.js');
 const verify = require('./verify.js');
 
-function reasonText(lang, reason) {
+function oneReason(lang, reason) {
   const key = `reason.${reason}`;
   const s = i18n.t(lang, key);
   return s === key ? i18n.t(lang, 'reason.unknown', { code: reason }) : s;
+}
+
+/** A reason, or an approval request's list of them ("UNKNOWN_PAYEE,OVER_AUTO_CAP"), in words. */
+function reasonText(lang, reason) {
+  return String(reason).split(',').map((r) => oneReason(lang, r.trim())).join(lang === 'zh-CN' ? '；' : '; ');
 }
 
 function pill(lang, status) {

@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { decodeFunctionData, erc20Abi, formatUnits, parseAbi } from 'viem';
-import { callHash, digest, praetorDomain } from '@praetor/protocol';
+import { callHash, digest, praetorDomain, reasonWords } from '@praetor/protocol';
 import { useI18n } from '../i18n/index.js';
 import { api, usd, type ApprovalView } from '../lib/api.js';
 import { assertDigest } from '../lib/passkey.js';
@@ -47,7 +47,11 @@ export function Approve() {
     <section className="panel stack" style={{ maxWidth: 720 }}>
       <h1 style={{ fontSize: 'var(--s-30)' }}>{t('approve.title')}</h1>
       <p className="big" style={{ fontSize: 'var(--s-24)' }} data-testid="approval-what">{what}</p>
-      <p><span className="label">{t('approve.why')}</span><br />{v.reason}: {v.summary}</p>
+      <div>
+        <span className="label">{t('approve.why')}</span>
+        <ul data-testid="approval-why">{reasonWords(v.reason).map((w) => <li key={w}>{w.charAt(0).toUpperCase() + w.slice(1)}</li>)}</ul>
+        <p>{v.summary}</p>
+      </div>
       <p className="muted small">{t('approve.expires', { s: Math.max(0, Number(v.tier2.expiresAt) - now) })}</p>
       <details>
         <summary>{t('approve.details')}</summary>

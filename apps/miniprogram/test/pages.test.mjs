@@ -2,7 +2,11 @@
 // makes, for home, approve (F6 step 5a) and link (F2 steps 2-3).
 import { describe, it, expect, afterEach } from 'vitest';
 import { fakeWx, launch, page, settle } from './harness.mjs';
-import { ACCOUNT, CFG, NOW, activity, approvalView, linkView, mpApi, portfolio, status } from './fixtures.mjs';
+import { encodeFunctionData, erc20Abi, parseAbi } from 'viem';
+import { callHash, digest, praetorDomain } from '@praetor/protocol';
+import { ACCOUNT, CFG, HOOK, NOW, activity, approvalView, linkView, mpApi, portfolio, status } from './fixtures.mjs';
+
+const SWAP = parseAbi(['function swap(address tokenIn, address tokenOut, uint256 amountIn, uint256 minOut)']);
 
 const session = (account) => () => ({ token: account ? 'T-linked' : 'T-guest', account, expiresAt: NOW + 7200 });
 let open = [];
@@ -102,6 +106,24 @@ describe('approve (F6 step 5a)', () => {
     expect(JSON.parse(posted[0].data.resultJSON).raw).toBe(v.digest.slice(2));
     expect(posted[0].header).toEqual({ 'content-type': 'application/json', authorization: 'Bearer T-linked' });
     expect(p.data).toMatchObject({ result: 'executed', resultText: 'Approved and executed', busy: false });
+  });
+
+  it('a request with several reasons names each of them in words', async () => {
+    const wx = fakeWx({ api: approveApi(approvalView({ reason: 'UNKNOWN_PAYEE,OVER_AUTO_CAP' })).api });
+    await launch(wx);
+    const p = await start(page('approve'), { id: 'a1' });
+    expect(p.data.why).toBe('The payee is not in your mandate; Above the amount the agent may pay alone');
+  });
+
+  it('a rebalance: Face ID shows the swap the approval binds (its callHash), the approve before it is the other call', async () => {
+    const approve = { to: CFG.txau, value: '0', data: encodeFunctionData({ abi: erc20Abi, functionName: 'approve', args: [CFG.treasuryDesk, 2n * 10n ** 17n] }) };
+    const swap = { to: CFG.treasuryDesk, value: '0', data: encodeFunctionData({ abi: SWAP, functionName: 'swap', args: [CFG.txau, CFG.usdc, 2n * 10n ** 17n, 640_000_000n] }) };
+    const tier2 = { account: ACCOUNT, callHash: callHash({ account: ACCOUNT, target: swap.to, value: 0n, data: swap.data }), nonce: '7', expiresAt: String(NOW + 900) };
+    const d = digest(praetorDomain(CFG.domainName, HOOK), 'Tier2Approval', { ...tier2, nonce: 7n, expiresAt: BigInt(tier2.expiresAt) });
+    const wx = fakeWx({ api: approveApi(approvalView({ reason: 'REBALANCE_LIMIT', calls: [approve, swap], tier2, digest: d, soterChallenge: d.slice(2) })).api });
+    await launch(wx);
+    const p = await start(page('approve'), { id: 'a1' });
+    expect(p.data).toMatchObject({ ok: true, refuse: '', what: 'Swap 0.2 tXAU for at least 640 USDC', others: ['Let the treasury desk take 0.2 tXAU'] });
   });
 
   it('refuses to sign a request whose digest does not match what it shows: no Face ID prompt', async () => {

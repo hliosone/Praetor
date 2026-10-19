@@ -39,7 +39,14 @@ describe('Tier-2 approvals (F6)', () => {
     const notes: unknown[] = [];
     const { a } = setup({ notify: async (n) => { notes.push(n); }, publicUrl: 'https://praetor.localhost' });
     const { id } = await a.request({ account: ACCOUNT, calls: [CALL], callHash: CALLHASH, reason: 'UNKNOWN_PAYEE', summary: 'Pay 300.00 USDC to Café Lumen' });
-    expect(notes).toEqual([{ account: ACCOUNT, kind: 'approval', text: 'Approve? Pay 300.00 USDC to Café Lumen', link: `https://praetor.localhost/approve/${id}` }]);
+    expect(notes).toEqual([{ account: ACCOUNT, kind: 'approval', text: 'Approve? Pay 300.00 USDC to Café Lumen. Why: the payee is not in your mandate.', link: `https://praetor.localhost/approve/${id}` }]);
+  });
+
+  it('the notification names every reason of the request, in plain words', async () => {
+    const notes: { text: string }[] = [];
+    const { a } = setup({ notify: async (n) => { notes.push(n); } });
+    await a.request({ account: ACCOUNT, calls: [CALL], callHash: CALLHASH, reason: 'UNKNOWN_PAYEE,OVER_AUTO_CAP,BUDGET_EXCEEDED', summary: 'Pay 600.00 USDC to 0xbeef' });
+    expect(notes[0]!.text).toBe('Approve? Pay 600.00 USDC to 0xbeef. Why: the payee is not in your mandate; above the amount the agent may pay alone; over your daily or monthly budget.');
   });
 
   it('passkey: registerApproval with the owner auth, then the same call is resubmitted by the agent', async () => {

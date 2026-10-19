@@ -193,7 +193,7 @@ export class PraetorTools {
     return { calls: [{ to: this.p.tokens.usdc, value: 0n, data }], to, amount6 };
   }
 
-  private async rebalanceCalls(sell: string, buy: string, amountUsd: string): Promise<{ calls: Call[]; amountIn: bigint; minOut: bigint; usd6: bigint } | string> {
+  private async rebalanceCalls(sell: string, buy: string, amountUsd: string): Promise<{ calls: Call[]; amountIn: bigint; minOut: bigint; usd6: bigint; tIn: Address; tOut: Address; usdIn: bigint } | string> {
     const tIn = this.tokenOf(sell);
     const tOut = this.tokenOf(buy);
     if (!tIn || !tOut) return `assets are ${SYMBOLS.join(', ')}`;
@@ -215,7 +215,7 @@ export class PraetorTools {
       { to: tIn, value: 0n, data: encodeFunctionData({ abi: erc20Abi, functionName: 'approve', args: [this.p.tokens.desk, amountIn] }) },
       { to: this.p.tokens.desk, value: 0n, data: encodeFunctionData({ abi: TreasuryDeskAbi, functionName: 'swap', args: [tIn, tOut, amountIn, minOut] }) },
     ];
-    return { calls, amountIn, minOut, usd6 };
+    return { calls, amountIn, minOut, usd6, tIn, tOut, usdIn };
   }
 
   /** Worst verdict of a batch: the first refusal, else OK. */
@@ -247,7 +247,44 @@ export class PraetorTools {
   }
 
   /** Submit, whatever the dry run says: a refused op lands as evidence (I11). */
-  private async act(calls: Call[], summary: string, done: (s: Submission) => string): Promise<ToolResult> {
+  /** The hook's T2 group for a payment (A7 to A13), every rule that applies: the hook itself stops at the first. */
+  private async paymentT2(to: Address, amt: bigint): Promise<number[]> {
+    const [ctx, spent, balances] = await Promise.all([this.t2Context(), this.p.reader.spent(this.account), this.p.reader.balances(this.account)]);
+    if (!ctx.policy) return [];
+    const pol = ctx.policy;
+    return ctx.held([
+      [Reason.UNKNOWN_PAYEE, !pol.payees.some((x) => x.toLowerCase() === to.toLowerCase())],
+      [Reason.OVER_AUTO_CAP, amt > pol.autoCap],
+      [Reason.BUDGET_EXCEEDED, spent.day + amt > pol.dailyBudget || spent.month + amt > pol.monthlyBudget],
+      [Reason.COUNT_EXCEEDED, spent.count >= BigInt(pol.dailyCount)],
+      [Reason.BUFFER_BREACH, (balances[this.p.tokens.usdc] ?? 0n) < amt + pol.bufferUsdc],
+    ]);
+  }
+
+  /** The T2 group for a swap (C7 to C11) without the band projection: a BAND_BREACH shows only as the hook's reason. */
+  private async swapT2(tIn: Address, tOut: Address, usdIn: bigint): Promise<number[]> {
+    const [ctx, spent, balances] = await Promise.all([this.t2Context(), this.p.reader.spent(this.account), this.p.reader.balances(this.account)]);
+    if (!ctx.policy) return [];
+    const u = this.p.tokens.usdc.toLowerCase();
+    const cash = balances[this.p.tokens.usdc] ?? 0n;
+    const after = tIn.toLowerCase() === u ? (cash > usdIn ? cash - usdIn : 0n) : tOut.toLowerCase() === u ? cash + usdIn : cash;
+    return ctx.held([
+      [Reason.REBALANCE_LIMIT, usdIn > ctx.policy.maxTradeUsd || spent.rebalances >= BigInt(ctx.policy.maxRebalancesPerDay)],
+      [Reason.BUFFER_BREACH, after < ctx.policy.bufferUsdc],
+    ]);
+  }
+
+  /** RESTRICTED (the consortium, the owner's pause, a pending recovery) and STALE_STATUS lead both T2 groups. */
+  private async t2Context() {
+    const [st, hold, policy, now] = await Promise.all([this.p.reader.status(this.account), this.p.reader.ownerHold(this.account), this.p.reader.policy(this.account), this.p.reader.now()]);
+    const lead: [number, boolean][] = [
+      [Reason.RESTRICTED, st.effective === Status.RESTRICTED || hold.paused || hold.recoveryPending],
+      [Reason.STALE_STATUS, st.heartbeatValidUntil < now],
+    ];
+    return { policy, held: (rest: [number, boolean][]) => [...lead, ...rest].filter(([, on]) => on).map(([r]) => r) };
+  }
+
+  private async act(calls: Call[], summary: string, done: (s: Submission) => string, t2?: () => Promise<number[]>): Promise<ToolResult> {
     const v = await this.p.reader.check(this.account, calls);
     const w = this.worst(v);
     const s = await this.p.submit(this.account, calls);
@@ -255,10 +292,19 @@ export class PraetorTools {
     const reason = reasonName(s.reasons[0] ?? w.reason);
     const links = `Refused operation: ${this.tx(s.txHash)}; refusal record: ${this.tx(s.refusalLogTx)}`;
     if (w.tier === Tier.T2_HUMAN) {
-      const { id } = await this.p.approvals.request({ account: this.account, calls, callHash: this.approvalHash(calls, v) ?? w.callHash, reason, summary });
+      // The owner sees every T2 reason that applies, the hook's first; the request's reason holds whole names within its
+      // 64 characters. The agent's text keeps the hook's one (the red-team parser reads a single name there).
+      const more = t2 ? await t2().catch(() => []) : [];
+      const reasons = [...new Set([reason, ...more.map(reasonName)])];
+      let listed = reason;
+      for (const r of reasons.slice(1)) {
+        if (listed.length + 1 + r.length > 64) break;
+        listed += `,${r}`;
+      }
+      const { id } = await this.p.approvals.request({ account: this.account, calls, callHash: this.approvalHash(calls, v) ?? w.callHash, reason: listed, summary });
       return {
         text: `Not done yet: ${reason} needs the owner's approval. Request ${id} is waiting for the owner (WeChat or the web app). Do not retry with other amounts or payees; check it later with get_approval. ${links}`,
-        structured: { done: false, approvalId: id, reason, tier: tierName(w.tier) },
+        structured: { done: false, approvalId: id, reason, reasons, tier: tierName(w.tier) },
       };
     }
     return {
@@ -272,13 +318,13 @@ export class PraetorTools {
     const built = await this.payCalls(a.payee, a.amount);
     if (typeof built === 'string') return { text: built, isError: true };
     const label = (await this.p.labels(this.account))[built.to.toLowerCase()] ?? built.to;
-    return this.act(built.calls, `Pay ${usd(built.amount6)} USDC to ${label}${a.memo ? ` (${a.memo})` : ''}`, () => `Paid ${usd(built.amount6)} USDC to ${label}.`);
+    return this.act(built.calls, `Pay ${usd(built.amount6)} USDC to ${label}${a.memo ? ` (${a.memo})` : ''}`, () => `Paid ${usd(built.amount6)} USDC to ${label}.`, () => this.paymentT2(built.to, built.amount6));
   }
 
   async rebalance(a: { sell: string; buy: string; amountUsd: string }): Promise<ToolResult> {
     const built = await this.rebalanceCalls(a.sell, a.buy, a.amountUsd);
     if (typeof built === 'string') return { text: built, isError: true };
-    return this.act(built.calls, `Rebalance: sell ${usd(built.usd6)} USD of ${a.sell} for ${a.buy}`, () => `Sold ${usd(built.usd6)} USD of ${a.sell} for ${a.buy}.`);
+    return this.act(built.calls, `Rebalance: sell ${usd(built.usd6)} USD of ${a.sell} for ${a.buy}`, () => `Sold ${usd(built.usd6)} USD of ${a.sell} for ${a.buy}.`, () => this.swapT2(built.tIn, built.tOut, built.usdIn));
   }
 
   /** An owner request only: a standing order exists on-chain only once the owner and the bank sign ADD_STANDING_ORDER. */

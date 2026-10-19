@@ -5,7 +5,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { encodeFunctionData, type Address, type Hex } from 'viem';
 import { MandateHookAbi } from '@praetor/chain';
-import { digest, passkeyAuth, praetorDomain, soterAuth, soterChallenge, type OwnerAuth, type Tier2Approval } from '@praetor/protocol';
+import { digest, passkeyAuth, praetorDomain, reasonWords, soterAuth, soterChallenge, type OwnerAuth, type Tier2Approval } from '@praetor/protocol';
 import { toWebAuthnAuth, type AssertionJSON } from './assertion.js';
 
 export type Call = { to: Address; value: bigint; data: Hex };
@@ -63,7 +63,9 @@ export class Approvals {
       state: 'pending', channel: null, registerTx: null, executeTx: null,
     };
     await this.d.store.put(row);
-    await this.d.notify?.({ account: b.account, kind: 'approval', text: `Approve? ${b.summary}`, link: `${(this.d.publicUrl ?? '').replace(/\/$/, '')}/approve/${row.id}` }).catch(() => undefined);
+    // Every reason of the request, in the owner's words (the notifier takes at most 500 characters).
+    const text = `Approve? ${b.summary}. Why: ${reasonWords(b.reason).join('; ')}.`.slice(0, 500);
+    await this.d.notify?.({ account: b.account, kind: 'approval', text, link: `${(this.d.publicUrl ?? '').replace(/\/$/, '')}/approve/${row.id}` }).catch(() => undefined);
     return { id: row.id };
   }
 

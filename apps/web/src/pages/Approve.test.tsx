@@ -41,6 +41,16 @@ describe('Approve a rebalance (F4 failures, F6 step 5b)', () => {
     expect((screen.getByRole('button', { name: 'Approve with Face ID' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
+  it('names every reason of the request in plain words, not as reason codes', async () => {
+    view = { ...rebalanceView(hashOf(swapCall)), reason: 'REBALANCE_LIMIT,BUFFER_BREACH' };
+    show();
+    await screen.findByTestId('approval-what');
+    expect(document.body.textContent).not.toMatch(/REBALANCE_LIMIT|BUFFER_BREACH/);
+    const why = screen.getByTestId('approval-why');
+    expect([...why.querySelectorAll('li')].map((li) => li.textContent)).toEqual(['Over the rebalancing limit (per day or per trade)', 'USDC would fall below your cash buffer']);
+    expect(document.body.textContent).toMatch(/Rebalance: sell 650\.00 USD of tXAU for USDC/);
+  });
+
   it('refuses to sign when the callHash binds none of the calls shown', async () => {
     view = rebalanceView(`0x${'ab'.repeat(32)}`);
     show();

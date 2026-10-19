@@ -123,6 +123,30 @@ describe('pay', () => {
     expect(r.structured).toMatchObject({ approvalId: 'apr_1', reason: 'UNKNOWN_PAYEE' });
   });
 
+  it('T2: the approval request names every T2 reason that applies, the hook\'s first; the agent text keeps the hook\'s one (red-team parser)', async () => {
+    verdict = { reason: Reason.UNKNOWN_PAYEE, tier: Tier.T2_HUMAN };
+    const r = await tools().pay({ payee: '0x00000000000000000000000000000000000beef1', amount: '600' });
+    expect((requested[0] as { reason: string }).reason).toBe('UNKNOWN_PAYEE,OVER_AUTO_CAP,BUDGET_EXCEEDED');
+    expect(r.text).toMatch(/^Not done yet: UNKNOWN_PAYEE needs the owner's approval\. Request apr_1 /);
+    expect(r.structured).toMatchObject({ reason: 'UNKNOWN_PAYEE', reasons: ['UNKNOWN_PAYEE', 'OVER_AUTO_CAP', 'BUDGET_EXCEEDED'] });
+  });
+
+  it('T2 reasons include the owner\'s pause, a stale heartbeat, the count and the buffer, in the hook\'s order, as whole names within 64 characters', async () => {
+    verdict = { reason: Reason.RESTRICTED, tier: Tier.T2_HUMAN };
+    const p = ports();
+    p.reader.ownerHold = async () => ({ paused: true, recoveryPending: false });
+    p.reader.status = async () => ({ effective: 0, account: 0, global: 0, heartbeatValidUntil: 1_799_999_999n });
+    p.reader.spent = async () => ({ day: 0n, month: 0n, count: 10n, rebalances: 0n });
+    p.reader.balances = async () => ({ [T.usdc]: 1_100_000_000n });
+    await new PraetorTools(ACCOUNT, p).pay({ payee: 'Café Lumen', amount: '150' });
+    expect((requested[0] as { reason: string }).reason).toBe('RESTRICTED,STALE_STATUS,COUNT_EXCEEDED,BUFFER_BREACH');
+    requested = [];
+    await new PraetorTools(ACCOUNT, p).pay({ payee: '0x00000000000000000000000000000000000beef1', amount: '600' });
+    const all = (requested[0] as { reason: string }).reason;
+    expect(all.length).toBeLessThanOrEqual(64);
+    expect(all).toBe('RESTRICTED,STALE_STATUS,UNKNOWN_PAYEE,OVER_AUTO_CAP');
+  });
+
   it('refuses a payee it cannot resolve and a malformed amount without sending anything', async () => {
     expect((await tools().pay({ payee: 'the moon', amount: '1' })).isError).toBe(true);
     expect((await tools().pay({ payee: CAFE, amount: '-3' })).isError).toBe(true);
@@ -170,6 +194,16 @@ describe('rebalance', () => {
     const req = requested[0] as { calls: { to: Address }[]; callHash: Hex };
     expect(req.calls.map((c) => c.to)).toEqual([T.txau, T.desk]);
     expect(req.callHash).toBe(hashOf(1));
+  });
+
+  it('T2: the approval request names the rebalance limit and a projected cash-buffer breach together', async () => {
+    verdict = { reason: Reason.REBALANCE_LIMIT, tier: Tier.T2_HUMAN };
+    const p = ports();
+    p.reader.spent = async () => ({ day: 0n, month: 0n, count: 0n, rebalances: 1n });
+    p.reader.balances = async () => ({ [T.usdc]: 1_500_000_000n, [T.txau]: 10n ** 18n, [T.txag]: 0n });
+    p.reader.quote = async () => 10n ** 30n;
+    await new PraetorTools(ACCOUNT, p).rebalance({ sell: 'USDC', buy: 'tXAU', amountUsd: '650' });
+    expect((requested[0] as { reason: string }).reason).toBe('REBALANCE_LIMIT,BUFFER_BREACH');
   });
 
   it('refuses the same asset on both sides and unknown symbols', async () => {
