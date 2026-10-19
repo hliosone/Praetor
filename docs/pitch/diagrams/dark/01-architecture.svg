@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" font-family="IBM Plex Sans, Inter, Arial, sans-serif">
+<title>Two chains, one rulebook</title>
+<style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');]]></style>
+<defs>
+<marker id="ah0" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#4C8DFF"/></marker>
+<marker id="ah1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#34D399"/></marker>
+<marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#FBBF24"/></marker>
+<marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#F87171"/></marker>
+<marker id="ah4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#9FB0CC"/></marker>
+<marker id="ah5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#2DD4BF"/></marker>
+</defs>
+<rect x="0" y="0" width="1600" height="900" fill="#0B1630"/>
+<text x="56" y="72" font-size="28" font-weight="600" fill="#EAF0FA" text-anchor="start" data-role="title">Two chains, one rulebook</text>
+<rect x="412" y="116" width="336" height="502" rx="10" fill="#13213F" stroke="#5B6B8C" stroke-width="1.5" stroke-dasharray="6 5"/>
+<text x="436" y="152" font-size="20" font-weight="600" fill="#9FB0CC" text-anchor="start" data-role="label">Praetor backend</text>
+<text x="436" y="178" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="start" data-role="sub">untrusted: can delay, never forge</text>
+<rect x="804" y="116" width="740" height="356" rx="10" fill="#142A55" stroke="#4C8DFF" stroke-width="1.5"/>
+<text x="828" y="152" font-size="20" font-weight="600" fill="#4C8DFF" text-anchor="start" data-role="label">Base Sepolia: holds the money</text>
+<rect x="804" y="532" width="740" height="272" rx="10" fill="#0F2E36" stroke="#2DD4BF" stroke-width="1.5"/>
+<text x="828" y="568" font-size="20" font-weight="600" fill="#2DD4BF" text-anchor="start" data-role="label">FISCO BCOS: holds the authority</text>
+<text x="56" y="152" font-size="20" font-weight="600" fill="#9FB0CC" text-anchor="start" data-role="label">You</text>
+<text x="56" y="476" font-size="20" font-weight="600" fill="#9FB0CC" text-anchor="start" data-role="label">Your agent</text>
+<g data-box="1">
+<rect x="56" y="180" width="300" height="92" rx="10" fill="#13213F" stroke="#2A3A5E" stroke-width="1.5"/>
+<text x="206" y="217.5" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">Web app</text>
+<text x="206" y="248.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">passkey</text>
+</g>
+<g data-box="1">
+<rect x="56" y="292" width="300" height="92" rx="10" fill="#13213F" stroke="#2A3A5E" stroke-width="1.5"/>
+<text x="206" y="329.5" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">WeChat mini program</text>
+<text x="206" y="360.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">Face ID, Tencent SOTER</text>
+</g>
+<g data-box="1">
+<rect x="56" y="500" width="300" height="92" rx="10" fill="#13213F" stroke="#2A3A5E" stroke-width="1.5"/>
+<text x="206" y="537.5" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">AI agent</text>
+<text x="206" y="568.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">DeepSeek in OpenCode</text>
+</g>
+<g data-box="1">
+<rect x="96" y="608" width="260" height="84" rx="10" fill="#172848" stroke="#9FB0CC" stroke-width="1.5"/>
+<text x="226" y="641.5" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">TEE signer</text>
+<text x="226" y="672.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">agent key never leaves</text>
+</g>
+<g data-box="1">
+<rect x="444" y="248" width="272" height="80" rx="10" fill="#172848" stroke="#5B6B8C" stroke-width="1.5"/>
+<text x="580" y="295" font-size="20" font-weight="500" fill="#9FB0CC" text-anchor="middle" data-role="label">api</text>
+</g>
+<g data-box="1">
+<rect x="444" y="374" width="272" height="80" rx="10" fill="#172848" stroke="#5B6B8C" stroke-width="1.5"/>
+<text x="580" y="421" font-size="20" font-weight="500" fill="#9FB0CC" text-anchor="middle" data-role="label">Bundler + paymaster</text>
+</g>
+<g data-box="1">
+<rect x="444" y="506" width="272" height="80" rx="10" fill="#172848" stroke="#5B6B8C" stroke-width="1.5"/>
+<text x="580" y="553" font-size="20" font-weight="500" fill="#9FB0CC" text-anchor="middle" data-role="label">MCP wallet tools</text>
+</g>
+<g data-box="1">
+<rect x="844" y="180" width="300" height="92" rx="10" fill="#172848" stroke="#4C8DFF" stroke-width="1.5"/>
+<text x="994" y="217.5" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">Smart account</text>
+<text x="994" y="248.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">Safe7579, ERC-4337</text>
+</g>
+<g data-box="1">
+<rect x="844" y="336" width="300" height="100" rx="10" fill="#172848" stroke="#4C8DFF" stroke-width="3"/>
+<text x="994" y="377.5" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">Mandate hook</text>
+<text x="994" y="408.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">your rules and the bank's caps</text>
+</g>
+<path d="M1144,386 L1172,386" fill="none" stroke="#4C8DFF" stroke-width="1.5" stroke-linejoin="round"/>
+<path d="M1172,334 L1172,438" fill="none" stroke="#4C8DFF" stroke-width="1.5" stroke-linejoin="round"/>
+<path d="M1172,334 L1208,334" fill="none" stroke="#34D399" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah1)"/>
+<g data-box="1">
+<rect x="1208" y="314" width="196" height="40" rx="10" fill="#0D2B25" stroke="#34D399" stroke-width="1.5"/>
+<text x="1306" y="341" font-size="20" font-weight="600" fill="#34D399" text-anchor="middle" data-role="label">Executed</text>
+</g>
+<path d="M1172,386 L1208,386" fill="none" stroke="#FBBF24" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah2)"/>
+<g data-box="1">
+<rect x="1208" y="366" width="196" height="40" rx="10" fill="#2B2311" stroke="#FBBF24" stroke-width="1.5"/>
+<text x="1306" y="393" font-size="20" font-weight="600" fill="#FBBF24" text-anchor="middle" data-role="label">Asks you</text>
+</g>
+<path d="M1172,438 L1208,438" fill="none" stroke="#F87171" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah3)"/>
+<g data-box="1">
+<rect x="1208" y="418" width="196" height="40" rx="10" fill="#2E1720" stroke="#F87171" stroke-width="1.5"/>
+<text x="1306" y="445" font-size="20" font-weight="600" fill="#F87171" text-anchor="middle" data-role="label">Refused + logged</text>
+</g>
+<g data-box="1">
+<rect x="844" y="596" width="140" height="64" rx="10" fill="#172848" stroke="#2DD4BF" stroke-width="1.5"/>
+<text x="914" y="635" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">Bank</text>
+</g>
+<g data-box="1">
+<rect x="1004" y="596" width="140" height="64" rx="10" fill="#172848" stroke="#2DD4BF" stroke-width="1.5"/>
+<text x="1074" y="635" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">Regulator</text>
+</g>
+<g data-box="1">
+<rect x="1164" y="596" width="140" height="64" rx="10" fill="#172848" stroke="#2DD4BF" stroke-width="1.5"/>
+<text x="1234" y="635" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">Operator</text>
+</g>
+<g data-box="1">
+<rect x="844" y="684" width="460" height="88" rx="10" fill="#172848" stroke="#2DD4BF" stroke-width="1.5"/>
+<text x="1074" y="719.5" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">WeIdentity</text>
+<text x="1074" y="750.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">KYC, know-your-agent</text>
+</g>
+<g data-box="1">
+<rect x="1324" y="596" width="180" height="176" rx="10" fill="#172848" stroke="#2DD4BF" stroke-width="1.5"/>
+<text x="1414" y="664.5" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">Audit chain</text>
+<text x="1414" y="695.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">append-only,</text>
+<text x="1414" y="717.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">hash-linked</text>
+</g>
+<path d="M356,226 L388,226 L388,288" fill="none" stroke="#9FB0CC" stroke-width="1.5" stroke-linejoin="round"/>
+<path d="M356,338 L388,338 L388,288" fill="none" stroke="#9FB0CC" stroke-width="1.5" stroke-linejoin="round"/>
+<path d="M388,288 L444,288" fill="none" stroke="#9FB0CC" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah4)"/>
+<path d="M356,546 L444,546" fill="none" stroke="#9FB0CC" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah4)"/>
+<path d="M508,586 L508,650 L356,650" fill="none" stroke="#9FB0CC" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah4)"/>
+<text x="428" y="676" font-size="16" font-weight="500" fill="#9FB0CC" text-anchor="middle" data-role="sub">sign</text>
+<path d="M580,328 L580,374" fill="none" stroke="#9FB0CC" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah4)"/>
+<path d="M580,506 L580,454" fill="none" stroke="#9FB0CC" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah4)"/>
+<path d="M716,414 L776,414 L776,226 L844,226" fill="none" stroke="#9FB0CC" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah4)"/>
+<path d="M994,272 L994,336" fill="none" stroke="#4C8DFF" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah0)"/>
+<text x="1010" y="310" font-size="16" font-weight="500" fill="#4C8DFF" text-anchor="start" data-role="sub">checks every call</text>
+<path d="M994,532 L994,436" fill="none" stroke="#2DD4BF" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah5)"/>
+<text x="1010" y="509" font-size="20" font-weight="500" fill="#2DD4BF" text-anchor="start" data-role="label"><tspan font-weight="600">WeCross</tspan>: signed decisions, 6.3 s</text>
+<path d="M1414,596 L1414,472" fill="none" stroke="#2DD4BF" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="6 5" marker-end="url(#ah5)"/>
+<text x="1428" y="509" font-size="18" font-weight="500" fill="#2DD4BF" text-anchor="start" data-role="sub">anchor</text>
+</svg>

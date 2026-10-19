@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" font-family="IBM Plex Sans, Inter, Arial, sans-serif">
+<title>Know your customer, and know your agent</title>
+<style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');]]></style>
+<defs>
+<marker id="ah0" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#9FB0CC"/></marker>
+<marker id="ah1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#2DD4BF"/></marker>
+<marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#4C8DFF"/></marker>
+</defs>
+<rect x="0" y="0" width="1600" height="900" fill="#0B1630"/>
+<text x="56" y="72" font-size="28" font-weight="600" fill="#EAF0FA" text-anchor="start" data-role="title">Know your customer, and know your agent</text>
+<rect x="56" y="112" width="1488" height="272" rx="10" fill="#13213F" stroke="#2A3A5E" stroke-width="1.5"/>
+<text x="80" y="152" font-size="22" font-weight="600" fill="#EAF0FA" text-anchor="start" data-role="label">You (KYC)</text>
+<text x="80" y="192" font-size="20" font-weight="600" fill="#9FB0CC" text-anchor="start" data-role="label">At the bank</text>
+<path d="M80,204 L502,204" fill="none" stroke="#9FB0CC" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="546" y="192" font-size="20" font-weight="600" fill="#2DD4BF" text-anchor="start" data-role="label">FISCO BCOS: WeIdentity</text>
+<path d="M546,204 L1201,204" fill="none" stroke="#2DD4BF" stroke-width="1.5" stroke-linejoin="round"/>
+<g data-box="1">
+<rect x="80" y="222" width="189" height="136" rx="10" fill="#172848" stroke="#2A3A5E" stroke-width="1.5"/>
+<text x="174.5" y="259.5" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">KYC at the bank</text>
+<text x="174.5" y="290.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">Demo KYC provider</text>
+<text x="174.5" y="312.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">or EU Digital</text>
+<text x="174.5" y="334.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">Identity Wallet</text>
+</g>
+<g data-box="1">
+<rect x="313" y="222" width="189" height="136" rx="10" fill="#172848" stroke="#2A3A5E" stroke-width="1.5"/>
+<text x="407.5" y="269" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">Record stays</text>
+<text x="407.5" y="294" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">at the bank</text>
+<text x="407.5" y="325" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">encrypted</text>
+</g>
+<g data-box="1">
+<rect x="546" y="222" width="655" height="136" rx="10" fill="#0F2E36" stroke="#2DD4BF" stroke-width="1.5"/>
+<text x="873.5" y="270.5" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">Bank issues <tspan font-family="IBM Plex Mono, Menlo, Consolas, monospace">PersonKYC</tspan> to your WeID</text>
+<text x="873.5" y="301.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">a WeIdentity credential; only its hash</text>
+<text x="873.5" y="323.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">goes on-chain, as evidence</text>
+</g>
+<path d="M269,290 L313,290" fill="none" stroke="#9FB0CC" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah0)"/>
+<path d="M502,290 L546,290" fill="none" stroke="#2DD4BF" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah1)"/>
+<rect x="56" y="416" width="1488" height="360" rx="10" fill="#13213F" stroke="#2A3A5E" stroke-width="1.5"/>
+<text x="80" y="456" font-size="22" font-weight="600" fill="#EAF0FA" text-anchor="start" data-role="label">Your agent (KYA)</text>
+<text x="80" y="496" font-size="20" font-weight="600" fill="#9FB0CC" text-anchor="start" data-role="label">TEE</text>
+<path d="M80,508 L269,508" fill="none" stroke="#9FB0CC" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="313" y="496" font-size="20" font-weight="600" fill="#9FB0CC" text-anchor="start" data-role="label">At the bank</text>
+<path d="M313,508 L502,508" fill="none" stroke="#9FB0CC" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="546" y="496" font-size="20" font-weight="600" fill="#2DD4BF" text-anchor="start" data-role="label">FISCO BCOS: WeIdentity and MandateRegistry</text>
+<path d="M546,508 L1201,508" fill="none" stroke="#2DD4BF" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="1331" y="496" font-size="20" font-weight="600" fill="#4C8DFF" text-anchor="start" data-role="label">Base Sepolia</text>
+<path d="M1331,508 L1520,508" fill="none" stroke="#4C8DFF" stroke-width="1.5" stroke-linejoin="round"/>
+<g data-box="1">
+<rect x="80" y="526" width="189" height="188" rx="10" fill="#172848" stroke="#9FB0CC" stroke-width="1.5"/>
+<text x="174.5" y="588" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">Agent key</text>
+<text x="174.5" y="613" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">made in the TEE</text>
+<text x="174.5" y="644" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">with a signed</text>
+<text x="174.5" y="666" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">attestation quote</text>
+</g>
+<g data-box="1">
+<rect x="313" y="526" width="189" height="188" rx="10" fill="#172848" stroke="#2A3A5E" stroke-width="1.5"/>
+<text x="407.5" y="588" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">Bank checks</text>
+<text x="407.5" y="613" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">the quote</text>
+<text x="407.5" y="644" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">which exact code</text>
+<text x="407.5" y="666" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">the agent runs</text>
+</g>
+<g data-box="1">
+<rect x="546" y="526" width="189" height="188" rx="10" fill="#0F2E36" stroke="#2DD4BF" stroke-width="1.5"/>
+<text x="640.5" y="588" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">Agent gets</text>
+<text x="640.5" y="613" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">its own WeID</text>
+<text x="640.5" y="644" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">from its key,</text>
+<text x="640.5" y="666" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">signed in the TEE</text>
+</g>
+<g data-box="1">
+<rect x="779" y="526" width="189" height="188" rx="10" fill="#0F2E36" stroke="#2DD4BF" stroke-width="1.5"/>
+<text x="873.5" y="589.5" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">AgentMandate</text>
+<text x="873.5" y="620.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">signed by you</text>
+<text x="873.5" y="642.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">(Face ID) and</text>
+<text x="873.5" y="664.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">by the bank</text>
+</g>
+<g data-box="1">
+<rect x="1012" y="526" width="189" height="188" rx="10" fill="#0F2E36" stroke="#2DD4BF" stroke-width="1.5"/>
+<text x="1106.5" y="599" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">Bank records</text>
+<text x="1106.5" y="624" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">the KYA</text>
+<text x="1106.5" y="655" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub"><tspan font-family="IBM Plex Mono, Menlo, Consolas, monospace">MandateRegistry</tspan></text>
+</g>
+<g data-box="1">
+<rect x="1331" y="526" width="189" height="188" rx="10" fill="#142A55" stroke="#4C8DFF" stroke-width="3"/>
+<text x="1425.5" y="577" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">Mandate hook</text>
+<text x="1425.5" y="602" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">accepts the agent</text>
+<text x="1425.5" y="633" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">without it, every</text>
+<text x="1425.5" y="655" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">call is refused</text>
+<text x="1425.5" y="677" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub"><tspan font-family="IBM Plex Mono, Menlo, Consolas, monospace" fill="#F87171" font-weight="600">KYA_INVALID</tspan></text>
+</g>
+<path d="M269,620 L313,620" fill="none" stroke="#9FB0CC" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah0)"/>
+<path d="M502,620 L546,620" fill="none" stroke="#2DD4BF" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah1)"/>
+<path d="M735,620 L779,620" fill="none" stroke="#2DD4BF" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah1)"/>
+<path d="M968,620 L1012,620" fill="none" stroke="#2DD4BF" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah1)"/>
+<path d="M1201,620 L1331,620" fill="none" stroke="#2DD4BF" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah1)"/>
+<text x="1266" y="606" font-size="20" font-weight="600" fill="#2DD4BF" text-anchor="middle" data-role="label">WeCross</text>
+<text x="1266" y="650" font-size="16" font-weight="500" fill="#2DD4BF" text-anchor="middle" data-role="sub">to Base</text>
+<text x="1520" y="748" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="end" data-role="sub">then you enable its key: Face ID + the bank</text>
+<path d="M1106.5,358 L1106.5,526" fill="none" stroke="#2DD4BF" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="6 5" marker-end="url(#ah1)"/>
+<text x="1120.5" y="456" font-size="16" font-weight="500" fill="#2DD4BF" text-anchor="start" data-role="sub">your KYC level goes into the KYA</text>
+<text x="56" y="852" font-size="20" font-weight="400" fill="#9FB0CC" text-anchor="start" data-role="sub">Personal data stays encrypted in the bank. On-chain: identifiers, hashes and a country code.</text>
+</svg>

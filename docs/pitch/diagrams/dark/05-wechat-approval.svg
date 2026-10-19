@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" font-family="IBM Plex Sans, Inter, Arial, sans-serif">
+<title>One Face ID, one payment</title>
+<style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');]]></style>
+<defs>
+<marker id="ah0" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#9FB0CC"/></marker>
+<marker id="ah1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#4C8DFF"/></marker>
+<marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#5B6B8C"/></marker>
+<marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#FBBF24"/></marker>
+<marker id="ah4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0.5,1 L9.5,5 L0.5,9 Z" fill="#F87171"/></marker>
+</defs>
+<rect x="0" y="0" width="1600" height="900" fill="#0B1630"/>
+<text x="56" y="72" font-size="28" font-weight="600" fill="#EAF0FA" text-anchor="start" data-role="title">One Face ID, one payment</text>
+<g data-box="1">
+<rect x="56" y="282" width="185" height="236" rx="10" fill="#172848" stroke="#2A3A5E" stroke-width="1.5"/>
+<text x="148.5" y="368" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">Agent pays</text>
+<text x="148.5" y="393" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">a new payee</text>
+<text x="148.5" y="424" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">300 USDC to</text>
+<text x="148.5" y="446" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">Café Lumen</text>
+</g>
+<g data-box="1">
+<rect x="273" y="282" width="185" height="236" rx="10" fill="#2B2311" stroke="#FBBF24" stroke-width="1.5"/>
+<text x="365.5" y="357" font-size="20" font-weight="600" fill="#FBBF24" text-anchor="middle" data-role="label">Mandate hook</text>
+<text x="365.5" y="382" font-size="20" font-weight="600" fill="#FBBF24" text-anchor="middle" data-role="label">asks you</text>
+<text x="365.5" y="413" font-size="16" font-weight="400" fill="#EAF0FA" text-anchor="middle" data-role="sub"><tspan font-family="IBM Plex Mono, Menlo, Consolas, monospace" fill="#FBBF24" font-weight="600">UNKNOWN_PAYEE</tspan></text>
+<text x="365.5" y="435" font-size="16" font-weight="400" fill="#EAF0FA" text-anchor="middle" data-role="sub">refused attempt</text>
+<text x="365.5" y="457" font-size="16" font-weight="400" fill="#EAF0FA" text-anchor="middle" data-role="sub">logged on-chain</text>
+</g>
+<g data-box="1">
+<rect x="490" y="282" width="185" height="236" rx="10" fill="#172848" stroke="#5B6B8C" stroke-width="1.5" stroke-dasharray="6 5"/>
+<text x="582.5" y="357" font-size="20" font-weight="500" fill="#9FB0CC" text-anchor="middle" data-role="label">Approval</text>
+<text x="582.5" y="382" font-size="20" font-weight="500" fill="#9FB0CC" text-anchor="middle" data-role="label">request</text>
+<text x="582.5" y="413" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">bound to this</text>
+<text x="582.5" y="435" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">exact call,</text>
+<text x="582.5" y="457" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">expires in 15 min</text>
+</g>
+<g data-box="1">
+<rect x="707" y="282" width="185" height="236" rx="10" fill="#172848" stroke="#2A3A5E" stroke-width="1.5"/>
+<text x="799.5" y="357" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">WeChat mini</text>
+<text x="799.5" y="382" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">program</text>
+<text x="799.5" y="413" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">recomputes the</text>
+<text x="799.5" y="435" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">payment fingerprint</text>
+<text x="799.5" y="457" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">from what it shows</text>
+</g>
+<g data-box="1">
+<rect x="924" y="282" width="185" height="236" rx="10" fill="#172848" stroke="#2A3A5E" stroke-width="1.5"/>
+<text x="1016.5" y="358.5" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">Face ID</text>
+<text x="1016.5" y="389.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">Tencent SOTER;</text>
+<text x="1016.5" y="411.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">the key stays in</text>
+<text x="1016.5" y="433.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">the phone's</text>
+<text x="1016.5" y="455.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">secure hardware</text>
+</g>
+<g data-box="1">
+<rect x="1141" y="282" width="185" height="236" rx="10" fill="#172848" stroke="#9FB0CC" stroke-width="1.5"/>
+<text x="1233.5" y="347.5" font-size="20" font-weight="600" fill="#EAF0FA" text-anchor="middle" data-role="label">Attester</text>
+<text x="1233.5" y="378.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">asks Tencent to</text>
+<text x="1233.5" y="400.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">verify the signature,</text>
+<text x="1233.5" y="422.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">checks it signs that</text>
+<text x="1233.5" y="444.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">exact fingerprint,</text>
+<text x="1233.5" y="466.5" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="middle" data-role="sub">signs an approval</text>
+</g>
+<g data-box="1">
+<rect x="1359" y="282" width="185" height="236" rx="10" fill="#0D2B25" stroke="#34D399" stroke-width="1.5"/>
+<text x="1451.5" y="357" font-size="20" font-weight="600" fill="#34D399" text-anchor="middle" data-role="label">Executed</text>
+<text x="1451.5" y="382" font-size="20" font-weight="600" fill="#34D399" text-anchor="middle" data-role="label">once</text>
+<text x="1451.5" y="413" font-size="16" font-weight="400" fill="#EAF0FA" text-anchor="middle" data-role="sub">the Mandate hook</text>
+<text x="1451.5" y="435" font-size="16" font-weight="400" fill="#EAF0FA" text-anchor="middle" data-role="sub">verifies the</text>
+<text x="1451.5" y="457" font-size="16" font-weight="400" fill="#EAF0FA" text-anchor="middle" data-role="sub">attester's approval</text>
+</g>
+<text x="56" y="252" font-size="20" font-weight="600" fill="#9FB0CC" text-anchor="start" data-role="label">Your agent</text>
+<path d="M56,264 L241,264" fill="none" stroke="#9FB0CC" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="273" y="252" font-size="20" font-weight="600" fill="#4C8DFF" text-anchor="start" data-role="label">Base Sepolia</text>
+<path d="M273,264 L458,264" fill="none" stroke="#4C8DFF" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="490" y="252" font-size="20" font-weight="600" fill="#9FB0CC" text-anchor="start" data-role="label">Praetor api</text>
+<path d="M490,264 L675,264" fill="none" stroke="#5B6B8C" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="6 5"/>
+<text x="707" y="252" font-size="20" font-weight="600" fill="#9FB0CC" text-anchor="start" data-role="label">Your phone, in WeChat</text>
+<path d="M707,264 L1109,264" fill="none" stroke="#9FB0CC" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="1141" y="252" font-size="20" font-weight="600" fill="#9FB0CC" text-anchor="start" data-role="label">TEE</text>
+<path d="M1141,264 L1326,264" fill="none" stroke="#9FB0CC" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="1359" y="252" font-size="20" font-weight="600" fill="#4C8DFF" text-anchor="start" data-role="label">Base Sepolia</text>
+<path d="M1359,264 L1544,264" fill="none" stroke="#4C8DFF" stroke-width="1.5" stroke-linejoin="round"/>
+<path d="M241,400 L273,400" fill="none" stroke="#4C8DFF" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah1)"/>
+<path d="M458,400 L490,400" fill="none" stroke="#FBBF24" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah3)"/>
+<path d="M675,400 L707,400" fill="none" stroke="#9FB0CC" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah0)"/>
+<path d="M892,400 L924,400" fill="none" stroke="#9FB0CC" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah0)"/>
+<path d="M1109,400 L1141,400" fill="none" stroke="#9FB0CC" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah0)"/>
+<path d="M1326,400 L1359,400" fill="none" stroke="#4C8DFF" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#ah1)"/>
+<path d="M1451.5,518 L1451.5,566" fill="none" stroke="#F87171" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="4 4"/>
+<g data-box="1">
+<rect x="1244" y="566" width="300" height="76" rx="10" fill="#2E1720" stroke="#F87171" stroke-width="1.5"/>
+<text x="1394" y="594.5" font-size="20" font-weight="500" fill="#F87171" text-anchor="middle" data-role="label">Same approval replayed:</text>
+<text x="1394" y="627.5" font-size="18" font-weight="400" fill="#F87171" text-anchor="middle" data-role="sub">refused <tspan font-family="IBM Plex Mono, Menlo, Consolas, monospace" fill="#F87171" font-weight="600">DigestUsed</tspan></text>
+</g>
+<text x="56" y="836" font-size="20" font-weight="400" fill="#9FB0CC" text-anchor="start" data-role="sub">Only Tencent can verify the Face ID signature, so the attester TEE asks Tencent; the Mandate hook verifies the attester's approval.</text>
+</svg>
