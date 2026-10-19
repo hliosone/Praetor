@@ -2,7 +2,7 @@
 
 # 部署 Praetor
 
-> **2026-10-18 时的状态。** Base 合约已用这台笔记本电脑的 `LIVE_` 密钥部署到 Base Sepolia（MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`，`infra/deployments/base-sepolia.json`），其联盟部署在笔记本电脑的本地 FISCO 链上（实链模式，D74、D75）。生产 compose 覆盖文件、演练目标和生产拒绝检查均已存在，演练已于 2026-10-18 在分叉上通过（M18，D90；第 9 节）。云端部署是 **Phase C 的一个步骤，由人工参与完成**（spec 10），目前尚未进行；spec 11 中的服务器初始化脚本（`scripts/deploy/server-bootstrap.sh`）尚不存在。本文档给出已经存在的命令，明确说明 Makefile 在哪些地方尚未与 spec 11 一致，Phase C 也在此记录所使用的值（绝不记录任何密钥）。中文版由英文版翻译，以英文版为准。
+> **2026-10-18 时的状态。** Base 合约已用这台笔记本电脑的 `LIVE_` 密钥部署到 Base Sepolia（MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`，`infra/deployments/base-sepolia.json`），其联盟部署在笔记本电脑的本地 FISCO 链上（实链模式，D74、D75）。生产 compose 覆盖文件、演练目标和生产拒绝检查均已存在，演练已于 2026-10-18 在分叉上通过（M18，D90；第 9 节）。云端部署是 **Phase C 的一个步骤，由人工参与完成**（spec 10），目前尚未进行。服务器是位于香港的 Google Cloud 虚拟机（第 2 节）。它所需的脚本已经存在，但只在这台笔记本电脑上测试过，从未针对服务器或 Phala Cloud 运行：`scripts/deploy/server-bootstrap.sh`（在 `ubuntu:24.04` 容器中运行两次）、`scripts/deploy/build-images.sh`，以及 TEE 文件 `infra/phala/*.compose.yml` 和 `scripts/deploy/phala-deploy.sh`（针对替身命令，第 7 节）。第 9 节按顺序给出服务器上的步骤。本文档给出已经存在的命令，明确说明 Makefile 在哪些地方尚未与 spec 11 一致，Phase C 也在此记录所使用的值（绝不记录任何密钥）。中文版由英文版翻译，以英文版为准。
 
 ## 1. 环境
 
@@ -19,8 +19,8 @@
 
 ## 2. 生产环境拓扑
 
-- **一台服务器**（spec 00：腾讯云轻量应用服务器香港，4 vCPU，16 GB，Ubuntu LTS）：Docker，防火墙只开放 22、80 和 443，一个非 root 的部署用户，自动安全更新。服务器运行 Caddy（通过 `CADDY_TLS` 为 `app.<domain>` 获取 ACME 证书，仅 DNS，不使用 CDN 代理）、MySQL、api、mcp、agent-runner（每个活跃用户一个 OpenCode 实例）、scheduler、bundler、notifier、oracle-feeder、三个成员服务、bridge-relayer、WeCross 路由器和账户管理器、四个 FISCO 节点、WeIdentity 以及各个模拟服务。
-- **两台 Phala Cloud CVM**（`tdx.small`，带 dstack 的 Intel TDX）：`agent-signer` 和 `soter-attester`，两个独立的度量值。
+- **一台服务器**：位于 `asia-east2`（香港）的 Google Cloud Compute Engine 虚拟机，`e2-standard-4`（4 vCPU，16 GB，x86_64），Ubuntu 24.04 LTS（标准镜像，不是 Minimal 版），80 GB 平衡永久磁盘和一个静态外部 IPv4。VPC 防火墙只允许 tcp 22、80 和 443；`scripts/deploy/server-bootstrap.sh` 安装 Docker、开放同样三个端口的 ufw、一个非 root 的部署用户和自动安全更新。spec 00 指定的是腾讯云轻量应用服务器香港，其身份审核需要 2 到 4 个工作日：它仍是备选方案，脚本和步骤相同，只是用轻量服务器的防火墙代替 VPC 规则。默认 VPC 在 `asia-east2` 的子网是 `10.170.0.0/20`，自动模式 VPC 的所有子网都位于 `10.128.0.0/9` 之内，不会与整套服务的 Docker 网络（`10.88.0.0/16`、`10.89.0.0/24`、`10.90.0.0/24`）重叠；初始化脚本会拒绝路由落在这些网络之内的主机，并把 Docker 网桥的 MTU 降到 VPC 的 1460 字节。服务器运行 Caddy（通过 `CADDY_TLS` 为 `app.<domain>` 获取 ACME 证书，仅 DNS，不使用 CDN 代理）、MySQL、api、mcp、agent-runner（每个活跃用户一个 OpenCode 实例）、scheduler、bundler、notifier、oracle-feeder、三个成员服务、bridge-relayer、WeCross 路由器和账户管理器、四个 FISCO 节点、WeIdentity 以及各个模拟服务。
+- **两台 Phala Cloud CVM**（`tdx.small`：1 vCPU，2 GB，带 dstack 的 Intel TDX，每台每小时 0.058 美元）：`agent-signer` 和 `soter-attester`，两个独立的度量值。2026-10-19 时工作区只列出 `US-WEST-1` 的节点，所以每次 TEE 调用都要从香港到美国西海岸；约 5 美元的额度可让两台 CVM 运行约 43 小时。
 - **外部服务**：Base Sepolia RPC、大模型（OpenCode Zen，DeepSeek）、Pyth Hermes、腾讯的微信 API、浏览器的推送服务。
 
 ## 3. 配置与密钥
@@ -114,18 +114,31 @@ make deploy-fisco ENV=live               # 写入 infra/deployments/fisco-live.j
 
 ## 7. Phala Cloud 上的 TEE
 
-对 `agent-signer` 和 `soter-attester` 分别执行：
+两台 CVM 的 compose 文件是 `infra/phala/agent-signer.compose.yml` 和 `infra/phala/soter-attester.compose.yml`；`scripts/deploy/phala-deploy.sh` 负责构建、推送并部署它们。两者都尚未在 Phala Cloud 上运行过（`test/infra/phala-deploy.test.ts` 用替身 `docker` 和 `phala` 命令运行该脚本）。
 
-1. 从代码仓库构建镜像并推送到镜像仓库；在 CVM 的 compose 文件中**按 digest** 引用它（tee-checklist 第 2 项）。
-2. 使用 Phala Cloud CLI（`phala`，Phase 0 中锁定的 1.1.22 版本）或控制台部署 CVM，设置 `PRAETOR_ENV=prod`、`ATTESTATION_MODE=phala`，并将机密作为**加密环境变量**传入：agent-signer 为 `SIGNER_HMAC_MCP`、`SIGNER_HMAC_API`、`SIGNER_HMAC_BANK`；soter-attester 为 `ATTESTER_HMAC_API`、`MP_APPID`、`MP_SECRET`，另加用于读取域名和 hook 地址的部署文件。实际执行的命令在运行时记录在第 11 节。
-3. 从控制台（或服务的 `/v1/info`）读取 CVM 的 app id 和 compose 哈希，并确认它是生产（非调试）CVM。
-4. 将服务器上的 `AGENT_SIGNER_URL` 和 `SOTER_ATTESTER_URL` 指向这两台 CVM（CVM 内部的 TLS 是检查清单的未完成项，第 6 项）。
+- **哪些内容被度量。** 每个文件只运行一个服务，设置 `PRAETOR_ENV=prod`、`ATTESTATION_MODE=phala` 和 dstack 套接字（`/var/run/dstack.sock`），镜像**按 digest** 引用（tee-checklist 第 2 项）。文件中写明的一切都计入 CVM 的 compose 哈希：镜像 digest；agent-signer 的 `PUBLIC_URL`（它只为 `<PUBLIC_URL>/mcp` 签署智能体名片，所以要先确定域名）；soter-attester 的 `DEPLOYMENTS_FILE`，即烘焙进其镜像的 `base-sepolia.json`（Base 重新部署后需重新构建）；真实的微信 API 地址。加密变量名列表（`allowed_envs`）以及公开日志和系统信息开关也计入；机密的值不计入，因此只改值不会改变哈希。
+- **加密环境变量**是唯一不被度量的输入：agent-signer 为 `SIGNER_HMAC_MCP`、`SIGNER_HMAC_API`、`SIGNER_HMAC_BANK`；soter-attester 为 `ATTESTER_HMAC_API`、`MP_APPID`、`MP_SECRET`；若镜像为私有，两者还各加 `DSTACK_DOCKER_REGISTRY`、`DSTACK_DOCKER_USERNAME` 和 `DSTACK_DOCKER_PASSWORD`，Phala 的预启动脚本在拉取镜像前用它们登录。HMAC 必须与服务器上的相同：第 9 节把它们从笔记本电脑的 `.env` 复制到服务器的 `.env`。
+- **命令**，在笔记本电脑上执行（它有 `phala` 1.1.22、`.env` 中的 API 密钥和 Docker）。没有 `PHALA_CONFIRM=1` 时脚本什么也不做：
+
+```bash
+gh auth refresh -s write:packages && gh auth token | docker login ghcr.io -u hliosone --password-stdin   # 一次即可：目前的 gh 令牌无法推送 package
+PHALA_CONFIRM=1 REGISTRY=ghcr.io/hliosone scripts/deploy/phala-deploy.sh build   # git archive HEAD，构建并推送；digest 写入 .run/phala/images.env
+PHALA_CONFIRM=1 PUBLIC_URL=https://app.<domain> scripts/deploy/phala-deploy.sh deploy
+export PHALA_CLOUD_API_KEY="$(grep -E '^PHALA_CLOUD_API_KEY=' .env | cut -d= -f2-)"   # 笔记本电脑上的 CLI 没有登录
+phala cvms get praetor-agent-signer --json; phala cvms get praetor-soter-attester --json   # app id、compose 哈希、访问地址
+```
+
+  `build` 从已提交的代码树构建两个镜像（不含未跟踪文件和未提交的修改），打印 commit 和烘焙进 soter-attester 的 hook，然后推送。请从服务器运行的那个 commit 构建，至少要保证 `infra/deployments/base-sepolia.json` 相同。`deploy` 创建 `praetor-agent-signer` 和 `praetor-soter-attester`（`tdx.small`，`--no-dev-os` 即生产 OS 镜像，`--no-public-logs`），若同名 CVM 已存在则原地更新。它从 `ENV_FILE`（默认 `.env`）读取机密，删除交给 `phala` 的 env 文件，并把渲染后的 compose 文件和 phala 的返回保存在 `.run/phala/`。
+- **镜像仓库，由人工决定。** 代码仓库是私有的，从它推送的 GHCR package 默认也是私有的。要么把这两个 package 设为公开（GitHub 上的 package 设置）：镜像会因此公开源代码树，因为 `infra/node-service.Dockerfile` 复制整个构建上下文（被跟踪的文件减去 `.dockerignore` 排除的部分：没有 `.env`、没有密钥、没有文档）。要么保持私有，并在 `deploy` 之前把一个只有 `read:packages` 权限的 classic 令牌以 `DSTACK_DOCKER_REGISTRY=ghcr.io`、`DSTACK_DOCKER_USERNAME=hliosone`、`DSTACK_DOCKER_PASSWORD=<令牌>` 加入笔记本电脑的 `.env`（GHCR 只接受 classic 令牌）。这些变量名会进入 `allowed_envs`，从而进入 compose 哈希：在登记哈希之前做出决定（第 8 节）。
+- **访问地址。** Phala 网关以 `https://<app-id>-3050.<网关域名>` 和 `https://<app-id>-3060.<网关域名>` 提供这两个端口，并在网关终止 TLS（CVM 内部的 TLS 仍是 tee-checklist 第 6 项）。只有 `/health` 不需要调用方 HMAC；`/v1/info` 和所有 `/v1` 路由一样需要 HMAC，因此请用 `phala cvms get` 读取 app id 和 compose 哈希，并确认每台 CVM 运行的是生产（非开发）OS 镜像。这些 URL 就是服务器的 `AGENT_SIGNER_URL` 和 `SOTER_ATTESTER_URL`（第 9 节）。
+- **一旦有账户，就不要删除并重建 agent-signer。** CVM 从其 app id 派生所有智能体密钥（`getKey`）；新 CVM 意味着新的 app id，也就意味着每个账户都换了密钥（见下文）。请原地更新：用同一名称再次 `deploy`。
+- **OS 镜像。** CLI 选用默认镜像（2026-10-19 时为 `dstack-0.6.1`）；各服务使用 0.5 版 SDK，并在 0.5.3 模拟器上测试过。如果套接字调用失败，用 `PHALA_OS_IMAGE=dstack-0.5.12` 部署。
 
 密钥在 CVM 内部派生（`getKey`），因此生产环境的智能体密钥与模拟器派生的不同：每个现有账户都需要为新 TEE 中的密钥重新获得 KYA 并执行 `SET_AGENT_KEY`。F10 的轮换接口（`POST /api/agent/rotate`）会在 TEE 的各个密钥版本中查找 Base 上持有的那把密钥，更换 TEE 之后将找不到，因此现有账户需改走开户接口（`POST /api/onboarding/agent/create`，然后是授权、KYA 和 `SET_AGENT_KEY`）。这条路径是从代码中推断出来的，**尚未运行过**（既未验证银行能否为已持有另一 TEE 所签 KYA 的账户签发新的 KYA，也没有对应的 Web 应用界面）；需在 Phase C 中验证。切换之后创建的账户无需任何操作。
 
 ## 8. 向银行登记 compose 哈希
 
-1. 把两个 compose 哈希分别写入银行的 `ALLOWED_COMPOSE_HASHES_AGENT` 和 `ALLOWED_COMPOSE_HASHES_ATTESTER`，然后重启 bank。在 `ATTESTATION_MODE=phala` 下，没有智能体白名单时 bank 拒绝启动。
+1. 把两个 compose 哈希（用 `phala cvms get` 读取，第 7 节；带 `0x` 前缀，多个时用逗号分隔）分别写入银行的 `ALLOWED_COMPOSE_HASHES_AGENT` 和 `ALLOWED_COMPOSE_HASHES_ATTESTER`，然后重启 bank。在 `ATTESTATION_MODE=phala` 下，没有智能体白名单时 bank 拒绝启动。
 2. 激活 attester：银行签发一个 nonce（`POST /attesters/nonce`），attester 的 quote 通过 Phala 的验证服务校验（`POST /attesters/verify`），然后银行用经过验证的度量值签署 `AttesterAttestation`（D33）。它经由传输层到达 Base。
 3. **每次变更都要重新登记**：镜像或 CVM compose 文件的任何变更都会改变哈希；在新 CVM 提供服务之前登记新哈希，激活新的 attester，并由任意一个成员停用旧的 attester（tee-checklist 第 4 项）。
 
@@ -143,38 +156,132 @@ make rehearsal     # PRAETOR_ENV=rehearsal make up PROD=1，然后 make e2e-smok
 
 已于 2026-10-18 通过（D90）：冒烟测试 F1、F5、F8 16/16，五项生产拒绝检查均通过；此前修复了演练发现的三个问题（scheduler 的区间检查不再重叠，每项拒绝检查在无网络的情况下运行，api 在连接 MySQL 之前就拒绝伪造的腾讯接口）。冒烟测试使用的是脚本化模型（本地栈的 fake-llm 容器仍在运行，而 `PRAETOR_ENV=rehearsal` 允许使用它；在生产环境中 agent-runner 会拒绝 `FAKE_LLM_URL`）。未演练：实链 Base、Phala TEE 和真实证书（Phase C）。
 
-**在服务器上（Phase C）。** 目前还没有服务器专用的目标：
+**在服务器上（Phase C，Google Cloud）。** 尚未运行。按顺序执行，`<ip>` 为静态 IP，`app.<domain>` 为主机名，`praetor` 为部署用户。第 6 和第 8 步在笔记本电脑上运行，可与第 5 和第 7 步同时进行。
 
-```bash
-git clone --recurse-submodules <repository> praetor && cd praetor
-make setup                     # commit-msg 钩子，pnpm install --frozen-lockfile
-pnpm keys                      # 先把笔记本电脑的 LIVE_ 密钥复制到 .env（第 5 节），再填充其余的值（权限 600）
-# 将人工提供的值和第 3 节的生产值填入 .env（CHAIN_MODE=live、CADDY_TLS、PUBLIC_HOST 等）
-```
+1. **虚拟机**（Google Cloud 控制台）。Compute Engine，区域 `asia-east2`，`e2-standard-4`，启动盘 Ubuntu 24.04 LTS x86/64（不要 Minimal 版），80 GB 平衡永久磁盘。在网络设置中勾选“允许 HTTP 流量”和“允许 HTTPS 流量”，并预留一个静态外部 IPv4。在安全设置中加入笔记本电脑的 SSH 公钥（GCP 以公钥的注释作为用户名：下文为 `hliosone`）。在 VPC 防火墙规则中删除 `default-allow-rdp`（若只保留 22、80 和 443，也删除 `default-allow-icmp`）。然后把 `app.<domain>` 指向该 IP（A 记录，仅 DNS，TTL 300）：Caddy 首次启动时就会申请证书。也可以用 gcloud（笔记本电脑上未安装；尚未运行）：
 
-Makefile 目前的行为，以及最接近的命令：
+   ```bash
+   gcloud compute addresses create praetor-ip --region asia-east2
+   gcloud compute instances create praetor --zone asia-east2-a --machine-type e2-standard-4 \
+     --image-family ubuntu-2404-lts-amd64 --image-project ubuntu-os-cloud --boot-disk-size 80GB --boot-disk-type pd-balanced \
+     --address praetor-ip --tags http-server,https-server
+   gcloud compute firewall-rules create praetor-web --allow tcp:80,tcp:443 --target-tags http-server,https-server
+   ```
 
-- `make up PROD=1` 会加入 `compose.prod.yml`，但不加 `LIVE=1` 时仍会启动 anvil（`up-base` 和默认的 `dev` profile），并且默认 profile 包含 `tee-sim`（TEE 模拟器）。
-- `LIVE=1` 去掉了 anvil 和 `dev` profile，但会导出 `FISCO_KEYSET=LOCAL`（D75，这是针对笔记本电脑的选择），并加入 `infra/live.env`，其中的值会覆盖 `.env`。
-- 在服务器专用目标出现之前，最接近的命令如下。它**尚未运行过**，需在 Phase C 中验证：
+2. **初始化**（从笔记本电脑执行；在容器中约 1.5 分钟，尚未在虚拟机上计时）：
 
-```bash
-make up PROD=1 LIVE=1 FISCO_KEYSET=LIVE PROFILES="core chain mocks agent wecross"
-make deploy-fisco ENV=live     # 服务器自己的链（第 6 节）
-make down && make up PROD=1 LIVE=1 FISCO_KEYSET=LIVE PROFILES="core chain mocks agent wecross"   # 让各服务重新读取 fisco-live.json
-```
+   ```bash
+   scp scripts/deploy/server-bootstrap.sh hliosone@<ip>:
+   ssh hliosone@<ip> sudo bash server-bootstrap.sh   # Docker、用户 praetor（带上你的 SSH 公钥）、ufw、swap、Node、pnpm、cast
+   ssh -t praetor@<ip> docker login                   # Docker Hub：约十个基础镜像来自那里，匿名拉取每小时上限 10 次
+   ```
 
-然后登记 TEE（第 7 和第 8 节），并为账户开户。
+   如果主机路由落在整套服务的网络之内，它会拒绝继续；如果 `praetor` 无法获得 uid 1000，它会打印 `UID_GID=<uid>:<gid>`（WeCross 容器以该用户写入 `infra/wecross/generated`）：在第 4 步把这一行加入 `.env`。
+3. **代码仓库**（私有）：一把只读的部署密钥，不需要子模块（服务器不构建合约）。
+
+   ```bash
+   ssh praetor@<ip> 'ssh-keygen -q -t ed25519 -N "" -f ~/.ssh/id_ed25519 && cat ~/.ssh/id_ed25519.pub' > /tmp/praetor-server.pub
+   gh repo deploy-key add /tmp/praetor-server.pub -R hliosone/Praetor --title praetor-server
+   ssh praetor@<ip> 'GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" git clone -q git@github.com:hliosone/Praetor.git ~/praetor'
+   ```
+
+   这把密钥不能推送：服务器的 `fisco-live.json` 用 `scp` 拷回笔记本电脑（第 12 步）。
+4. **`.env`**（权限 600）。只从笔记本电脑复制服务器要复用的内容，再加入生产值，其余交给 `pnpm keys` 生成：
+
+   ```bash
+   grep -E '^(LIVE_[A-Z0-9_]+|SIGNER_HMAC_(MCP|API|BANK)|ATTESTER_HMAC_API|MP_APPID|MP_SECRET|PYTH_API_KEY|OPENCODE_API_KEY|OA_[A-Z_]+)=' .env \
+     | ssh praetor@<ip> 'umask 077; cat > ~/praetor/.env'
+   ssh praetor@<ip>
+   cd ~/praetor && cat >> .env <<'END'
+   PRAETOR_ENV=prod
+   CHAIN_MODE=live
+   PUBLIC_HOST=app.<domain>
+   PUBLIC_URL=https://app.<domain>
+   CADDY_TLS=<ACME 账户邮箱>
+   ATTESTATION_MODE=phala
+   SOTER_FAKE_TENCENT=0
+   FAKE_LLM_URL=
+   VAPID_SUBJECT=mailto:<推送服务能够送达的地址>
+   STANDING_ORDERS_INTERVAL_S=60
+   AGENT_MAX_ACTIVE=4
+   END
+   make setup    # commit-msg 钩子，pnpm install --frozen-lockfile
+   pnpm keys     # 填充所有缺失的机密（MySQL、会话、内部令牌、员工注册令牌、VAPID 等）
+   ```
+
+   - `LIVE_` 密钥对应已充值的地址和 hook 的成员（第 5 节）：绝不要重新生成。从此笔记本电脑不再运行 `LIVE=1`（D97）。
+   - 四个 TEE HMAC 来自笔记本电脑，因为从笔记本电脑部署的 CVM 必须持有相同的值；`pnpm keys` 会保留它们（它只填充缺失的值）。
+   - `CHAIN_MODE=live` 必须写在 `.env` 本身中：`infra/fisco/gen.sh` 只读取 `.env` 来选择链管理员，否则 `LOCAL_` 的银行密钥会成为管理员，`deploy-fisco` 随之失败。
+   - 不要把 `infra/live.env` 中的值复制到 `.env`：`LIVE=1` 会在 `.env` 之后加入该文件，以它的值为准。
+   - MySQL 密码必须在 MySQL 首次启动前确定（其初始化脚本只创建一次用户）。
+   - `AGENT_MAX_ACTIVE=4`：一个 OpenCode 实例占用 350 到 850 MB（Q35），而这台 16 GB 的服务器还要运行其余所有服务。
+   - 如果第 2 步打印了 `UID_GID`，把它加上。`AGENT_SIGNER_URL`、`SOTER_ATTESTER_URL` 和两个白名单在第 9 步加入。
+5. **镜像**（服务器，在 tmux 中）：`bash scripts/deploy/build-images.sh` 下载 FISCO 二进制文件、构建其镜像、拉取 caddy 和 mysql，并用 make up 自己的 compose 命令构建生产 profile 的所有镜像。在笔记本电脑上用 4 个 CPU 冷构建 18 个镜像中的 17 个耗时 4 分 35 秒（agent-runner 未计时：在计时用的临时构建器中，它的预热步骤停住了）；在虚拟机上预计 5 到 10 分钟。镜像在运行它们的机器上构建：`make up` 会传入 `--build`，所以从笔记本电脑运过去的镜像（按 `docker save` 测得 1.87 GB）无论如何都会被重新构建，而且它们来自笔记本电脑的工作区，而不是服务器上的 commit。
+6. **TEE 镜像**（笔记本电脑，与第 5 步同时进行）：`PHALA_CONFIRM=1 REGISTRY=ghcr.io/hliosone scripts/deploy/phala-deploy.sh build`（第 7 节，在选定镜像仓库之后）。确认它打印的 commit 与服务器上 `git rev-parse HEAD` 的结果一致。
+7. **FISCO 链及其联盟**（服务器）。单独运行 `make up` 会在 `deploy-fisco` 打开部署白名单（Q22）之前启动 `wecross-setup` 和 `weid-deploy`，而且所用的 `fisco-live.json` 指向笔记本电脑的链，所以先启动基础服务和联盟：
+
+   ```bash
+   export CHAIN_MODE=live FISCO_KEYSET=LIVE P="core chain mocks agent wecross"
+   mkdir -p apps/web/dist infra/wecross/generated
+   bash scripts/dev/compose-env.sh    # .run/compose.env：LIVE 的钱包密钥和 FISCO 密钥
+   bash infra/fisco/gen.sh            # 4 个节点，管理员为 LIVE 的银行 FISCO 账户
+   make up-base PROD=1 LIVE=1 FISCO_KEYSET=LIVE PROFILES="$P"   # mysql、caddy（申请证书）、fisco-node0..3
+   make deploy-fisco ENV=live         # 先治理，再部署绑定 base-sepolia.json 的联盟：写入 fisco-live.json
+   ```
+
+   每次 make 调用都要带上 `FISCO_KEYSET=LIVE`：单独的 `LIVE=1` 会导出 `FISCO_KEYSET=LOCAL`（D75，这是针对笔记本电脑的选择）。
+8. **TEE CVM**（笔记本电脑，`PUBLIC_URL` 确定之后）：`PHALA_CONFIRM=1 PUBLIC_URL=https://app.<domain> scripts/deploy/phala-deploy.sh deploy`，然后对每台 CVM 运行 `phala cvms get`（第 7 节）。
+9. **让服务器指向 TEE**（服务器）：在 `.env` 末尾加入
+
+   ```bash
+   AGENT_SIGNER_URL=https://<agent-signer 的 app id>-3050.<网关域名>
+   SOTER_ATTESTER_URL=https://<soter-attester 的 app id>-3060.<网关域名>
+   ALLOWED_COMPOSE_HASHES_AGENT=0x<agent-signer 的 compose 哈希>
+   ALLOWED_COMPOSE_HASHES_ATTESTER=0x<soter-attester 的 compose 哈希>
+   ```
+
+   智能体白名单为空时，bank 拒绝 `ATTESTATION_MODE=phala`。若 CVM 无法工作，备选方案是 `PRAETOR_ENV=rehearsal`、`ATTESTATION_MODE=simulator`、不设 CVM URL，并在 profile 中加入 `tee-sim`（[MANUAL.md](../MANUAL.md) 第 2 步）：模拟器的密钥材料是公开的，所以这台服务器上的 TEE 声明不成立，而且在已有账户后再切换会走第 7 节那条未经测试的重新 KYA 路径。请在为任何账户开户之前做出决定。如果 CVM 只是还没就绪，第 10 和第 11 步（C0，不含 attester）可以先在该模式下运行；在第一个账户或 attester 之前切换（`make down PROD=1 LIVE=1`，在 `.env` 中写入 Phala 的值，再执行第 10 步）。
+10. **整套服务**（服务器）：`make up PROD=1 LIVE=1 FISCO_KEYSET=LIVE PROFILES="$P"`，然后 `make ps PROD=1 LIVE=1 FISCO_KEYSET=LIVE PROFILES="$P"`（所有服务健康；`weid-deploy` 和 `wecross-setup` 以 0 退出）。它保留链，复用第 5 步的镜像，构建 Web 应用，连接 WeCross（`scripts/wecross/up.sh`）并启动其余服务；`weid-deploy` 首次运行时用 Gradle 编译 WeIdentity 的 Build-Tools。
+11. **联盟初始化和价格**（服务器）：`pnpm exec tsx scripts/evidence/live-run.ts --only C0` 发起并中继上限、资产、CN 出款封锁和演示制裁，发送一次心跳，等待 feeder 推送首批 Pyth 价格，并从国库给新的 desk 转入 4 USDC；成功时打印 `C0:` 和两个 Pyth 价格，失败时打印 `C0: stopped:` 及原因。然后针对 CVM 激活 attester：
+
+    ```bash
+    SOTER_ATTESTER_URL_HOST=https://<soter-attester 的 app id>-3060.<网关域名> \
+      pnpm exec tsx -e "import('./scripts/demo/lib.ts').then(async (l) => console.log(await l.activateSoterAttester(l.stack())))"
+    ```
+
+    批准控制台设备：在 `https://app.<domain>` 的控制台中为每个角色点击“注册此设备”，然后运行 `pnpm exec tsx scripts/demo/staff.ts <bank|regulator|operator> '<控制台给出的 json>'`。绝不要在实链上运行 `pnpm seed` 或 `scripts/demo/smoke-real-model.ts`：它们按分叉的金额充值，并用公开的标签创建所有者。
+12. **账户、手机、记录。** 在 iPhone 上于 `https://app.<domain>` 开户（MANUAL 第 4 步），在账户获得 KYA 之后用 `pnpm exec tsx scripts/deploy/fund-account.ts <account> 5 2 1` 为其充值（每次最多 10 USDC，以及 6 和 3 美元的金属）。小程序：第 10 节。执行第 11 节的冒烟检查（自动化测试套件不在服务器上运行：它们使用脚本化模型和分叉金额），把 `infra/deployments/fisco-live.json` 拷回笔记本电脑（`scp praetor@<ip>:praetor/infra/deployments/fisco-live.json infra/deployments/`），提交它并填写第 11 节的表格。
+
+**需要人工决定的事项**（当天之前或当天）：
+
+- 第 1 步用 GCP 控制台还是 `gcloud`（笔记本电脑上未安装 gcloud）。
+- 域名和 ACME 邮箱（`app.<domain>` 必须在第 7 步之前能够解析）。
+- TEE 镜像的仓库：公开的 GHCR package（会公开源代码树），或私有 package 加一个作为加密环境变量的 `read:packages` 令牌（第 7 节）。
+- 服务器上 `docker login` 所用的 Docker Hub 账号（匿名拉取：每个 IP 每小时 10 次）。
+- Phala 额度：目前约够两台 CVM 运行 43 小时；评审期间每天约需 2.8 美元。
+- 在第一个账户之前，选择 Phala 还是模拟器备选方案（第 9 步）。
 
 ## 10. 隧道、手机和小程序域名
 
 - **手机连接笔记本电脑上的栈**（本地或 `make up LIVE=1`）：`make tunnel` 启动一个 cloudflared 快速隧道（`--protocol http2 --edge-ip-version 4`，即 Phase 0 中验证过的参数），通过本机的明文 HTTP 连接 Caddy，把 URL 写入 `.run/tunnel-url`，并把小程序的 develop 环境指向它；`make tunnel-stop` 结束隧道。每次启动都会得到新地址。`compose.prod.yml` 停用了隧道站点，因此生产 compose 从不使用它。测试人员的步骤：[TESTER.md](../TESTER.md)。
 - **Passkey 绑定主机名**（WebAuthn rpId）：若要在手机浏览器中对笔记本电脑上的栈使用 Face ID，需把 `PUBLIC_HOST` 和 `PUBLIC_URL` 设为隧道地址并再次运行 `make up`；此时自动化测试套件不适用（它们要求 `praetor.localhost`）。在 `praetor.localhost` 或隧道上创建的 passkey 只能在那里使用；部署后需要在 `app.<domain>` 上重新注册。
-- **小程序**：它以**调试模式**运行在团队手机上的微信测试账号中，因此不受域名白名单限制。用 `node apps/miniprogram/scripts/set-api-base.mjs release https://app.<domain>` 把其 release 环境指向域名；公众号回调 URL 也改为该域名。
+- **小程序**：它以**调试模式**运行在团队手机上的微信测试账号中，因此不受域名白名单限制。把它的三个环境都指向域名，因为在手机上用开发者工具预览时运行的是 `develop`（微信的开发版）：`for e in develop trial release; do node apps/miniprogram/scripts/set-api-base.mjs $e https://app.<domain>; done`。公众号回调 URL 也改为该域名。
 
 ## 11. 冒烟检查与记录
 
-spec 11 第 7 步要求运行 `make e2e BASE_URL=https://app.<domain> CHAIN_MODE=live`。测试套件目前并不读取 `BASE_URL`：`scripts/demo/lib.ts` 通过 Docker 网络（10.88.x）访问各服务，因此其辅助脚本在服务器本机上运行（它从 `PUBLIC_HOST` 和 `PUBLIC_URL` 读取 WebAuthn 主机，D99），而且 `make e2e` 最后运行需要 anvil 的 48 小时 warp 测试。目前存在的是：笔记本电脑上的 `make rehearsal`，以及针对同一台机器上运行的栈的 `make e2e-smoke`。在测试套件能通过域名访问整套服务之前，针对已部署域名的检查需要人工完成：在 `https://app.<domain>` 上执行 [MANUAL.md](../MANUAL.md) 的第 4、8 和 11 步，然后从中国大陆多个城市进行可达性检查（17CE）。
+spec 11 第 7 步要求运行 `make e2e BASE_URL=https://app.<domain> CHAIN_MODE=live`。测试套件目前并不读取 `BASE_URL`：`scripts/demo/lib.ts` 通过 Docker 网络（10.88.x）访问各服务，因此其辅助脚本在服务器本机上运行（它从 `PUBLIC_HOST` 和 `PUBLIC_URL` 读取 WebAuthn 主机，D99），而且 `make e2e` 最后运行需要 anvil 的 48 小时 warp 测试。目前存在的是：笔记本电脑上的 `make rehearsal`，以及针对同一台机器上运行的栈的 `make e2e-smoke`。在测试套件能通过域名访问整套服务之前，针对已部署域名的检查需要人工完成：在 `https://app.<domain>` 上执行 [MANUAL.md](../MANUAL.md) 的第 4、8 和 11 步，然后从中国大陆多个城市进行可达性检查（17CE）。绝不要针对服务器运行 `make e2e`、`make e2e-smoke` 或 `make e2e-live`：它们使用生产环境拒绝的脚本化模型，并按分叉的金额充值。在服务器上执行的只读检查（尚未运行）：
+
+```bash
+curl -s https://app.<domain>/api/health                                      # 经由 Caddy 访问 api
+echo | openssl s_client -connect app.<domain>:443 -servername app.<domain> 2>/dev/null | openssl x509 -noout -issuer -dates
+curl -sI https://app.<domain>/ | grep -i content-security-policy            # Caddy 的响应头已生效
+make ps PROD=1 LIVE=1 FISCO_KEYSET=LIVE PROFILES="core chain mocks agent wecross"
+make logs PROD=1 LIVE=1 FISCO_KEYSET=LIVE PROFILES="core chain mocks agent wecross" S=bridge-relayer   # 有投递记录，没有 BadNonce
+RPC=https://base-sepolia-rpc.publicnode.com; D=infra/deployments/base-sepolia.json
+cast call $(jq -r .mandateHook $D) "statusOf(address)(uint8,uint8,uint8,uint64)" 0x0000000000000000000000000000000000000000 --rpc-url $RPC   # 最后一个值：心跳有效期，应在未来
+cast call 0x0000000071727De22E5E9d8BAf0edAc6f37da032 "balanceOf(address)(uint256)" $(jq -r .paymaster $D) --rpc-url $RPC   # paymaster 剩余的押金
+bash scripts/deploy/prod-refusals.sh                                         # 5 个 ok
+```
 
 在下表记录所部署的内容（不含任何密钥）：
 

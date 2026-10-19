@@ -1,6 +1,6 @@
 # Deploying Praetor
 
-> **Status on 2026-10-19.** The Base contracts are deployed on Base Sepolia for the server (MandateHook `0x6411cc907Ace53F1Bdf8607a85991d3b38E79a5f`, `infra/deployments/base-sepolia.json`, D101) from this laptop's `LIVE_` keys; the server deploys their FISCO consortium on its own chain (section 6). The M16 deployment of 2026-10-18 (MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`, `infra/deployments/base-sepolia-m16.json`) keeps its consortium on the laptop's local FISCO chain (live mode, D74, D75), which today's `infra/deployments/fisco-live.json` still names. The production compose override, the rehearsal target and the prod refusal check exist, and the rehearsal passed on the fork on 2026-10-18 (M18, D90; section 9). The cloud deployment is a **Phase C step, done with the human** (spec 10) and has not happened; spec 11's server bootstrap script (`scripts/deploy/server-bootstrap.sh`) does not exist. This document gives the commands that exist, says plainly where the Makefile does not yet match spec 11, and is where Phase C records the values it uses (never a secret). Chinese version: [zh-CN/DEPLOY.md](zh-CN/DEPLOY.md).
+> **Status on 2026-10-19.** The Base contracts are deployed on Base Sepolia for the server (MandateHook `0x6411cc907Ace53F1Bdf8607a85991d3b38E79a5f`, `infra/deployments/base-sepolia.json`, D101) from this laptop's `LIVE_` keys; the server deploys their FISCO consortium on its own chain (section 6). The M16 deployment of 2026-10-18 (MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`, `infra/deployments/base-sepolia-m16.json`) keeps its consortium on the laptop's local FISCO chain (live mode, D74, D75), which today's `infra/deployments/fisco-live.json` still names. The production compose override, the rehearsal target and the prod refusal check exist, and the rehearsal passed on the fork on 2026-10-18 (M18, D90; section 9). The cloud deployment is a **Phase C step, done with the human** (spec 10) and has not happened. The server is a Google Cloud VM in Hong Kong (section 2). Its scripts exist and were tested on this laptop only, never against a server or Phala Cloud: `scripts/deploy/server-bootstrap.sh` (run twice in an `ubuntu:24.04` container), `scripts/deploy/build-images.sh`, and the TEE files `infra/phala/*.compose.yml` with `scripts/deploy/phala-deploy.sh` (against stub commands, section 7). Section 9 gives the server procedure in order. This document gives the commands that exist, says plainly where the Makefile does not yet match spec 11, and is where Phase C records the values it uses (never a secret). Chinese version: [zh-CN/DEPLOY.md](zh-CN/DEPLOY.md).
 
 ## 1. Environments
 
@@ -17,8 +17,8 @@ Only `PRAETOR_ENV=prod` triggers the production refusals, so the rehearsal can s
 
 ## 2. Topology in production
 
-- **One server** (spec 00: Tencent Cloud Lighthouse Hong Kong, 4 vCPU, 16 GB, Ubuntu LTS): Docker, firewall open on 22, 80 and 443 only, a non-root deploy user, unattended upgrades. It runs Caddy (an ACME certificate for `app.<domain>` through `CADDY_TLS`, DNS only, no CDN proxy), MySQL, the api, mcp, agent-runner with one OpenCode instance per awake user, the scheduler, bundler, notifier, oracle-feeder, the three member services, the bridge-relayer, the WeCross router and account manager, the four FISCO nodes, WeIdentity and the mocks.
-- **Two Phala Cloud CVMs** (`tdx.small`, Intel TDX with dstack): `agent-signer` and `soter-attester`, two separate measurements.
+- **One server**: a Google Cloud Compute Engine VM in `asia-east2` (Hong Kong), `e2-standard-4` (4 vCPU, 16 GB, x86_64), Ubuntu 24.04 LTS (the standard image, not Minimal), an 80 GB balanced persistent disk and a static external IPv4. The VPC firewall allows tcp 22, 80 and 443 only; `scripts/deploy/server-bootstrap.sh` adds Docker, ufw with the same three ports, a non-root deploy user and unattended upgrades. Spec 00 named Tencent Cloud Lighthouse Hong Kong, whose identity check takes 2 to 4 working days: it remains the alternative, with the same script and procedure and the Lighthouse firewall in place of the VPC rules. The default VPC's `asia-east2` subnet is `10.170.0.0/20`, and every subnet of an auto-mode VPC lies in `10.128.0.0/9`, clear of the stack's Docker networks (`10.88.0.0/16`, `10.89.0.0/24`, `10.90.0.0/24`); the bootstrap refuses a host with a route inside them, and lowers Docker's bridges to the VPC's 1460-byte MTU. It runs Caddy (an ACME certificate for `app.<domain>` through `CADDY_TLS`, DNS only, no CDN proxy), MySQL, the api, mcp, agent-runner with one OpenCode instance per awake user, the scheduler, bundler, notifier, oracle-feeder, the three member services, the bridge-relayer, the WeCross router and account manager, the four FISCO nodes, WeIdentity and the mocks.
+- **Two Phala Cloud CVMs** (`tdx.small`: 1 vCPU, 2 GB, Intel TDX with dstack, 0.058 USD an hour each): `agent-signer` and `soter-attester`, two separate measurements. On 2026-10-19 the workspace lists only `US-WEST-1` nodes, so each TEE call goes from Hong Kong to the US west coast, and about 5 USD of credit runs both CVMs for about 43 hours.
 - **External**: Base Sepolia RPC, the LLM (OpenCode Zen, DeepSeek), Pyth Hermes, Tencent's WeChat APIs, the browsers' push services.
 
 ## 3. Configuration and keys
@@ -112,18 +112,31 @@ make deploy-fisco ENV=live               # writes infra/deployments/fisco-live.j
 
 ## 7. TEEs on Phala Cloud
 
-For each of `agent-signer` and `soter-attester`:
+The CVMs' compose files are `infra/phala/agent-signer.compose.yml` and `infra/phala/soter-attester.compose.yml`; `scripts/deploy/phala-deploy.sh` builds, pushes and deploys them. Neither has run against Phala Cloud (`test/infra/phala-deploy.test.ts` runs the script against stub `docker` and `phala` commands).
 
-1. Build the image from the repository and push it to a registry; reference it **by digest** in the CVM's compose file (tee-checklist item 2).
-2. Deploy the CVM with the Phala Cloud CLI (`phala`, version 1.1.22 pinned in Phase 0) or the dashboard, with `PRAETOR_ENV=prod`, `ATTESTATION_MODE=phala` and the secrets as **encrypted environment variables**: agent-signer `SIGNER_HMAC_MCP`, `SIGNER_HMAC_API`, `SIGNER_HMAC_BANK`; soter-attester `ATTESTER_HMAC_API`, `MP_APPID`, `MP_SECRET`, plus the deployments file for the domain and hook address. The exact commands are recorded in section 11 when they are run.
-3. Read the CVM's app id and compose hash from the dashboard (or the service's `/v1/info`), and check it is a production, non-debug CVM.
-4. Point the server's `AGENT_SIGNER_URL` and `SOTER_ATTESTER_URL` at the CVMs (TLS inside the CVM is an open item of the checklist, item 6).
+- **What is measured.** Each file runs one service with `PRAETOR_ENV=prod`, `ATTESTATION_MODE=phala` and the dstack socket (`/var/run/dstack.sock`), from an image **by digest** (tee-checklist item 2). Everything written in the file goes into the CVM's compose hash: the image digest; agent-signer's `PUBLIC_URL` (it signs agent cards only for `<PUBLIC_URL>/mcp`, so the domain comes first); soter-attester's `DEPLOYMENTS_FILE`, the `base-sepolia.json` baked into its image (rebuild after a Base redeployment); the real WeChat API base. The list of encrypted variable names (`allowed_envs`) and the public log and sysinfo flags count too; the secret values do not, so changing a value alone keeps the hash.
+- **Encrypted environment variables**, the only inputs not measured: agent-signer `SIGNER_HMAC_MCP`, `SIGNER_HMAC_API`, `SIGNER_HMAC_BANK`; soter-attester `ATTESTER_HMAC_API`, `MP_APPID`, `MP_SECRET`; for a private image both also get `DSTACK_DOCKER_REGISTRY`, `DSTACK_DOCKER_USERNAME` and `DSTACK_DOCKER_PASSWORD`, with which Phala's pre-launch script logs in before pulling. The HMACs must equal the server's: section 9 copies them from the laptop's `.env` to the server's.
+- **Commands**, on the laptop (it has `phala` 1.1.22, the API key in `.env` and Docker). The script refuses to do anything without `PHALA_CONFIRM=1`:
+
+```bash
+gh auth refresh -s write:packages && gh auth token | docker login ghcr.io -u hliosone --password-stdin   # once: today's gh token cannot push packages
+PHALA_CONFIRM=1 REGISTRY=ghcr.io/hliosone scripts/deploy/phala-deploy.sh build   # git archive HEAD, build, push; digests in .run/phala/images.env
+PHALA_CONFIRM=1 PUBLIC_URL=https://app.<domain> scripts/deploy/phala-deploy.sh deploy
+export PHALA_CLOUD_API_KEY="$(grep -E '^PHALA_CLOUD_API_KEY=' .env | cut -d= -f2-)"   # the CLI is not logged in on the laptop
+phala cvms get praetor-agent-signer --json; phala cvms get praetor-soter-attester --json   # app id, compose hash, endpoints
+```
+
+  `build` builds both images from the committed tree (no untracked file, no uncommitted change), prints the commit and the hook baked into soter-attester, and pushes them. Build from the commit the server runs, or at least one with the same `infra/deployments/base-sepolia.json`. `deploy` creates `praetor-agent-signer` and `praetor-soter-attester` (`tdx.small`, `--no-dev-os` for a production OS image, `--no-public-logs`), or updates a CVM of that name in place. It reads the secrets from `ENV_FILE` (default `.env`), deletes the env files it hands to `phala`, and keeps the rendered compose files and phala's answers in `.run/phala/`.
+- **The registry, a choice for the human.** The repository is private, and a GHCR package pushed from it starts private. Either make the two packages public (package settings on GitHub): the images then publish the source tree, since `infra/node-service.Dockerfile` copies the whole build context (the tracked files minus `.dockerignore`: no `.env`, no keys, no docs). Or keep them private and add a classic token with `read:packages` only to the laptop's `.env` as `DSTACK_DOCKER_REGISTRY=ghcr.io`, `DSTACK_DOCKER_USERNAME=hliosone`, `DSTACK_DOCKER_PASSWORD=<token>` before `deploy` (GHCR takes classic tokens only). Those names enter `allowed_envs`, hence the compose hash: decide before registering the hashes (section 8).
+- **Endpoints.** Phala's gateway serves the two ports at `https://<app-id>-3050.<gateway domain>` and `https://<app-id>-3060.<gateway domain>` and terminates TLS there (TLS inside the CVM stays open, tee-checklist item 6). Only `/health` answers without a caller HMAC; `/v1/info` needs one like every `/v1` route, so read the app id and compose hash with `phala cvms get` and check that each CVM runs a production (non-dev) OS image. These URLs become the server's `AGENT_SIGNER_URL` and `SOTER_ATTESTER_URL` (section 9).
+- **Never delete and recreate agent-signer once accounts exist.** The CVM derives every agent key from its app id (`getKey`); a new CVM is a new app id, hence a new key for every account (below). Update in place: `deploy` again, same name.
+- **OS image.** The CLI picks the default image (`dstack-0.6.1` on 2026-10-19); the services use the 0.5 SDK and were tested on the 0.5.3 simulator. If the socket calls fail, deploy with `PHALA_OS_IMAGE=dstack-0.5.12`.
 
 Keys are derived inside the CVM (`getKey`), so the production agent keys differ from the simulator's: every existing account needs a new KYA and `SET_AGENT_KEY` for a key of the new TEE. The F10 rotation route (`POST /api/agent/rotate`) looks for the key Base holds among the TEE's key versions and finds none after a TEE change, so existing accounts would take the onboarding route instead (`POST /api/onboarding/agent/create`, then the mandate, the KYA and `SET_AGENT_KEY`). This path is read from the code and has **not been run** (neither the bank's KYA over an account that already has one from another TEE, nor a web app screen for it); check it in Phase C. Accounts created after the switch need nothing.
 
 ## 8. Register the compose hashes with the bank
 
-1. Put the two compose hashes in the bank's `ALLOWED_COMPOSE_HASHES_AGENT` and `ALLOWED_COMPOSE_HASHES_ATTESTER` and restart the bank. With `ATTESTATION_MODE=phala` the bank refuses to start without an agent allowlist.
+1. Put the two compose hashes (`phala cvms get`, section 7; written with `0x`, comma-separated when several) in the bank's `ALLOWED_COMPOSE_HASHES_AGENT` and `ALLOWED_COMPOSE_HASHES_ATTESTER` and restart the bank. With `ATTESTATION_MODE=phala` the bank refuses to start without an agent allowlist.
 2. Activate the attester: the bank issues a nonce (`POST /attesters/nonce`), the attester's quote is verified through Phala's verifier (`POST /attesters/verify`), and the bank signs the `AttesterAttestation` with the verified measurement (D33). It reaches Base through the transport.
 3. **Re-register on every change**: any change to an image or to a CVM compose file changes the hash; list the new hash before the new CVM serves, activate the new attester, and have any one member deactivate the old one (tee-checklist item 4).
 
@@ -141,38 +154,132 @@ make rehearsal     # PRAETOR_ENV=rehearsal make up PROD=1, then make e2e-smoke (
 
 Passed on 2026-10-18 (D90): smoke F1, F5, F8 16 of 16 and the five prod refusals, after three fixes the rehearsal found (the scheduler never overlaps band checks, each refusal check runs without a network, the api refuses the fake Tencent before connecting to MySQL). The smoke used the scripted model (the local stack's fake-llm container was still up and `PRAETOR_ENV=rehearsal` allows it; in prod agent-runner refuses `FAKE_LLM_URL`). Not rehearsed: live Base, the Phala TEEs and a real certificate (Phase C).
 
-**On the server (Phase C).** There is no server target yet:
+**On the server (Phase C, Google Cloud).** Not run yet. In order, with `<ip>` the static IP, `app.<domain>` the host and `praetor` the deploy user. Steps 6 and 8 run on the laptop and can overlap steps 5 and 7.
 
-```bash
-git clone --recurse-submodules <repository> praetor && cd praetor
-make setup                     # commit-msg hook, pnpm install --frozen-lockfile
-pnpm keys                      # after copying the laptop's LIVE_ keys into .env (section 5): fills the rest (mode 600)
-# fill the human values and the production values of section 3 into .env (CHAIN_MODE=live, CADDY_TLS, PUBLIC_HOST, ...)
-```
+1. **The VM** (Google Cloud console). Compute Engine, region `asia-east2`, `e2-standard-4`, boot disk Ubuntu 24.04 LTS x86/64 (not Minimal), 80 GB balanced persistent disk. Under networking, tick "Allow HTTP traffic" and "Allow HTTPS traffic" and reserve a static external IPv4. Under security, add the laptop's SSH public key (GCP names the user after the key's comment: `hliosone` below). In the VPC firewall rules, delete `default-allow-rdp` (and `default-allow-icmp` for 22, 80 and 443 only). Then point `app.<domain>` at the IP (A record, DNS only, TTL 300): Caddy asks for the certificate at its first start. With gcloud instead (not installed on the laptop; not run):
 
-What the Makefile does today, and the closest command:
+   ```bash
+   gcloud compute addresses create praetor-ip --region asia-east2
+   gcloud compute instances create praetor --zone asia-east2-a --machine-type e2-standard-4 \
+     --image-family ubuntu-2404-lts-amd64 --image-project ubuntu-os-cloud --boot-disk-size 80GB --boot-disk-type pd-balanced \
+     --address praetor-ip --tags http-server,https-server
+   gcloud compute firewall-rules create praetor-web --allow tcp:80,tcp:443 --target-tags http-server,https-server
+   ```
 
-- `make up PROD=1` adds `compose.prod.yml`, but without `LIVE=1` it still starts anvil (`up-base` and the default `dev` profile), and the default profiles include `tee-sim` (the TEE simulator).
-- `LIVE=1` drops anvil and the `dev` profile, but exports `FISCO_KEYSET=LOCAL` (D75, a laptop choice) and adds `infra/live.env`, whose values override `.env`.
-- Until a server target exists, the closest command is the following. It has **not been run**; check it in Phase C:
+2. **Bootstrap** (from the laptop; about 1.5 min in a container, not yet timed on a VM):
 
-```bash
-make up PROD=1 LIVE=1 FISCO_KEYSET=LIVE PROFILES="core chain mocks agent wecross"
-make deploy-fisco ENV=live     # the server's chain (section 6)
-make down && make up PROD=1 LIVE=1 FISCO_KEYSET=LIVE PROFILES="core chain mocks agent wecross"   # services reread fisco-live.json
-```
+   ```bash
+   scp scripts/deploy/server-bootstrap.sh hliosone@<ip>:
+   ssh hliosone@<ip> sudo bash server-bootstrap.sh   # Docker, user praetor (with your SSH key), ufw, swap, Node, pnpm, cast
+   ssh -t praetor@<ip> docker login                   # Docker Hub: about ten base images, anonymous pulls stop at 10 an hour
+   ```
 
-Then register the TEEs (sections 7 and 8) and onboard accounts.
+   It refuses a host route inside the stack's networks, and prints `UID_GID=<uid>:<gid>` when `praetor` could not get uid 1000 (the WeCross containers write `infra/wecross/generated` as that user): that line goes into `.env` at step 4.
+3. **The repository** (private): a read-only deploy key, no submodules (the server builds no contract).
+
+   ```bash
+   ssh praetor@<ip> 'ssh-keygen -q -t ed25519 -N "" -f ~/.ssh/id_ed25519 && cat ~/.ssh/id_ed25519.pub' > /tmp/praetor-server.pub
+   gh repo deploy-key add /tmp/praetor-server.pub -R hliosone/Praetor --title praetor-server
+   ssh praetor@<ip> 'GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" git clone -q git@github.com:hliosone/Praetor.git ~/praetor'
+   ```
+
+   The key cannot push: the server's `fisco-live.json` comes back to the laptop by `scp` (step 12).
+4. **`.env`** (mode 600). Copy from the laptop only what the server reuses, then add the production values and let `pnpm keys` generate the rest:
+
+   ```bash
+   grep -E '^(LIVE_[A-Z0-9_]+|SIGNER_HMAC_(MCP|API|BANK)|ATTESTER_HMAC_API|MP_APPID|MP_SECRET|PYTH_API_KEY|OPENCODE_API_KEY|OA_[A-Z_]+)=' .env \
+     | ssh praetor@<ip> 'umask 077; cat > ~/praetor/.env'
+   ssh praetor@<ip>
+   cd ~/praetor && cat >> .env <<'END'
+   PRAETOR_ENV=prod
+   CHAIN_MODE=live
+   PUBLIC_HOST=app.<domain>
+   PUBLIC_URL=https://app.<domain>
+   CADDY_TLS=<ACME account email>
+   ATTESTATION_MODE=phala
+   SOTER_FAKE_TENCENT=0
+   FAKE_LLM_URL=
+   VAPID_SUBJECT=mailto:<an address the push services can reach>
+   STANDING_ORDERS_INTERVAL_S=60
+   AGENT_MAX_ACTIVE=4
+   END
+   make setup    # commit-msg hook, pnpm install --frozen-lockfile
+   pnpm keys     # fills every missing secret (MySQL, sessions, internal tokens, staff enrolment tokens, VAPID, ...)
+   ```
+
+   - The `LIVE_` keys are the funded addresses and the hook's members (section 5): never regenerate them. From now on the laptop never runs `LIVE=1` (D97).
+   - The four TEE HMACs come from the laptop because the CVMs, deployed from the laptop, must hold the same values; `pnpm keys` keeps them (it only fills missing values).
+   - `CHAIN_MODE=live` must be in `.env` itself: `infra/fisco/gen.sh` reads only `.env` to pick the chain admin, else the `LOCAL_` bank key becomes admin and `deploy-fisco` fails.
+   - Do not copy `infra/live.env`'s values into `.env`: `LIVE=1` adds that file after `.env`, and its values win.
+   - The MySQL passwords must be final before MySQL's first start (its init script creates the users once).
+   - `AGENT_MAX_ACTIVE=4`: one OpenCode instance takes 350 to 850 MB (Q35) on a 16 GB server that runs everything else.
+   - Add `UID_GID` if step 2 printed it. `AGENT_SIGNER_URL`, `SOTER_ATTESTER_URL` and the two allowlists come at step 9.
+5. **Images** (server, in tmux): `bash scripts/deploy/build-images.sh` fetches the FISCO binary, builds its image, pulls caddy and mysql and builds every image of the production profiles with make up's own compose command. A cold build on 4 CPUs took 4 min 35 s on the laptop for 17 of the 18 images (agent-runner not timed: its warm step stalled under the throwaway builder used for the timing); expect 5 to 10 minutes on the VM. Images are built where they run: `make up` passes `--build`, so images shipped from the laptop (1.87 GB as measured by `docker save`) would be rebuilt anyway, and they would come from the laptop's working tree, not the server's commit.
+6. **TEE images** (laptop, during step 5): `PHALA_CONFIRM=1 REGISTRY=ghcr.io/hliosone scripts/deploy/phala-deploy.sh build` (section 7, after the registry choice). Check that the commit it prints is the server's `git rev-parse HEAD`.
+7. **The FISCO chain and its consortium** (server). `make up` alone would start `wecross-setup` and `weid-deploy` before `deploy-fisco` opens the deploy whitelist (Q22), against a `fisco-live.json` that names the laptop's chain, so the base services and the consortium come first:
+
+   ```bash
+   export CHAIN_MODE=live FISCO_KEYSET=LIVE P="core chain mocks agent wecross"
+   mkdir -p apps/web/dist infra/wecross/generated
+   bash scripts/dev/compose-env.sh    # .run/compose.env: the LIVE wallet and FISCO keys
+   bash infra/fisco/gen.sh            # 4 nodes, admin = the LIVE bank FISCO account
+   make up-base PROD=1 LIVE=1 FISCO_KEYSET=LIVE PROFILES="$P"   # mysql, caddy (takes the certificate), fisco-node0..3
+   make deploy-fisco ENV=live         # governance, then the consortium bound to base-sepolia.json: writes fisco-live.json
+   ```
+
+   `FISCO_KEYSET=LIVE` goes on every make call: `LIVE=1` alone exports `FISCO_KEYSET=LOCAL` (D75, a laptop choice).
+8. **TEE CVMs** (laptop, once `PUBLIC_URL` is final): `PHALA_CONFIRM=1 PUBLIC_URL=https://app.<domain> scripts/deploy/phala-deploy.sh deploy`, then `phala cvms get` for each (section 7).
+9. **Point the server at the TEEs** (server): append to `.env`
+
+   ```bash
+   AGENT_SIGNER_URL=https://<agent-signer app id>-3050.<gateway domain>
+   SOTER_ATTESTER_URL=https://<soter-attester app id>-3060.<gateway domain>
+   ALLOWED_COMPOSE_HASHES_AGENT=0x<agent-signer compose hash>
+   ALLOWED_COMPOSE_HASHES_ATTESTER=0x<soter-attester compose hash>
+   ```
+
+   The bank refuses `ATTESTATION_MODE=phala` with an empty agent allowlist. Without working CVMs, the fallback is `PRAETOR_ENV=rehearsal`, `ATTESTATION_MODE=simulator`, no CVM URLs and `tee-sim` added to the profiles ([MANUAL.md](MANUAL.md) step 2): the simulator's key material is public, so the TEE claims do not hold on that server, and switching once accounts exist forces the untested re-KYA path of section 7. Decide before onboarding any account. If the CVMs are only late, steps 10 and 11 (C0, without the attester) may run first in that mode; switch before the first account or attester (`make down PROD=1 LIVE=1`, the Phala values in `.env`, step 10 again).
+10. **The stack** (server): `make up PROD=1 LIVE=1 FISCO_KEYSET=LIVE PROFILES="$P"`, then `make ps PROD=1 LIVE=1 FISCO_KEYSET=LIVE PROFILES="$P"` (every service healthy; `weid-deploy` and `wecross-setup` exited 0). It keeps the chain, reuses the images of step 5, builds the web app, wires WeCross (`scripts/wecross/up.sh`) and starts the rest; `weid-deploy` compiles WeIdentity's Build-Tools with Gradle on its first run.
+11. **Consortium bootstrap and prices** (server): `pnpm exec tsx scripts/evidence/live-run.ts --only C0` opens and relays the caps, the assets, the CN payout block and the demo sanction, sends a heartbeat, waits for the feeder's first Pyth prices and gives the new desk 4 USDC from the treasury; it prints `C0:` with the two Pyth prices, or `C0: stopped:` and the reason. Then activate the attester against the CVM:
+
+    ```bash
+    SOTER_ATTESTER_URL_HOST=https://<soter-attester app id>-3060.<gateway domain> \
+      pnpm exec tsx -e "import('./scripts/demo/lib.ts').then(async (l) => console.log(await l.activateSoterAttester(l.stack())))"
+    ```
+
+    Approve the console devices: "Enrol this device" in the console at `https://app.<domain>` for each role, then `pnpm exec tsx scripts/demo/staff.ts <bank|regulator|operator> '<json from the console>'`. Never run `pnpm seed` or `scripts/demo/smoke-real-model.ts` on live: they fund at fork amounts and create owners from public labels.
+12. **Accounts, phones, record.** Onboard on an iPhone at `https://app.<domain>` (MANUAL step 4), then fund the account after its KYA with `pnpm exec tsx scripts/deploy/fund-account.ts <account> 5 2 1` (at most 10 USDC, 6 and 3 USD of metals per call). The mini program: section 10. Run the smoke checks of section 11 (the automated suites stay off the server: they use the scripted model and fork amounts), copy `infra/deployments/fisco-live.json` back to the laptop (`scp praetor@<ip>:praetor/infra/deployments/fisco-live.json infra/deployments/`), commit it and fill the table of section 11.
+
+**Open choices for the human** (before or during the day):
+
+- GCP console or `gcloud` for step 1 (gcloud is not installed on the laptop).
+- The domain and the ACME email (`app.<domain>` must resolve before step 7).
+- The registry for the TEE images: public GHCR packages (they publish the source tree) or private ones with a `read:packages` token as encrypted env (section 7).
+- A Docker Hub account for `docker login` on the server (anonymous pulls: 10 an hour per IP).
+- Phala credit: about 43 hours of both CVMs today; the judging period needs about 2.8 USD a day.
+- Phala, or the simulator fallback, before the first account (step 9).
 
 ## 10. Tunnels, phones and the mini program domain
 
 - **Phones against a laptop stack** (local or `make up LIVE=1`): `make tunnel` starts a cloudflared quick tunnel (`--protocol http2 --edge-ip-version 4`, the Phase 0 flags) to Caddy over plain HTTP on the machine, writes its URL to `.run/tunnel-url` and points the mini program's develop environment at it; `make tunnel-stop` ends it. Each start gives a new address. `compose.prod.yml` disables the tunnel site, so it is never used with the production compose. Steps for testers: [TESTER.md](TESTER.md).
 - **Passkeys are bound to the host** (WebAuthn rpId): for Face ID in a phone's browser against a laptop stack, set `PUBLIC_HOST` and `PUBLIC_URL` to the tunnel's address and run `make up` again; the automated suites then do not apply (they expect `praetor.localhost`). Passkeys created on `praetor.localhost` or a tunnel only work there: re-enrol on `app.<domain>` after deployment.
-- **Mini program**: it runs on the team's phones in **debug mode** under the WeChat test account, so no domain allowlist applies. Point its release environment at the domain with `node apps/miniprogram/scripts/set-api-base.mjs release https://app.<domain>`; the Official Account callback URL moves to the domain too.
+- **Mini program**: it runs on the team's phones in **debug mode** under the WeChat test account, so no domain allowlist applies. Point all three of its environments at the domain, since a DevTools Preview on a phone runs as `develop` (WeChat's development version): `for e in develop trial release; do node apps/miniprogram/scripts/set-api-base.mjs $e https://app.<domain>; done`. The Official Account callback URL moves to the domain too.
 
 ## 11. Smoke check and record
 
-Spec 11 step 7 asks for `make e2e BASE_URL=https://app.<domain> CHAIN_MODE=live`. The suites do not read `BASE_URL` yet: `scripts/demo/lib.ts` reaches the services on the Docker network (10.88.x), so its helpers run on the server itself (it takes the WebAuthn host from `PUBLIC_HOST` and `PUBLIC_URL`, D99), and `make e2e` ends with the 48 h warp test, which needs anvil. What exists: `make rehearsal` on a laptop and `make e2e-smoke` against a stack on the same machine. Against the deployed domain the check is manual until the suites reach the stack through the domain: [MANUAL.md](MANUAL.md) steps 4, 8 and 11 on `https://app.<domain>`, then a reachability check from mainland China cities (17CE).
+Spec 11 step 7 asks for `make e2e BASE_URL=https://app.<domain> CHAIN_MODE=live`. The suites do not read `BASE_URL` yet: `scripts/demo/lib.ts` reaches the services on the Docker network (10.88.x), so its helpers run on the server itself (it takes the WebAuthn host from `PUBLIC_HOST` and `PUBLIC_URL`, D99), and `make e2e` ends with the 48 h warp test, which needs anvil. What exists: `make rehearsal` on a laptop and `make e2e-smoke` against a stack on the same machine. Against the deployed domain the check is manual until the suites reach the stack through the domain: [MANUAL.md](MANUAL.md) steps 4, 8 and 11 on `https://app.<domain>`, then a reachability check from mainland China cities (17CE). Never run `make e2e`, `make e2e-smoke` or `make e2e-live` against the server: they use the scripted model, which prod refuses, and fund at fork amounts. Read-only checks on the server (not run yet):
+
+```bash
+curl -s https://app.<domain>/api/health                                      # the api through Caddy
+echo | openssl s_client -connect app.<domain>:443 -servername app.<domain> 2>/dev/null | openssl x509 -noout -issuer -dates
+curl -sI https://app.<domain>/ | grep -i content-security-policy            # Caddy's headers served
+make ps PROD=1 LIVE=1 FISCO_KEYSET=LIVE PROFILES="core chain mocks agent wecross"
+make logs PROD=1 LIVE=1 FISCO_KEYSET=LIVE PROFILES="core chain mocks agent wecross" S=bridge-relayer   # deliveries, no BadNonce
+RPC=https://base-sepolia-rpc.publicnode.com; D=infra/deployments/base-sepolia.json
+cast call $(jq -r .mandateHook $D) "statusOf(address)(uint8,uint8,uint8,uint64)" 0x0000000000000000000000000000000000000000 --rpc-url $RPC   # last value: heartbeat validity, in the future
+cast call 0x0000000071727De22E5E9d8BAf0edAc6f37da032 "balanceOf(address)(uint256)" $(jq -r .paymaster $D) --rpc-url $RPC   # the paymaster's deposit left
+bash scripts/deploy/prod-refusals.sh                                         # 5 x ok
+```
 
 Record below what was deployed (no secrets):
 
