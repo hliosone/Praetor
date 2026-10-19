@@ -159,6 +159,19 @@ describe('rebalance', () => {
     expect(sent).toHaveLength(0);
   });
 
+  it('T2: the approval request binds the swap\'s callHash, which the hook looks up, not the approve that only inherits its decision', async () => {
+    verdict = { reason: Reason.REBALANCE_LIMIT, tier: Tier.T2_HUMAN };
+    const p = ports();
+    const hashOf = (i: number) => `0x${String(i + 1).repeat(64)}` as Hex;
+    p.reader.check = async (_a, calls) => calls.map((_c, i) => ({ ...verdict, callHash: hashOf(i) }));
+    const r = await new PraetorTools(ACCOUNT, p).rebalance({ sell: 'tXAU', buy: 'USDC', amountUsd: '650' });
+    expect(r.structured).toMatchObject({ done: false, approvalId: 'apr_1', reason: 'REBALANCE_LIMIT' });
+    expect(requested).toHaveLength(1);
+    const req = requested[0] as { calls: { to: Address }[]; callHash: Hex };
+    expect(req.calls.map((c) => c.to)).toEqual([T.txau, T.desk]);
+    expect(req.callHash).toBe(hashOf(1));
+  });
+
   it('refuses the same asset on both sides and unknown symbols', async () => {
     expect((await tools().rebalance({ sell: 'USDC', buy: 'USDC', amountUsd: '10' })).isError).toBe(true);
     expect((await tools().rebalance({ sell: 'DOGE', buy: 'USDC', amountUsd: '10' })).isError).toBe(true);

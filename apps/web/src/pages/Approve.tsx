@@ -1,14 +1,18 @@
 // Approval (spec 06 F6): the full call, why it needs a human, the digest preimage. The page recomputes the
-// Tier2Approval digest itself from the preimage and refuses to sign a digest the server sent that differs from it.
+// Tier2Approval digest itself from the preimage and refuses to sign a digest the server sent that differs from it, or
+// a callHash that binds none of the calls it shows. It shows the bound call: in a rebalance that is the swap, not the
+// approve before it.
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { decodeFunctionData, erc20Abi } from 'viem';
-import { digest, praetorDomain } from '@praetor/protocol';
+import { decodeFunctionData, erc20Abi, formatUnits, parseAbi } from 'viem';
+import { callHash, digest, praetorDomain } from '@praetor/protocol';
 import { useI18n } from '../i18n/index.js';
 import { api, usd, type ApprovalView } from '../lib/api.js';
 import { assertDigest } from '../lib/passkey.js';
 import { useLoad } from '../lib/useLoad.js';
 import type { Config } from '../lib/policy.js';
+
+const SWAP = parseAbi(['function swap(address tokenIn, address tokenOut, uint256 amountIn, uint256 minOut)']);
 
 export function Approve() {
   const { t } = useI18n();
@@ -24,13 +28,21 @@ export function Approve() {
   const mine = digest(praetorDomain(cfg.data.domainName, cfg.data.mandateHook), 'Tier2Approval', {
     account: v.tier2.account, callHash: v.tier2.callHash, nonce: BigInt(v.tier2.nonce), expiresAt: BigInt(v.tier2.expiresAt),
   });
-  const matches = mine === v.digest;
-  const call = v.calls[0]!;
+  const bound = v.calls.findIndex((c) => callHash({ account: v.tier2.account, target: c.to, value: BigInt(c.value), data: c.data }) === v.tier2.callHash.toLowerCase());
+  const matches = mine === v.digest && bound >= 0;
+  const call = v.calls[Math.max(bound, 0)]!;
+  const c = cfg.data;
+  const sym = (t: string) => ({ [c.usdc.toLowerCase()]: 'USDC', [c.txau.toLowerCase()]: 'tXAU', [c.txag.toLowerCase()]: 'tXAG' })[t.toLowerCase()] ?? t;
+  const amount = (x: bigint, t: string) => (sym(t) === 'USDC' ? usd(x) : Number(formatUnits(x, 18)).toFixed(4));
   let what = `${call.to} ${call.data.slice(0, 10)}`;
   try {
-    const d = decodeFunctionData({ abi: erc20Abi, data: call.data });
+    const d = decodeFunctionData({ abi: [...erc20Abi, ...SWAP], data: call.data });
     if (d.functionName === 'transfer') what = `Pay ${usd(String(d.args[1]))} USDC to ${d.args[0]}`;
-  } catch { /* not a USDC transfer: show the raw call */ }
+    if (d.functionName === 'swap') {
+      const [tokenIn, tokenOut, amountIn, minOut] = d.args;
+      what = `Sell ${amount(amountIn, tokenIn)} ${sym(tokenIn)} for at least ${amount(minOut, tokenOut)} ${sym(tokenOut)}`;
+    }
+  } catch { /* neither a USDC transfer nor a desk swap: show the raw call */ }
   return (
     <section className="panel stack" style={{ maxWidth: 720 }}>
       <h1 style={{ fontSize: 'var(--s-30)' }}>{t('approve.title')}</h1>

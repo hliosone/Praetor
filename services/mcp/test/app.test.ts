@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { createMcpApp, inSubnet, type TokenStore } from '../src/app.js';
+import { encodeFunctionData, erc20Abi } from 'viem';
+import { TreasuryDeskAbi } from '@praetor/chain';
 import { callHash } from '@praetor/protocol';
 import type { Ports } from '../src/tools.js';
 
@@ -68,6 +70,49 @@ describe('resubmission needs the owner\'s live approval on Base', () => {
     await request(a).post('/internal/resubmit').set('authorization', 'Bearer api-token').send({ account: ACCOUNT, calls: [one] }).expect(409);
     expect(asked).toEqual([{ account: ACCOUNT, hash: callHash({ account: ACCOUNT, target: one.to, value: 0n, data: one.data }) }]);
     await request(a).post('/internal/resubmit').set('authorization', 'Bearer api-token').send({ account: ACCOUNT, calls: [one, one] }).expect(400);
+    expect(sent).toEqual([]);
+  });
+});
+
+describe('resubmission of an owner-approved rebalance (F4 failures, F6 step 8)', () => {
+  const T = ports.tokens as { txau: `0x${string}`; txag: `0x${string}`; usdc: `0x${string}`; desk: `0x${string}` };
+  const approve = (token: `0x${string}`, spender: `0x${string}`, amount: bigint) => ({ to: token, value: '0', data: encodeFunctionData({ abi: erc20Abi, functionName: 'approve', args: [spender, amount] }) });
+  const swap = (tokenIn: `0x${string}`, amountIn: bigint) => ({ to: T.desk, value: '0', data: encodeFunctionData({ abi: TreasuryDeskAbi, functionName: 'swap', args: [tokenIn, T.usdc, amountIn, 1n] }) });
+  const setup = (live: boolean) => {
+    const sent: unknown[] = [];
+    const asked: unknown[] = [];
+    const p = { ...ports, submit: async (account: string, calls: unknown[]) => { sent.push({ account, calls }); return { userOpHash: '0x1', txHash: '0x2', success: true, reasons: [], refusalLogTx: null }; } } as unknown as Ports;
+    const a = createMcpApp({
+      tokens: new MemTokens(), ports: () => p, internalToken: 'int-token', apiToken: 'api-token', agentSubnet: '10.90.0.0/24', baseUrl: 'https://praetor.localhost',
+      liveApproval: async (account, hash) => { asked.push({ account, hash }); return live; },
+    });
+    const post = (calls: unknown[]) => request(a).post('/internal/resubmit').set('authorization', 'Bearer api-token').send({ account: ACCOUNT, calls });
+    return { sent, asked, post };
+  };
+  const swapHash = (c: { to: `0x${string}`; data: `0x${string}` }) => callHash({ account: ACCOUNT as `0x${string}`, target: c.to, value: 0n, data: c.data });
+
+  it('resubmits [token.approve(desk, x), desk.swap(token, ..., x, ...)] when the swap, the call the hook decides on, has the live approval', async () => {
+    const { sent, asked, post } = setup(true);
+    const calls = [approve(T.txau, T.desk, 5n), swap(T.txau, 5n)];
+    await post(calls).expect(200);
+    expect(asked).toEqual([{ account: ACCOUNT, hash: swapHash(calls[1]!) }]);
+    expect(sent).toEqual([{ account: ACCOUNT, calls: calls.map((c) => ({ ...c, value: 0n })) }]);
+  });
+
+  it('409 without a live approval for the swap', async () => {
+    const { sent, post } = setup(false);
+    await post([approve(T.txau, T.desk, 5n), swap(T.txau, 5n)]).expect(409);
+    expect(sent).toEqual([]);
+  });
+
+  it('400 for any other pair: another spender, amount or token than the swap\'s, or a first call that is not an approve', async () => {
+    const { sent, asked, post } = setup(true);
+    await post([approve(T.txau, T.txag, 5n), swap(T.txau, 5n)]).expect(400);
+    await post([approve(T.txau, T.desk, 6n), swap(T.txau, 5n)]).expect(400);
+    await post([approve(T.txag, T.desk, 5n), swap(T.txau, 5n)]).expect(400);
+    await post([swap(T.txau, 5n), swap(T.txau, 5n)]).expect(400);
+    await post([{ ...approve(T.txau, T.desk, 5n), value: '1' }, swap(T.txau, 5n)]).expect(400);
+    expect(asked).toEqual([]);
     expect(sent).toEqual([]);
   });
 });

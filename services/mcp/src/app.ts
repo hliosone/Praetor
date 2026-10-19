@@ -7,7 +7,8 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
-import type { Address, Hex } from 'viem';
+import { decodeFunctionData, erc20Abi, type Address, type Hex } from 'viem';
+import { TreasuryDeskAbi } from '@praetor/chain';
 import { callHash } from '@praetor/protocol';
 import { PraetorTools, type Ports, type ToolResult } from './tools.js';
 
@@ -36,6 +37,21 @@ export type McpAppDeps = {
 };
 
 export const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
+
+/** `token.approve(desk, x)` followed by `desk.swap(token, tokenOut, x, minOut)`, both without value. */
+function approvesSwap(a: { to: string; value: bigint; data: string }, s: { to: string; value: bigint; data: string }, desk: Address): boolean {
+  if (a.value !== 0n || s.value !== 0n || s.to.toLowerCase() !== desk.toLowerCase() || a.data.length !== 138) return false;
+  try {
+    const ap = decodeFunctionData({ abi: erc20Abi, data: a.data as Hex });
+    const sw = decodeFunctionData({ abi: TreasuryDeskAbi, data: s.data as Hex });
+    if (ap.functionName !== 'approve' || sw.functionName !== 'swap') return false;
+    const [spender, amount] = ap.args;
+    const [tokenIn, , amountIn] = sw.args as readonly [Address, Address, bigint, bigint];
+    return spender.toLowerCase() === desk.toLowerCase() && tokenIn.toLowerCase() === a.to.toLowerCase() && amount === amountIn;
+  } catch {
+    return false;
+  }
+}
 
 export function inSubnet(ip: string | undefined, cidr: string): boolean {
   if (!ip) return false;
@@ -115,9 +131,11 @@ export function createMcpApp(d: McpAppDeps) {
   app.post('/internal/resubmit', express.json(), api, h(async (req, res) => {
     const call = z.object({ to: address, value: z.union([z.string().regex(/^\d+$/), z.number().int().nonnegative()]).transform((v) => BigInt(v)), data: z.string().regex(/^0x[0-9a-fA-F]*$/) });
     // An approval is for one call (its callHash, F6): only a call the owner approved on Base, still live, is resubmitted,
-    // so a holder of the api token cannot have the agent key sign anything else.
-    const b = z.object({ account: address, calls: z.array(call).length(1) }).parse(req.body);
-    const c = b.calls[0]!;
+    // so a holder of the api token cannot have the agent key sign anything else. The one batch is a rebalance: the owner
+    // approved the swap, and the approve before it is exactly the one the hook pairs with that swap (DecisionLib._pairs).
+    const b = z.object({ account: address, calls: z.array(call).min(1).max(2) }).parse(req.body);
+    const c = b.calls.at(-1)!;
+    if (b.calls.length === 2 && !approvesSwap(b.calls[0]!, c, d.ports().tokens.desk)) return res.status(400).json({ error: 'BadRequest' });
     if (!(await d.liveApproval(b.account as Address, callHash({ account: b.account as Address, target: c.to as Address, value: c.value, data: c.data as Hex })))) {
       return res.status(409).json({ error: 'no live approval for this call' });
     }

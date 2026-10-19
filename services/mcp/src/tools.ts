@@ -53,6 +53,7 @@ type Symbol = (typeof SYMBOLS)[number];
 const usd = (v6: bigint) => `${v6 < 0n ? '-' : ''}${(Number(v6 < 0n ? -v6 : v6) / 1e6).toFixed(2)}`;
 const pct = (bps: number) => `${(bps / 100).toFixed(1).replace(/\.0$/, '')}%`;
 const reasonName = (r: number) => REASONS[r] ?? `REASON_${r}`;
+const APPROVE = '0x095ea7b3'; // approve(address,uint256)
 const tierName = (t: number) => TIERS[t] ?? `TIER_${t}`;
 
 /** "12.5" -> 12_500_000 (6 decimals); null for anything else. */
@@ -222,6 +223,12 @@ export class PraetorTools {
     return v.find((x) => x.reason !== Reason.OK) ?? v[0] ?? { reason: Reason.OK, tier: Tier.T1_AUTONOMOUS, callHash: `0x${'00'.repeat(32)}` };
   }
 
+  /** The callHash an owner approval must bind: the hook looks up the approval of the call it decides on (a payment or
+   *  a swap); an `approve` of the pattern only inherits the decision of the call after it (DecisionLib.evaluate). */
+  private approvalHash(calls: Call[], v: Verdict[]): Hex | undefined {
+    return v.find((x, i) => x.tier === Tier.T2_HUMAN && x.reason !== Reason.OK && calls[i]?.data.slice(0, 10).toLowerCase() !== APPROVE)?.callHash;
+  }
+
   async explain(a: { type: 'pay'; payee: string; amount: string } | { type: 'rebalance'; sell: string; buy: string; amountUsd: string }): Promise<ToolResult> {
     const built = a.type === 'pay' ? await this.payCalls(a.payee, a.amount) : await this.rebalanceCalls(a.sell, a.buy, a.amountUsd);
     if (typeof built === 'string') return { text: built, isError: true };
@@ -229,7 +236,7 @@ export class PraetorTools {
     const w = this.worst(v);
     // The tier, not the reason name, says whether the owner can lift it (BUDGET_EXCEEDED and BAND_BREACH have both).
     // The T0 wording keeps "would be refused": the red-team parser must not read a dry run as an on-chain refusal.
-    // Only a payment gets the hint to submit it: an approved rebalance is never executed yet (D93).
+    // Only a payment gets the hint to submit it (D93), until an e2e run proves the owner-approved rebalance end to end.
     const submit = a.type === 'pay' ? '. This is not a refusal: if the user asked for it, call pay to submit it, which sends the owner an approval request (WeChat or the web app)' : '';
     const verdict = w.reason === Reason.OK
       ? 'would be done autonomously (T1)'
@@ -248,7 +255,7 @@ export class PraetorTools {
     const reason = reasonName(s.reasons[0] ?? w.reason);
     const links = `Refused operation: ${this.tx(s.txHash)}; refusal record: ${this.tx(s.refusalLogTx)}`;
     if (w.tier === Tier.T2_HUMAN) {
-      const { id } = await this.p.approvals.request({ account: this.account, calls, callHash: w.callHash, reason, summary });
+      const { id } = await this.p.approvals.request({ account: this.account, calls, callHash: this.approvalHash(calls, v) ?? w.callHash, reason, summary });
       return {
         text: `Not done yet: ${reason} needs the owner's approval. Request ${id} is waiting for the owner (WeChat or the web app). Do not retry with other amounts or payees; check it later with get_approval. ${links}`,
         structured: { done: false, approvalId: id, reason, tier: tierName(w.tier) },
