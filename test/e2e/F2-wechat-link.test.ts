@@ -39,7 +39,10 @@ describe('F2 link WeChat', () => {
     expect((await web.ok('GET', `/api/wechat/link/${id}`)).state).toBe('scanned');
     expect((await web.ok('POST', `/api/wechat/link/${id}/confirm`, { assertion: web.assert(start.digest) })).success).toBe(true);
     const binding = await pub(s).readContract({ address: s.base.mandateHook, abi: MandateHookAbi, functionName: 'bindingOf', args: [web.account!] });
-    expect(binding).toBe(bindingHash({ mpAppId: 'wx-fake-local', openid: `openid-of-${code}`, uid: `uid-${tag}`, cpuId: `cpu-${tag}` }));
+    // The mini program app id the stack runs with, resolved as compose does (shell, then .env), else the services'
+    // fake default: a machine set up for the phone tests keeps the test account's app id in .env.
+    const mpAppId = process.env.MP_APPID || s.env.MP_APPID || 'wx-fake-local';
+    expect(binding).toBe(bindingHash({ mpAppId, openid: `openid-of-${code}`, uid: `uid-${tag}`, cpuId: `cpu-${tag}` }));
   }, 300_000);
 
   it('spec 05: signed in with a wx.login code, the mini program links under its session, then reads the account', async () => {
