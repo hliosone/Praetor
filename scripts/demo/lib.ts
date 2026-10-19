@@ -93,6 +93,10 @@ export async function attesterCall(s: Stack, path: string, body?: unknown): Prom
   return { status: r.status, body: await r.json().catch(() => null) };
 }
 
+/** The consortium's FISCO deployment in the stack's mode: the FISCO_DEPLOYMENTS_FILE the services read (infra/.env.example,
+ *  infra/live.env). */
+export const fiscoDeploymentsFile = (s: Pick<Stack, 'set'>) => `${root}infra/deployments/${s.set === 'LIVE' ? 'fisco-live' : 'fisco-local'}.json`;
+
 /** The SOTER attester TEE, activated on the hook: the bank verifies its quote, then co-signs the activation. */
 export async function activateSoterAttester(s: Stack): Promise<Address> {
   const { attester } = await ok(attesterCall(s, '/v1/info'), 'attester info');
@@ -102,7 +106,7 @@ export async function activateSoterAttester(s: Stack): Promise<Address> {
   const { quote } = await ok(attesterCall(s, '/v1/attest', { nonce }), 'attester quote');
   const { measurement } = await ok(member(s, 'bank', '/attesters/verify', { attester, nonce, quote }), 'attester quote check');
   // A board keeps one open proposal per key until its deadline: join a matching one left open (never signed).
-  const fisco = JSON.parse(readFileSync(`${root}infra/deployments/fisco-local.json`, 'utf8')) as { attesterRegistry: Address };
+  const fisco = JSON.parse(readFileSync(fiscoDeploymentsFile(s), 'utf8')) as { attesterRegistry: Address };
   const fiscoPub = createPublicClient({ transport: http(process.env.FISCO_RPC_URL_HOST ?? 'http://10.88.1.10:8545') });
   const key = keccak256(encodeAbiParameters([{ type: 'uint8' }, { type: 'bytes32' }], [7, pad(attester as Hex)]));
   const openId = await fiscoPub.readContract({ address: fisco.attesterRegistry, abi: parseAbi(['function openProposalOf(bytes32) view returns (uint256)']), functionName: 'openProposalOf', args: [key] });

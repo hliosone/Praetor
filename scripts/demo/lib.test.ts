@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { softPasskey } from '@praetor/protocol';
-import { chainSet, devStaff, publicOrigin, root, type Stack } from './lib.js';
+import { chainSet, devStaff, fiscoDeploymentsFile, publicOrigin, root, type Stack } from './lib.js';
 
-const example = Object.fromEntries(readFileSync(`${root}infra/.env.example`, 'utf8').split('\n').filter((l) => /^[A-Z0-9_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]));
+const envFile = (p: string) => Object.fromEntries(readFileSync(`${root}${p}`, 'utf8').split('\n').filter((l) => /^[A-Z0-9_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]));
+const example = envFile('infra/.env.example');
 
 describe('stack: the WebAuthn host the member services and the api check assertions against', () => {
   it('defaults to the local host of infra/.env.example', () => {
@@ -57,5 +58,12 @@ describe('scripted staff passkeys: public labels on the fork, a per-deployment s
   it('never puts the token itself in the credential id (softPasskey writes its label there in clear)', () => {
     const k = devStaff(at('LIVE', { STAFF_ENROL_TOKEN_OPERATOR: 'test-token-operator' }), 'operator');
     expect(Buffer.from(k.credentialId, 'base64url').toString()).not.toContain('test-token-operator');
+  });
+});
+
+describe('activateSoterAttester: the FISCO deployment the services read in each mode', () => {
+  it('fisco-local on the fork, fisco-live on live (FISCO_DEPLOYMENTS_FILE of infra/.env.example and infra/live.env)', () => {
+    expect(fiscoDeploymentsFile({ set: 'LOCAL' })).toBe(`${root}${example.FISCO_DEPLOYMENTS_FILE}`);
+    expect(fiscoDeploymentsFile({ set: 'LIVE' })).toBe(`${root}${envFile('infra/live.env').FISCO_DEPLOYMENTS_FILE}`);
   });
 });
