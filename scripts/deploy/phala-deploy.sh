@@ -43,7 +43,7 @@ secrets_of() {
 
 build() {
   [ -n "${REGISTRY:-}" ] || die "set REGISTRY (for example ghcr.io/<owner>): where Phala pulls the images from"
-  local sha src svc meta digest images=()
+  local sha src svc meta digest remote images=()
   sha="$(git rev-parse --short=12 HEAD)"
   src="$OUT_DIR/src"
   rm -rf "$src" && mkdir -p "$src"
@@ -56,6 +56,9 @@ build() {
       --metadata-file "$meta" "$src"
     digest="$(jq -r '."containerimage.digest"' "$meta")"
     [[ $digest =~ ^sha256:[0-9a-f]{64}$ ]] || die "no image digest for $svc in $meta"
+    # The CVM pulls by this digest at boot: check it is what the registry serves, not only what BuildKit reported.
+    remote="$(docker buildx imagetools inspect "$REGISTRY/praetor-$svc:$sha" --format '{{.Manifest.Digest}}')"
+    [ "$remote" = "$digest" ] || die "the registry serves $remote for praetor-$svc:$sha, not the built $digest"
     images+=("$(var_of "$svc")=$REGISTRY/praetor-$svc@$digest")
   done
   printf '%s\n' "${images[@]}" "SOURCE_COMMIT=$sha" > "$OUT_DIR/images.env"

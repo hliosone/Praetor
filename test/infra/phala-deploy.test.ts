@@ -71,9 +71,11 @@ describe('scripts/deploy/phala-deploy.sh', () => {
     log = join(dir, 'calls.log');
     mkdirSync(join(dir, 'bin'));
     mkdirSync(out);
-    // docker: records the call; a build writes the digest BuildKit would report into --metadata-file.
+    // docker: records the call; a build writes the digest BuildKit would report into --metadata-file, and the registry
+    // serves that digest (STUB_REMOTE overrides it).
     writeFileSync(join(dir, 'bin', 'docker'), `#!/bin/bash
 echo "docker $*" >> "$STUB_LOG"
+[ "$1 $2 $3" = "buildx imagetools inspect" ] && { printf '%s' "\${STUB_REMOTE:-sha256:${'c'.repeat(64)}}"; exit 0; }
 while [ $# -gt 0 ]; do
   case "$1" in --metadata-file) shift; echo '{"containerimage.digest":"sha256:${'c'.repeat(64)}"}' > "$1" ;; esac
   shift
@@ -114,6 +116,7 @@ exit 0
     expect(r.status).toBe(0);
     const builds = calls().filter((c) => c.startsWith('docker buildx build'));
     expect(builds).toHaveLength(2);
+    expect(calls().filter((c) => c.startsWith('docker buildx imagetools inspect'))).toHaveLength(2);
     const head = spawnSync('git', ['-C', root, 'rev-parse', '--short=12', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
     for (const [i, svc] of ['agent-signer', 'soter-attester'].entries()) {
       expect(builds[i]).toContain(`--build-arg SERVICE=${svc}`);
@@ -129,6 +132,13 @@ exit 0
     // The context is the commit, not the working tree: tracked files only.
     expect(existsSync(join(out, 'src', 'infra/node-service.Dockerfile'))).toBe(true);
     expect(existsSync(join(out, 'src', '.env'))).toBe(false);
+  });
+
+  it('stops when the registry serves another digest than the one built', () => {
+    const r = run(['build'], { PHALA_CONFIRM: '1', REGISTRY: 'ghcr.io/example', STUB_REMOTE: digest('d') });
+    expect(r.status).not.toBe(0);
+    expect(r.stderr).toMatch(/registry serves sha256:d+ .*not the built sha256:c+/);
+    expect(existsSync(join(out, 'images.env'))).toBe(false);
   });
 
   it('deploys each CVM from its rendered compose with only its own secrets, then deletes the env files', () => {
