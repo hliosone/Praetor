@@ -1,6 +1,6 @@
 # Deploying Praetor
 
-> **Status on 2026-10-18.** The Base contracts are deployed on Base Sepolia (MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`, `infra/deployments/base-sepolia.json`) from this laptop's `LIVE_` keys, and their consortium on the laptop's local FISCO chain (live mode, D74, D75). The production compose override, the rehearsal target and the prod refusal check exist, and the rehearsal passed on the fork on 2026-10-18 (M18, D90; section 9). The cloud deployment is a **Phase C step, done with the human** (spec 10) and has not happened; spec 11's server bootstrap script (`scripts/deploy/server-bootstrap.sh`) does not exist. This document gives the commands that exist, says plainly where the Makefile does not yet match spec 11, and is where Phase C records the values it uses (never a secret). Chinese version: [zh-CN/DEPLOY.md](zh-CN/DEPLOY.md).
+> **Status on 2026-10-19.** The Base contracts are deployed on Base Sepolia for the server (MandateHook `0x6411cc907Ace53F1Bdf8607a85991d3b38E79a5f`, `infra/deployments/base-sepolia.json`, D101) from this laptop's `LIVE_` keys; the server deploys their FISCO consortium on its own chain (section 6). The M16 deployment of 2026-10-18 (MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`, `infra/deployments/base-sepolia-m16.json`) keeps its consortium on the laptop's local FISCO chain (live mode, D74, D75), which today's `infra/deployments/fisco-live.json` still names. The production compose override, the rehearsal target and the prod refusal check exist, and the rehearsal passed on the fork on 2026-10-18 (M18, D90; section 9). The cloud deployment is a **Phase C step, done with the human** (spec 10) and has not happened; spec 11's server bootstrap script (`scripts/deploy/server-bootstrap.sh`) does not exist. This document gives the commands that exist, says plainly where the Makefile does not yet match spec 11, and is where Phase C records the values it uses (never a secret). Chinese version: [zh-CN/DEPLOY.md](zh-CN/DEPLOY.md).
 
 ## 1. Environments
 
@@ -65,13 +65,13 @@ The script refuses any chain but 84532, keeps 0.006 ETH on the deployer (the dep
 ## 5. Deploy the Base contracts
 
 ```bash
-DRY_RUN=1 make deploy-contracts ENV=base-sepolia                          # simulates: gas and cost, sends nothing
+DRY_RUN=1 PAYMASTER_DEPOSIT_WEI=4000000000000000 make deploy-contracts ENV=base-sepolia   # simulates: gas and cost, sends nothing
 PAYMASTER_DEPOSIT_WEI=4000000000000000 make deploy-contracts ENV=base-sepolia
 ```
 
 `scripts/deploy/contracts.sh` maps the `LIVE_` keys to the names `contracts/base/script/Deploy.s.sol` reads (without printing a value), deploys every contract with domain `Praetor`, wires the hook to its modules last, funds the paymaster deposit (0.02 ETH by default on live; 0.004 ETH above, about 1,600 sponsored operations) and writes `infra/deployments/base-sepolia.json`. The RPC is `BASE_LIVE_RPC_URL` (default `https://sepolia.base.org`). `make deploy-contracts ENV=sandbox` deploys with the `SANDBOX_` keys and domain `Praetor-sandbox`.
 
-**The existing deployment.** On 2026-10-18 this sequence deployed Praetor on Base Sepolia at block 48253270 for about 0.0045 ETH in all (MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`, the M16 evidence run). The hook's three member addresses are immutable constructor arguments (bank `0x9D45C4755CD26acAf3DAb12fE2c1B42AAdd1d52e`, regulator `0x5faaf3F8CC672A5357E648C9dfD81cD84d21e4e0`, operator `0x353046676e122D8eCb6F474A3aA57DBb338A525f`).
+**The deployments.** On 2026-10-18 this sequence deployed Praetor on Base Sepolia at block 48253270 for about 0.0045 ETH in all (MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`, the M16 evidence run, now `base-sepolia-m16.json`). On 2026-10-19 it deployed again for the server, from the same keys, at block 48301428 (MandateHook `0x6411cc907Ace53F1Bdf8607a85991d3b38E79a5f`, paymaster `0x046922c731253E268B1856479D08a10b10Fa8314`, `base-sepolia.json`, D101): 38 transactions, 19.7M gas, 0.000118 ETH plus a 0.003 ETH paymaster deposit, after taking back the M16 paymaster's 0.0039835 ETH. The hook's three member addresses are immutable constructor arguments, the same in both (bank `0x9D45C4755CD26acAf3DAb12fE2c1B42AAdd1d52e`, regulator `0x5faaf3F8CC672A5357E648C9dfD81cD84d21e4e0`, operator `0x353046676e122D8eCb6F474A3aA57DBb338A525f`).
 
 **The server gets a new Base deployment from the same `LIVE_` keys; do not put a new FISCO chain behind this one (D100).** The hook takes a consortium message only with the next nonce of its key (`ConsortiumLib._fresh`: `nonce == stored + 1`; `Anchor`: `seq == stored + 1`; I18), and a fresh FISCO consortium numbers every key from 1 again (`Board._allocate`). On 2026-10-19 the hook held heartbeat epoch 6, anchor seq 3, the caps of profile 2 at nonce 1 and the assets active. With the server's new chain behind it:
 
@@ -79,7 +79,7 @@ PAYMASTER_DEPOSIT_WEI=4000000000000000 make deploy-contracts ENV=base-sepolia
 - Opening them anyway changes nothing on Base: the relayer finds the hook already at those nonces (`BadNonce`, marked already applied) and Base keeps its old values.
 - Heartbeat epochs 1 to 6 and anchors 1 to 3 are dropped the same way: Base stays stale, so every agent payment is `STALE_STATUS`, until epoch 7, and anchors resume only at seq 4.
 
-Redeploy from the laptop (it has forge, the submodules and `.env`) before the server clones the repository:
+Done on 2026-10-19 from the laptop (it has forge, the submodules and `.env`), before the server clones the repository (D101):
 
 ```bash
 cp infra/deployments/base-sepolia.json infra/deployments/base-sepolia-m16.json   # the M16 addresses stay on record
@@ -89,13 +89,13 @@ DEP=$(cast call $EP "balanceOf(address)(uint256)" $OLD_PM --rpc-url $RPC | cut -
 cast send $OLD_PM "withdrawTo(address,uint256)" 0x7b5bB06482513F6032baD053018ee387A7dac771 $DEP \
   --private-key "$(grep -E '^LIVE_DEPLOYER_KEY=' .env | cut -d= -f2-)" --rpc-url $RPC
 # 2. Simulate, then deploy with a 0.003 ETH paymaster deposit.
-DRY_RUN=1 make deploy-contracts ENV=base-sepolia
+DRY_RUN=1 PAYMASTER_DEPOSIT_WEI=3000000000000000 make deploy-contracts ENV=base-sepolia
 PAYMASTER_DEPOSIT_WEI=3000000000000000 make deploy-contracts ENV=base-sepolia
 # 3. Commit infra/deployments/base-sepolia.json and base-sepolia-m16.json, push.
 ```
 
 - **Cost**: the 2026-10-18 deployment took 42 transactions and about 30.4M gas, about 0.0002 ETH at 0.006 gwei, plus the new paymaster deposit. The deployer held about 0.0023 ETH on 2026-10-19, so taking back the old deposit comes first, not as an option; with it the redeploy roughly pays for itself. The member, feeder, desk operator, paymaster signer and treasury addresses stay the same, so nothing else needs funding. The new `deployBlock` also restarts the `eth_getLogs` range (D92, D98).
-- **The dry run** runs `Deploy.s.sol` without broadcasting, and the script writes `infra/deployments/base-sepolia.json` (`vm.writeJson`) even then: if you stop after it, or the deployment fails, restore the file with `git checkout infra/deployments/base-sepolia.json`.
+- **The dry run** must carry the same `PAYMASTER_DEPOSIT_WEI` (the live default is 0.02 ETH, more than the deployer holds), and must follow the withdrawal (it simulates the deposit against the deployer's balance). It runs `Deploy.s.sol` without broadcasting, and the script writes `infra/deployments/base-sepolia.json` (`vm.writeJson`) even then: if you stop after it, or the deployment fails, restore the file with `git checkout infra/deployments/base-sepolia.json`.
 - **Order**: the service images bake `infra/deployments` in, so commit the new file before the server clones and builds. Section 6 then deploys the server's consortium bound to the new hook.
 - **Keys**: the server holds the laptop's `LIVE_` keys (the funded addresses Base trusts), which departs from spec 11's "generate prod keys on the server"; `pnpm keys` on the server still generates every shared secret fresh. A deployment from fresh server keys would also work, but the human would fund every new address again (section 4). Once the server is live, the laptop never runs live mode again: both would send from the same `LIVE_` addresses (D97).
 - **The M16 deployment** keeps no sponsorship once its deposit is withdrawn (intended); `docs/EVIDENCE.md` keeps citing its addresses, backed by `base-sepolia-m16.json`.
@@ -180,8 +180,8 @@ Record below what was deployed (no secrets):
 |---|---|
 | Date, commit | Phase C |
 | Domain, server | Phase C |
-| Base deployment | `infra/deployments/base-sepolia.json`: MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`, block 48253270, deployed 2026-10-18 from the laptop's `LIVE_` keys; Phase C: redeployed from the same keys (section 5, D100), the M16 addresses kept in `base-sepolia-m16.json` |
-| FISCO deployment | `infra/deployments/fisco-live.json`: today on the laptop's local chain (D75); Phase C: the server's chain |
+| Base deployment | `infra/deployments/base-sepolia.json`: MandateHook `0x6411cc907Ace53F1Bdf8607a85991d3b38E79a5f`, block 48301428, deployed 2026-10-19 from the laptop's `LIVE_` keys for the server (section 5, D101); the M16 deployment (MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`, block 48253270, 2026-10-18) kept in `base-sepolia-m16.json` |
+| FISCO deployment | `infra/deployments/fisco-live.json`: today on the laptop's local chain (D75), bound to the M16 hook; Phase C: the server's chain, bound to the new hook |
 | agent-signer CVM: app id, compose hash | Phase C |
 | soter-attester CVM: app id, compose hash | Phase C |
 | Commands run | Phase C |
