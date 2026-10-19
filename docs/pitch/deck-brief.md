@@ -111,7 +111,7 @@ Speaker notes on every slide: 2 to 4 sentences to say, plus the duration. Total 
 
 - Two real examples, each with its Base Sepolia transaction in mono:
   - "Pays Café Lumen alone, under the auto cap": `0xa695c52e...f5f7b6be` (executed).
-  - "Rent paid on the 1st via Alipay+ (standing order, payout partner)": `0xbf4f43b2...b6db4daf` (executed).
+  - "Rent paid via Alipay+ (standing order, payout partner)": `0xbf4f43b2...b6db4daf` (executed).
 - One line: "When gold leaves its band, the agent sells back to target, within its trade and daily limits."
 - `payments-1440.png` small.
 
@@ -133,12 +133,12 @@ Speaker notes on every slide: 2 to 4 sentences to say, plus the duration. Total 
 ### 9. "One Face ID approves exactly one payment, inside WeChat." (0:55)
 
 - `05-wechat-approval.png`, with a phone-frame placeholder labelled "WeChat screenshot".
-- Real run on Base Sepolia, three transactions in mono:
+- Real run on Base Sepolia, approved with the passkey in that run, three transactions in mono:
   - refused UNKNOWN_PAYEE: `0x05226d47...4d0aacb0`;
-  - approval registered: `0xc97fad10...3bb8cf97`;
+  - approval registered (passkey): `0xc97fad10...3bb8cf97`;
   - executed once: `0xf93ddb77...4398261b`.
 - Notes:
-  - In our iPhone test, a payment was approved with WeChat Face ID (Tencent SOTER), and the same approval sent again was refused (DigestUsed).
+  - In our iPhone test on the local fork, a payment was approved with WeChat Face ID (Tencent SOTER), and the same approval sent again was refused (DigestUsed).
   - The attester service checks the Face ID signature with Tencent; the contract checks the attester's approval.
   - Each screen recomputes the payment fingerprint and refuses to sign if it differs.
 

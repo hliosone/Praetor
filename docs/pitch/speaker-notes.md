@@ -1,6 +1,6 @@
 # Speaker notes
 
-The spoken text for each of the 13 slides of the pitch deck (the deck brief, `docs/pitch/deck-brief.md`), in the deck's order, with the brief's timings: **8:45 in all**, which leaves about a minute for a short live demo inside the 10 minutes. Each slide's text runs at 90 to 130 words per minute (about 1,045 words in all), so it can be said calmly with a pause for each click; the word count is given under each.
+The spoken text for each of the 13 slides of the pitch deck (the deck brief, `docs/pitch/deck-brief.md`), in the deck's order, with the brief's timings: **8:45 in all**, which leaves about a minute for a short live demo inside the 10 minutes. Each slide's text runs at 90 to 130 words per minute (about 1,050 words in all), so it can be said calmly with a pause for each click; the word count is given under each.
 
 How to say it:
 
@@ -69,9 +69,9 @@ If asked about the twelve live replays: two were stopped by the contract, one by
 
 ## 10. The bank knows Lin, and knows her agent (6:15 to 7:05, 50 s)
 
-> The bank knows Lin, and it knows her agent. Lin's KYC is done at the bank, and her record stays there, encrypted. The bank issues her a WeIdentity credential. Her agent gets its own key and its own identity, and the bank checks which exact code the agent runs before it records the agent's credential. Lin signs the agent's mandate with Face ID, and the bank signs it too. On chain there are only identifiers, hashes and a country code. And without a valid agent credential, the contract refuses every call the agent makes.
+> The bank knows Lin, and it knows her agent. Lin's KYC is done at the bank, and her record stays there, encrypted. The bank issues her a WeIdentity credential. Her agent gets its own key and its own identity, and the bank checks which exact code the agent runs before it records the agent's credential. Lin signs the agent's mandate with Face ID, and the bank signs it too. On chain there are only identifiers, hashes, and her KYC level, risk profile and country. And without a valid agent credential, the contract refuses every call the agent makes.
 
-94 words.
+98 words.
 
 **[CHECK AFTER DEPLOY]** "Which exact code the agent runs" is the attestation quote of the signing service. Until the Phala deployment is checked, it comes from the dstack simulator; if asked, say so. Once it is checked, you may add: "on Phala Cloud, that is an Intel TDX quote".
 
@@ -110,7 +110,7 @@ If the network or the server is slow, skip the demo and show the video's S6 and 
 - The injection: the real model refused the instruction; the SANCTIONED refusal on Base came from the same payment signed with the agent's own key.
 - The red team ran on the local fork: 100 attack runs (88 distinct: 85 scripted and 3 on shared state; plus 12 live replays with the real model), 0 executed.
 - The 6.3 s freeze, the 7.5 s loosen and the iPhone SOTER test were measured on the local fork. The Base Sepolia approval in the evidence run used the passkey.
-- On-chain personal data: identifiers, hashes and a country code only; KYC records stay encrypted in the bank.
+- On-chain personal data: identifiers, hashes and three pseudonymous attributes (KYC level, risk profile, country) only; KYC records stay encrypted in the bank.
 - TEEs: the dstack simulator until the Phala deployment is checked.
 - Rebalancing is shown on the local fork; on Base Sepolia, prices come from Pyth.
 - The KYC vendor, the payout partner and the Alipay+ gateway are labelled mocks.

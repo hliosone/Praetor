@@ -2,7 +2,7 @@
 
 The demo video for the submission (at most 5 minutes; this cut runs **4:45**). English voice-over, Simplified Chinese and English subtitles: `video-subtitles.zh-CN.srt` and `video-subtitles.en.srt` in this folder, cue for cue the voice-over below (65 cues). It follows the deck's story: Lin, her mandate, the agent acting alone, the injection refused, one Face ID in WeChat, KYC and KYA, the regulator's freeze through WeCross, the audit.
 
-The voice-over is **579 words** in 4:45, an average of 122 words per minute, under the 140 wpm speaking pace in every shot, so the narrator can pause while the screen acts. Every amount the narrator says is the amount on screen.
+The voice-over is **580 words** in 4:45, an average of 122 words per minute, under the 140 wpm speaking pace in every shot, so the narrator can pause while the screen acts. Every amount the narrator says is the amount on screen.
 
 Tags used below:
 
@@ -22,11 +22,11 @@ Tags used below:
 | S5 Rebalancing on a gold shock | 1:31 to 1:55 | FORK | 48 | 24 | 120 | 56 |
 | S6 The injection is refused | 1:55 to 2:32 | SERVER + EVIDENCE | 77 | 37 | 125 | 86 |
 | S7 One Face ID in WeChat | 2:32 to 3:11 | SERVER | 78 | 39 | 120 | 91 |
-| S8 KYC and KYA | 3:11 to 3:38 | SERVER | 58 | 27 | 129 | 63 |
+| S8 KYC and KYA | 3:11 to 3:38 | SERVER | 59 | 27 | 131 | 63 |
 | S9 The regulator's freeze | 3:38 to 4:14 | SERVER + EVIDENCE | 68 | 36 | 113 | 84 |
 | S10 The audit | 4:14 to 4:31 | SERVER | 33 | 17 | 116 | 39 |
 | S11 Close | 4:31 to 4:45 | card | 17 | 14 | 73 | 32 |
-| **Total** | **0:00 to 4:45** | | **579** | **285** | **122** | 665 |
+| **Total** | **0:00 to 4:45** | | **580** | **285** | **122** | 665 |
 
 ## Before recording
 
@@ -234,11 +234,11 @@ Three full takes spend 1.50 USDC (inside the 3 USDC daily budget and the 10 paym
 - `/home`, "Your agent": KEY, "KYA level 2, BALANCED, HK".
 - Cut-in: BaseScan `[TX-S2b]` (from the onboarding), event KYAApplied.
 
-**Voice-over** (58 words, 27 s, 129 wpm; subtitles 45 to 50):
+**Voice-over** (59 words, 27 s, 131 wpm; subtitles 45 to 50):
 
-> The bank knows Lin, and knows her agent. Her KYC and the agent's mandate are WeIdentity credentials. Her personal data stays encrypted in the bank; on chain there are only identifiers, hashes and a country code. Without a valid agent credential, the contract refuses every call. Our consortium contracts also pass a smoke test on FISCO's Guomi build.
+> The bank knows Lin, and knows her agent. Her KYC and the agent's mandate are WeIdentity credentials. Her personal data stays encrypted in the bank; on chain, only identifiers, hashes, her KYC level, risk profile and country. Without a valid agent credential, the contract refuses every call. Our consortium contracts also pass a smoke test on FISCO's Guomi build.
 
-**Caption:** Personal data: encrypted in the bank · on-chain: identifiers, hashes and a country code
+**Caption:** Personal data: encrypted in the bank · on-chain: identifiers, hashes, KYC level, risk profile and country
 
 ### S9 · The regulator's freeze (3:38 to 4:14, 36 s)
 
@@ -301,7 +301,7 @@ Three full takes spend 1.50 USDC (inside the 3 USDC daily budget and the 10 paym
 - **Red team**: 100 attack runs (88 distinct attacks: 85 scripted and 3 on shared state; plus 12 live replays with the real model), 0 executed, all on the local fork. Of the 12 live runs, 2 were stopped by the contract, 1 by the agent runner, and 9 declined by the model.
 - **Timings**: the 6.3 s freeze and 7.5 s loosen, and the iPhone SOTER test, were measured on the local fork. This video does not quote the timings.
 - **SOTER**: the attester checks the SOTER signature with Tencent; the contract checks the attester's approval.
-- **Personal data**: on-chain only identifiers, hashes and a country code; KYC records stay encrypted in the bank.
+- **Personal data**: on-chain only identifiers, hashes and three pseudonymous attributes (KYC level, risk profile, country); KYC records stay encrypted in the bank.
 - **TEEs**: the dstack simulator until the Phala deployment is checked; a TEE claim only in the conditional form above.
 - **Rebalancing**: shown only on the local fork, with a demo price; on Base Sepolia the oracle takes real prices from Pyth.
 - **Mocks**: the KYC vendor, the payout partner and the Alipay+ gateway are labelled mocks.

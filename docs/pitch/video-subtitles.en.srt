@@ -217,8 +217,8 @@ encrypted in the bank;
 
 48
 00:03:22,636 --> 00:03:27,544
-on chain there are only identifiers,
-hashes and a country code.
+on chain, only identifiers, hashes,
+her KYC level, risk profile and country.
 
 49
 00:03:27,624 --> 00:03:32,079
