@@ -1,0 +1,27 @@
+# Phala Cloud CVM: soter-attester (spec 11 Phase C step 5, docs/DEPLOY.md sections 7 and 8). A template:
+# scripts/deploy/phala-deploy.sh replaces __SOTER_ATTESTER_IMAGE__ (the pushed image by digest), then deploys the
+# rendered copy. Everything written here is measured into the CVM's compose hash, which the bank allowlists
+# (ALLOWED_COMPOSE_HASHES_ATTESTER); only the three secrets come in as encrypted env (${...}, no quotes).
+services:
+  soter-attester:
+    image: __SOTER_ATTESTER_IMAGE__
+    restart: unless-stopped
+    environment:
+      PRAETOR_ENV: prod
+      ATTESTATION_MODE: phala
+      # The EIP-712 domain (name, hook) comes from the Base deployment baked into the image (COPY . . of the commit
+      # the image was built from): rebuild after any Base redeployment.
+      DEPLOYMENTS_FILE: /app/infra/deployments/base-sepolia.json
+      WECHAT_API_BASE: https://api.weixin.qq.com
+      SOTER_FAKE_TENCENT: '0'
+      DSTACK_ENDPOINT: /var/run/dstack.sock
+      ATTESTER_HMAC_API: ${ATTESTER_HMAC_API}
+      MP_APPID: ${MP_APPID}
+      MP_SECRET: ${MP_SECRET}
+    volumes:
+      # The socket only, never its lock file (Phala troubleshooting).
+      - /var/run/dstack.sock:/var/run/dstack.sock
+    # Served by the Phala gateway at https://<app-id>-3060.<gateway domain>: the server's SOTER_ATTESTER_URL. Every
+    # route but /health (/v1/info included) needs the api's HMAC.
+    ports:
+      - '3060:3060'

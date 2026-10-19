@@ -1,0 +1,24 @@
+# Phala Cloud CVM: agent-signer (spec 11 Phase C step 5, docs/DEPLOY.md sections 7 and 8). A template:
+# scripts/deploy/phala-deploy.sh replaces __AGENT_SIGNER_IMAGE__ (the pushed image by digest) and __PUBLIC_URL__, then
+# deploys the rendered copy. Everything written here is measured into the CVM's compose hash, which the bank
+# allowlists (ALLOWED_COMPOSE_HASHES_AGENT); only the three secrets come in as encrypted env (${...}, no quotes).
+services:
+  agent-signer:
+    image: __AGENT_SIGNER_IMAGE__
+    restart: unless-stopped
+    environment:
+      PRAETOR_ENV: prod
+      ATTESTATION_MODE: phala
+      # The signer signs an agent card only for this deployment's MCP endpoint (<PUBLIC_URL>/mcp): measured.
+      PUBLIC_URL: __PUBLIC_URL__
+      DSTACK_ENDPOINT: /var/run/dstack.sock
+      SIGNER_HMAC_MCP: ${SIGNER_HMAC_MCP}
+      SIGNER_HMAC_API: ${SIGNER_HMAC_API}
+      SIGNER_HMAC_BANK: ${SIGNER_HMAC_BANK}
+    volumes:
+      # The socket only, never its lock file (Phala troubleshooting).
+      - /var/run/dstack.sock:/var/run/dstack.sock
+    # Served by the Phala gateway at https://<app-id>-3050.<gateway domain>: the server's AGENT_SIGNER_URL. Every
+    # route but /health (/v1/info included) needs an HMAC of mcp, the api or the bank.
+    ports:
+      - '3050:3050'
