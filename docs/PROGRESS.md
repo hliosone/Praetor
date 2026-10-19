@@ -39,6 +39,7 @@ Single source of truth for where the build stands. After a context reset: read `
 - [x] M16 live run + red team (gate: EVIDENCE.md, "N attacks, 0 executed"): red team 85 scripted, 3 global and 12 real-model attacks, 0 executed (`docs/security/redteam.md`); the evidence flows C0 to F8 on Base Sepolia with Pyth prices, 14 distinct Base transactions (21 links) in `docs/EVIDENCE.md` (D96), 2026-10-18 05:35 UTC
 - [x] M17 security pack + docs EN/中文 (parallel agent, D44; refreshed at the end of Phase B)
 - [x] M18 deployment rehearsal (gate: smoke on `compose.prod.yml`): `make rehearsal` on the fork, smoke F1, F5, F8 16/16 and the five prod refusals, 2026-10-18 04:50 UTC (D90); the cloud deployment is Phase C
+- [x] Final gate before the public server (2026-10-19, fork only, D105): integration 18 files / 76 tests, api e2e 42/42 (after the F2 test fix; 42/42 again after the global red team), web journey and shots 14/14 with the sandbox green on its rerun, the 48 h warp 1/1; F4 now proves the owner-approved rebalance (D103 fix 1); red team scripted 85, global 3, real model 12, 0 executed; I19 fork scan clean; the deck's screenshots re-shot with Lin's account (`apps/web/e2e/deck.spec.ts`)
 
 ## Timings
 
@@ -66,3 +67,4 @@ Single source of truth for where the build stands. After a context reset: read `
 | M15 | 2026-10-17 23:30 | 2026-10-18 00:35 | 65 min (F10 itself built during M12 and M13; the warp gate and its clean-up) |
 | M18 | 2026-10-18 04:14 | 2026-10-18 04:50 | 36 min (three fixes the rehearsal found: scheduler, refusal networking, api refusal order) |
 | M16 | 2026-10-18 00:35 | 2026-10-18 05:35 | 5 h (red team, its fixes D86 to D88, then the live run and the fixes it found D92, D96) |
+| Final gate (D105) | 2026-10-19 01:42 | 2026-10-19 03:25 | 1 h 43 min (two fixes found by it: F2's app id in the test, the chat's keyboard access in the web app) |
