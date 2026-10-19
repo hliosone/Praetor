@@ -5,6 +5,9 @@
 
 x-prod: &prod
   restart: unless-stopped
+  # Services without it default to simulator, which PRAETOR_ENV=prod refuses (packages/config, I13).
+  environment:
+    ATTESTATION_MODE: ${ATTESTATION_MODE}
   logging:
     driver: json-file
     options:

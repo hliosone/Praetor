@@ -1,23 +1,10 @@
 import pino from 'pino';
-import { z } from 'zod';
+import { envSchema } from './env.js';
 import { createRunnerApp } from './app.js';
 import { InstanceManager } from './instances.js';
 import { Runner } from './runner.js';
 
-const env = z.object({
-  INTERNAL_TOKEN_AGENT: z.string().min(32),
-  INTERNAL_TOKEN_MCP: z.string().min(32),
-  OPENCODE_SERVER_PASSWORD: z.string().min(16),
-  MCP_URL: z.string().url().default('http://mcp:3080'),
-  AGENT_MODEL: z.string().default('opencode/deepseek-v4.1-flash-free'),
-  FAKE_LLM_URL: z.string().url().optional(),
-  AGENT_MAX_ACTIVE: z.coerce.number().int().min(1).default(8),
-  AGENT_IDLE_S: z.coerce.number().int().default(1800),
-  AGENT_DATA_DIR: z.string().default('/data/agents'),
-  OPENCODE_WARM_DIR: z.string().default('/opt/oc'),
-  PRAETOR_ENV: z.string().default('local'),
-  PORT: z.coerce.number().int().default(3100),
-}).parse(process.env);
+const env = envSchema.parse(process.env);
 if (env.PRAETOR_ENV === 'prod' && env.FAKE_LLM_URL) throw new Error('prod refuses the fake LLM');
 
 const log = pino();

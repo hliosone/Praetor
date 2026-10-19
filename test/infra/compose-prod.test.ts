@@ -62,3 +62,13 @@ describe('infra/live.env (M16, D74)', () => {
     expect(mk).toMatch(/PROFILES := \$\(filter-out dev,\$\(PROFILES\)\)/);
   });
 });
+
+describe('the attestation mode in prod', () => {
+  it('reaches every service of the prod file: a service without it defaults to simulator, which prod refuses (bundler, server, 2026-10-20)', () => {
+    for (const [name, s] of Object.entries(prod.services)) {
+      // The long-running services (the anchor's restart policy); caddy reads no Praetor config.
+      if (s.restart !== 'unless-stopped' || name === 'caddy') continue;
+      expect(s.environment?.ATTESTATION_MODE, name).toBe('${ATTESTATION_MODE}');
+    }
+  });
+});
