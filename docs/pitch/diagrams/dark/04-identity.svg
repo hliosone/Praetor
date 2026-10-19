@@ -97,5 +97,5 @@
 <text x="1520" y="748" font-size="16" font-weight="400" fill="#9FB0CC" text-anchor="end" data-role="sub">then you enable its key: Face ID + the bank</text>
 <path d="M1106.5,358 L1106.5,526" fill="none" stroke="#2DD4BF" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="6 5" marker-end="url(#ah1)"/>
 <text x="1120.5" y="456" font-size="16" font-weight="500" fill="#2DD4BF" text-anchor="start" data-role="sub">your KYC level goes into the KYA</text>
-<text x="56" y="852" font-size="20" font-weight="400" fill="#9FB0CC" text-anchor="start" data-role="sub">Personal data stays encrypted in the bank. On-chain: identifiers, hashes and a country code.</text>
+<text x="56" y="852" font-size="20" font-weight="400" fill="#9FB0CC" text-anchor="start" data-role="sub">Personal data stays encrypted in the bank. On-chain: identifiers, hashes and three pseudonymous attributes (KYC level, risk profile, country).</text>
 </svg>
