@@ -153,6 +153,8 @@ exit 0
       expect(deploys[i]).toContain(`-c ${out}/${svc}.compose.yml`);
       expect(deploys[i]).toMatch(/-t tdx\.small/);
       expect(deploys[i]).toContain('--no-dev-os');
+      // dstack 0.6.1, the CLI's default on 2026-10-19, could not log in to a private registry (read-only /root/.docker).
+      expect(deploys[i]).toContain('--image dstack-0.5.12');
       expect(deploys[i]).toContain('--no-public-logs');
       expect(deploys[i]).toContain('--wait');
     }

@@ -107,7 +107,7 @@ deploy() {
     else
       echo "phala-deploy: creating $name"
       phala deploy -n "$name" -c "$rendered" -e "$envf" -t "${PHALA_INSTANCE_TYPE:-tdx.small}" --no-dev-os --no-public-logs --wait --json \
-        ${PHALA_OS_IMAGE:+--image "$PHALA_OS_IMAGE"} > "$OUT_DIR/$svc.deploy.json"
+        --image "${PHALA_OS_IMAGE:-dstack-0.5.12}" > "$OUT_DIR/$svc.deploy.json"
     fi
     rm -f "$envf"
   done
