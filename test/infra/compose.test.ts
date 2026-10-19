@@ -180,3 +180,12 @@ describe('FISCO BCOS nodes (spec 04, V2)', () => {
     expect(fetch).toContain('ed667e1e346acbe2fea7b667856ddf05af9e4892ac0424ff9f703f0ea601dbe7');
   });
 });
+
+describe('WeCross under the host user (UID_GID)', () => {
+  it('gives Java a home: a uid the image does not know has none ("user.home = ?"), and add_chain.sh exited 255 on the server (uid 1002)', () => {
+    for (const s of ['wecross-setup', 'wecross-account-manager', 'wecross-router']) {
+      const env = compose.services[s]!.environment as Record<string, string>;
+      expect(env.JAVA_TOOL_OPTIONS, s).toBe('-Duser.home=/tmp');
+    }
+  });
+});

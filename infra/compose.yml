@@ -636,6 +636,9 @@ services:
     labels: { praetor.job: oneshot }
     command: ['setup']
     environment:
+      # Under UID_GID a uid the image does not know (the server's praetor is 1002) has no home: Java's user.home is "?"
+      # and WeCross's tools exit 255 without a word. The image's own uid 1000 has one, which is why the laptop never saw it.
+      JAVA_TOOL_OPTIONS: -Duser.home=/tmp
       HOME: /tmp
       WECROSS_FISCO_KEY: ${WECROSS_FISCO_KEY}
       WECROSS_ADMIN_PASSWORD: ${WECROSS_ADMIN_PASSWORD}
@@ -665,6 +668,7 @@ services:
     restart: unless-stopped
     command: ['account-manager']
     environment:
+      JAVA_TOOL_OPTIONS: -Duser.home=/tmp
       HOME: /tmp
     volumes:
       - ./wecross/generated:/data
@@ -689,6 +693,7 @@ services:
     restart: unless-stopped
     command: ['router']
     environment:
+      JAVA_TOOL_OPTIONS: -Duser.home=/tmp
       HOME: /tmp
     volumes:
       - ./wecross/generated:/data
