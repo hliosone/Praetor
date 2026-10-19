@@ -35,7 +35,7 @@ export type Stack = {
 
 export function stack(over: Partial<Stack> = {}): Stack {
   const env = Object.fromEntries(readFileSync(`${root}.env`, 'utf8').split('\n').filter((l) => /^[A-Z0-9_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]));
-  const live = process.env.CHAIN_MODE === 'live';
+  const live = chainSet(env) === 'LIVE';
   return {
     env,
     set: live ? 'LIVE' : 'LOCAL',
@@ -51,6 +51,12 @@ export function stack(over: Partial<Stack> = {}): Stack {
     ...publicOrigin(env),
     ...over,
   };
+}
+
+/** The key set of the chain mode, as scripts/dev/compose-env.sh resolves CHAIN_MODE: the shell first, then .env. A
+ *  server keeps CHAIN_MODE=live in .env, so a script run without the export still takes the live paths (D99). */
+export function chainSet(file: Record<string, string>, proc: Record<string, string | undefined> = process.env): Stack['set'] {
+  return (proc.CHAIN_MODE || file.CHAIN_MODE) === 'live' ? 'LIVE' : 'LOCAL';
 }
 
 /** The WebAuthn rpId and origin the member services and the api verify assertions against (their PUBLIC_HOST and
@@ -128,7 +134,19 @@ async function ok(p: Promise<{ status: number; body: any }>, what: string) {
 
 // ---------------------------------------------------------------- staff passkeys (stand-ins for the consoles)
 
-export const devStaff = (s: Stack, role: Role) => softPasskey(`praetor-dev-staff-${role}`, s.rpId, s.origin);
+/**
+ * Fork and tests: a public label. Live (a public host, where the console relay is public too, D99): the label holds a
+ * hash of the role's STAFF_ENROL_TOKEN, a per-deployment secret that lives only in .env, so reading the repo is not
+ * enough to sign for a member; no token, no key. The label is the key's whole preimage and softPasskey writes it in
+ * clear into credentialId: only credIdHash may leave this process.
+ */
+export function devStaff(s: Stack, role: Role): SoftPasskey {
+  if (s.set !== 'LIVE') return softPasskey(`praetor-dev-staff-${role}`, s.rpId, s.origin);
+  const name = `STAFF_ENROL_TOKEN_${role.toUpperCase()}`;
+  const token = s.env[name];
+  if (!token) throw new Error(`${name} missing from .env: no scripted staff key on live`);
+  return softPasskey(`praetor-staff-${role}-${keccak256(toHex(`praetor-staff:${role}:${token}`))}`, s.rpId, s.origin);
+}
 
 /** Enrols the dev staff passkey with the one-time token; a later run finds the token used and keeps going. */
 export async function ensureStaff(s: Stack, role: Role): Promise<void> {
