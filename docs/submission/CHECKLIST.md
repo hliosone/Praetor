@@ -68,7 +68,7 @@ These pages contradicted the facts the deck and the video use. None of these poi
    - Slide 12's "Tested on a real iPhone, 270 USDC approved" does not say "local fork" either.
    - Slide 11's "Personal data never leaves the bank" is stronger than the facts: identifiers, hashes and a country code are on-chain.
    - Slide 9's "1,000+ automated tests" is not in the brief and was not checked against the test runners' totals: verify it or drop it.
-   - The committed `docs/Praetor-pitch.pptx` (14 slides, 2026-10-18) has the same kind of drift: "Base enforces it 6 s later", "measured 6.3 s to freeze, 7.5 s to loosen" and "6.3 s regulator freeze on FISCO, enforced on Base" without "local fork"; "Rent goes out on the 1st" (the evidence run paid the standing order when it was set, on 2026-10-18); "700+ automated tests" (not checked); "Its key sits in a TEE signer" (the dstack simulator until the Phala deployment is checked).
+   - The earlier `docs/Praetor-pitch.pptx` (14 slides, 2026-10-18) had the same kind of drift; it was removed from the repo on 2026-10-19 and the final deck replaces it.
    - Brief v2 changed on 2026-10-19 after its upload: slide 6 drops "on the 1st" ("Rent paid via Alipay+ (standing order, payout partner)"), and slide 9 marks the Base Sepolia approval as the passkey's and the iPhone test as on the local fork.
 
 ## 4. Final pre-submit checklist
