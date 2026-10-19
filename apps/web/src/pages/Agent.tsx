@@ -1,6 +1,6 @@
 // Chat with the agent (spec 07): the api relays agent-runner's server-sent events; each turn shows the agent's
 // answer and the tools it called. The agent reaches the money only through mcp, inside the mandate.
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '../i18n/index.js';
 import { api } from '../lib/api.js';
 import { useLoad } from '../lib/useLoad.js';
@@ -16,6 +16,9 @@ export function Agent() {
   const [lines, setLines] = useState<Line[]>([]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const log = useRef<HTMLDivElement>(null);
+  // The chat scrolls inside its own box: keep the newest message in view, or on a phone the reply sits below the box.
+  useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [lines, busy]);
   const me = useLoad(() => api<{ agentKey: `0x${string}`; validUntil: string; riskProfile: string; kycLevel: number; jurisdiction: string; revoked?: boolean }>('GET', '/agent'), []);
   const [rotation, setRotation] = useState<{ agent: NewAgent; draft: MandateDraft }>();
   const [msg, setMsg] = useState<string>();
@@ -72,7 +75,7 @@ export function Agent() {
     </section>
     <section className="panel stack">
       <h1 style={{ fontSize: 'var(--s-30)' }}>{t('agent.title')}</h1>
-      <div className="chat" role="log" aria-live="polite" aria-label={t('agent.title')} tabIndex={0}>
+      <div ref={log} className="chat" role="log" aria-live="polite" aria-label={t('agent.title')} tabIndex={0}>
         {lines.map((l, i) => (
           <div key={i} className={`bubble ${l.who}`}>
             {l.text}
