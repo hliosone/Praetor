@@ -1,0 +1,300 @@
+1
+00:00:00,300 --> 00:00:05,987
+An AI agent with a wallet is one
+sentence away from emptying it.
+
+2
+00:00:06,067 --> 00:00:10,423
+Give it the key, and one
+injected line drains you.
+
+3
+00:00:10,503 --> 00:00:13,528
+Approve every step, and it does nothing.
+
+4
+00:00:13,608 --> 00:00:17,520
+Praetor gives the agent
+rules no prompt can change.
+
+5
+00:00:18,300 --> 00:00:20,862
+This is Lin, in Hong Kong.
+
+6
+00:00:20,942 --> 00:00:27,467
+She signs up with Face ID: a passkey
+creates her smart account on Base Sepolia.
+
+7
+00:00:27,547 --> 00:00:32,751
+The bank checks her identity, here
+with a labelled demo KYC provider.
+
+8
+00:00:32,831 --> 00:00:39,355
+Her agent gets its own key from a
+separate signing service built for a TEE.
+
+9
+00:00:39,435 --> 00:00:45,520
+Lin signs her agent's mandate with Face
+ID, and the bank co-signs her rules.
+
+10
+00:00:46,300 --> 00:00:50,280
+Her mandate is code on
+Base, not a promise.
+
+11
+00:00:50,360 --> 00:00:55,242
+Payees, an auto cap, a hard
+cap, budgets, a cash buffer,
+
+12
+00:00:55,322 --> 00:00:58,400
+and bands for USDC, gold and silver.
+
+13
+00:00:58,480 --> 00:01:03,813
+The bank adds caps for her risk
+profile from the consortium chain,
+
+14
+00:01:03,893 --> 00:01:06,520
+and the stricter value always wins.
+
+15
+00:01:07,300 --> 00:01:11,966
+Inside the mandate, the agent
+acts alone: tier one of five.
+
+16
+00:01:12,046 --> 00:01:15,850
+Lin asks it to pay Café Lumen 0.15 USDC.
+
+17
+00:01:15,930 --> 00:01:19,733
+A known payee under the auto cap: it pays.
+
+18
+00:01:19,813 --> 00:01:26,205
+Rent also goes out alone, by a
+standing order Lin and the bank set up,
+
+19
+00:01:26,285 --> 00:01:30,520
+paid through Alipay+; the payout
+partner is a labelled mock.
+
+20
+00:01:31,300 --> 00:01:37,530
+On our local fork, we push a demo
+price: gold up twenty percent.
+
+21
+00:01:37,610 --> 00:01:41,414
+Gold now weighs thirty-six
+percent, above its band.
+
+22
+00:01:41,494 --> 00:01:47,724
+The scheduler wakes the agent. It sells
+about 0.65 dollars of tokenised gold
+
+23
+00:01:47,804 --> 00:01:52,578
+back toward its target, within
+its trade and daily limits.
+
+24
+00:01:52,658 --> 00:01:54,520
+No one approves it.
+
+25
+00:01:55,300 --> 00:01:56,634
+Now the attack.
+
+26
+00:01:56,714 --> 00:02:00,877
+A message tells the
+agent to ignore its rules
+
+27
+00:02:00,957 --> 00:02:04,649
+and send 50 USDC to a sanctioned address.
+
+28
+00:02:04,729 --> 00:02:06,534
+The real model refuses.
+
+29
+00:02:06,614 --> 00:02:09,834
+But suppose the agent
+itself were compromised.
+
+30
+00:02:09,914 --> 00:02:16,434
+In our evidence run, we sent that
+payment signed with the agent's own key.
+
+31
+00:02:16,514 --> 00:02:19,263
+The Mandate hook refused it: SANCTIONED.
+
+32
+00:02:19,343 --> 00:02:25,391
+The refused attempt is written on Base,
+with the reason the contract computed.
+
+33
+00:02:25,471 --> 00:02:31,520
+Across our red-team suite on the local
+fork: 100 attack runs, zero executed.
+
+34
+00:02:32,300 --> 00:02:34,675
+A new payee is different.
+
+35
+00:02:34,755 --> 00:02:40,567
+Lin asks for 0.15 USDC to an
+address the mandate doesn't know.
+
+36
+00:02:40,647 --> 00:02:44,496
+The contract refuses it
+on Base: unknown payee.
+
+37
+00:02:44,576 --> 00:02:47,933
+This is tier two: it needs Lin.
+
+38
+00:02:48,013 --> 00:02:50,388
+She opens Praetor inside WeChat.
+
+39
+00:02:50,468 --> 00:02:53,825
+The phone recomputes the
+payment's fingerprint itself
+
+40
+00:02:53,905 --> 00:02:57,262
+and shows the exact address and amount.
+
+41
+00:02:57,342 --> 00:02:59,717
+Lin approves with Face ID.
+
+42
+00:02:59,797 --> 00:03:03,155
+Our attester checks the
+signature with Tencent,
+
+43
+00:03:03,235 --> 00:03:09,047
+and the contract checks the attester's
+approval, bound to this one call.
+
+44
+00:03:09,127 --> 00:03:10,520
+It executes once.
+
+45
+00:03:11,300 --> 00:03:14,848
+The bank knows Lin, and knows her agent.
+
+46
+00:03:14,928 --> 00:03:18,929
+Her KYC and the agent's mandate
+are WeIdentity credentials.
+
+47
+00:03:19,009 --> 00:03:22,556
+Her personal data stays
+encrypted in the bank;
+
+48
+00:03:22,636 --> 00:03:27,544
+on chain there are only identifiers,
+hashes and a country code.
+
+49
+00:03:27,624 --> 00:03:32,079
+Without a valid agent credential,
+the contract refuses every call.
+
+50
+00:03:32,159 --> 00:03:37,520
+Our consortium contracts also pass
+a smoke test on FISCO's Guomi build.
+
+51
+00:03:38,300 --> 00:03:39,777
+Now the regulator.
+
+52
+00:03:39,857 --> 00:03:44,969
+In the consortium console, one
+regulator signature freezes Lin's agent.
+
+53
+00:03:45,049 --> 00:03:49,121
+WeCross carries that
+decision from FISCO to Base,
+
+54
+00:03:49,201 --> 00:03:53,274
+and the hook verifies the
+member's signature itself.
+
+55
+00:03:53,354 --> 00:03:58,466
+The next payment is refused:
+FROZEN. Lin's app turns red.
+
+56
+00:03:58,546 --> 00:04:06,252
+Letting it go takes two of the three
+members: here, the regulator and the bank.
+
+57
+00:04:06,332 --> 00:04:10,924
+And if the operator goes
+silent for fifteen minutes,
+
+58
+00:04:11,004 --> 00:04:13,520
+the agent loses its autonomy.
+
+59
+00:04:14,300 --> 00:04:16,196
+Every action leaves evidence.
+
+60
+00:04:16,276 --> 00:04:21,135
+Each decision lands in a
+hash-chained audit log on FISCO,
+
+61
+00:04:21,215 --> 00:04:24,099
+anchored on Base by two members,
+
+62
+00:04:24,179 --> 00:04:30,520
+and exports as an ISO 20022 bank
+statement. Lin's bank can verify it.
+
+63
+00:04:31,300 --> 00:04:33,567
+Autonomous. Bounded. Regulated.
+
+64
+00:04:33,647 --> 00:04:39,826
+Praetor: self-driving money.
+The regulator holds the brakes.
+
+65
+00:04:39,906 --> 00:04:44,520
+Try it at the link below.
