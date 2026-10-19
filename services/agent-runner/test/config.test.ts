@@ -57,6 +57,11 @@ describe('prompts', () => {
     // The hook also restricts on the owner's PAUSE_AGENT and a pending recovery (DecisionLib._env), which statusOf omits.
     expect(md).toMatch(/A RESTRICTED reason while get_status shows ACTIVE comes from the owner \(the agent is paused\) or a pending key recovery, not from the consortium/);
   });
+  it('AGENTS.md: who lifts a restriction follows what get_status says set it (the owner\'s pause, a recovery or the consortium)', () => {
+    // get_status shows RESTRICTED for the owner's pause and a pending recovery too: the consortium rule must not be read as covering them.
+    expect(md).toMatch(/and who can lift it: if get_status says the consortium set it, the consortium \(bank, regulator, operator\)/);
+    expect(md).toMatch(/If it says the owner paused the agent, the owner resumes it; if a key recovery is pending, it ends when the recovery completes or the owner cancels it\./);
+  });
   it('AGENTS.md: spending is quoted from get_mandate, never estimated (#7)', () => {
     expect(md).toMatch(/Numbers come from the tools: quote what was spent from get_mandate and balances from get_portfolio\. Never estimate or add up amounts yourself/);
   });
