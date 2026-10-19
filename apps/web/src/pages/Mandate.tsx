@@ -27,7 +27,10 @@ export function Mandate() {
         {p ? (
           <ul>
             <li>Your agent pays up to <b>{usd(p.autoCap)} USDC</b> without asking you, never more than <b>{usd(p.hardCap)}</b> at once.</li>
-            <li>At most <b>{usd(p.dailyBudget)}</b> a day and <b>{usd(p.monthlyBudget)}</b> a month, {p.dailyCount} payments a day.</li>
+            {/* The budgets bind what the agent does alone (A11, A12: T2); the owner's approvals can pass them, only the bank's
+                caps cannot be passed (A6: T0). The spending is the hook's own counters (spentOf). */}
+            <li data-testid="mandate-budget">Without asking you, it spends at most <b>{usd(p.dailyBudget)}</b> a day and <b>{usd(p.monthlyBudget)}</b> a month, {p.dailyCount} payments a day; beyond that it asks you.</li>
+            <li data-testid="mandate-spent">Spent today (UTC day on Base): <b>{usd(cur.data.spent.day)}</b> in {cur.data.spent.count ?? '0'} payments; this 30-day period: <b>{usd(cur.data.spent.month)}</b>. Payments you approve count too and can go past your budget, never past the bank's limit of <b>{usd(cur.data.caps.daily)}</b> a day and <b>{usd(cur.data.caps.monthly)}</b> a month.</li>
             <li>It always keeps <b>{usd(p.bufferUsdc)} USDC</b> available.</li>
             <li>It rebalances at most {p.maxRebalancesPerDay} time(s) a day, {usd(p.maxTradeUsd)} USD each, slippage {p.maxSlippageBps / 100}%.</li>
             <li>Known payees: {p.payees.length}; merchants: {p.merchants.length}. Valid until {new Date(Number(p.validUntil) * 1000).toLocaleDateString()}.</li>
