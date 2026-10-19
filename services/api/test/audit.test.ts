@@ -48,6 +48,23 @@ describe('audit verification (spec 06 F8 step 4)', () => {
     expect(await audit.verify()).toMatchObject({ verified: true, entries: 30, fisco: { seq: 29, match: true } });
   });
 
+  it('an anchor posted on Base while the stored entries are read is no mismatch (the anchor is read first)', async () => {
+    // Members anchor a head only once it is on FISCO, and FISCO only holds stored entries: read in that order, every
+    // source covers the one read before it. Seen in the sandbox: "Verify" right after a paid order reported a mismatch.
+    let stored = 29;
+    let anchored = 20;
+    const rows = chain.map((e) => ({ ...e }));
+    const audit = new Audit({
+      entries: async (from, limit) => { const out = rows.filter((r) => r.seq >= from && r.seq <= stored).slice(0, limit); stored = 30; anchored = 30; return out; },
+      fisco: {
+        latest: async () => ({ seq: BigInt(stored), head: chain[stored - 1]!.head }),
+        headAt: async (seq) => (seq === 0n ? ZERO_HASH : chain[Number(seq) - 1]!.head),
+      },
+      anchor: { latest: async () => ({ seq: 2n, head: chain[anchored - 1]!.head, fiscoBlock: 77n }) },
+    });
+    expect(await audit.verify()).toMatchObject({ verified: true, entries: 29, anchor: { auditSeq: 20, match: true } });
+  });
+
   it('entries missing from the store, behind FISCO, are a mismatch', async () => {
     const v = await setup({ rows: chain.slice(0, 25).map((e) => ({ ...e })), fiscoSeq: 30 }).audit.verify();
     expect(v.verified).toBe(false);

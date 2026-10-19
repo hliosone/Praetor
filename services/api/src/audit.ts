@@ -35,8 +35,10 @@ export class Audit {
   }
 
   async verify() {
-    // FISCO's head first: the operator stores each entry before appending it to FISCO, so the entries read next cover
-    // that head even if the log grows meanwhile (reading FISCO second reported a race as a mismatch).
+    // Read the sources in the order they are written, newest last: members anchor a head on Base only once it is on
+    // FISCO, and the operator stores each entry before appending it to FISCO. Each source then covers the one read
+    // before it even if the log grows meanwhile (any other order reported that race as a mismatch).
+    const a = await this.d.anchor.latest();
     const fisco = await this.d.fisco.latest();
     const rows = await this.all();
     // Recompute from the JSON alone: stored hashes and heads are not trusted.
@@ -67,7 +69,6 @@ export class Audit {
       else mismatchAt ??= recomputed + 1;
     }
     if (mismatchAt !== undefined) fiscoMatch = false;
-    const a = await this.d.anchor.latest();
     const k = a.seq === 0n ? null : heads.indexOf(a.head);
     const auditSeq = k === null || k < 1 ? null : k;
     const anchorMatch = a.seq === 0n || auditSeq !== null;
