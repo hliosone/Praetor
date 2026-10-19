@@ -47,6 +47,14 @@ export function accountReader(pub: PublicClient, d: Deployment, maxRange: bigint
       const [effective, acc, global, hb] = (await pub.readContract({ ...hook, functionName: 'statusOf', args: [account] })) as readonly [number, number, number, bigint];
       return { effective, account: acc, global, heartbeatValidUntil: BigInt(hb) };
     },
+    // The hook restricts on these too (DecisionLib._env), but statusOf carries only the consortium's status.
+    ownerHold: async (account: Address) => {
+      const [paused, recoveryPending] = await Promise.all([
+        pub.readContract({ ...hook, functionName: 'isPaused', args: [account] }) as Promise<boolean>,
+        pub.readContract({ ...hook, functionName: 'isRecoveryPending', args: [account] }) as Promise<boolean>,
+      ]);
+      return { paused, recoveryPending };
+    },
     kya: async (account: Address) => {
       const [agentKey, kycLevel, riskProfile, jurisdiction, validUntil] = (await pub.readContract({ ...hook, functionName: 'kyaOf', args: [account] })) as readonly [Address, number, number, Hex, bigint];
       return { agentKey, kycLevel, riskProfile, jurisdiction, validUntil: BigInt(validUntil) };

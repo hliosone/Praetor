@@ -28,6 +28,7 @@ const ports = (): Ports => ({
     price: async (t) => (t === T.txau ? { price8: 318_000_000_000n, publishTime: 1_800_000_000n, source: PriceSource.DEMO } : t === T.txag ? { price8: 3_112_000_000n, publishTime: 1_800_000_000n, source: PriceSource.DEMO } : { price8: 100_000_000n, publishTime: 1_800_000_000n, source: PriceSource.PYTH }),
     policy: async () => policy,
     status: async () => ({ effective: 0, account: 0, global: 0, heartbeatValidUntil: 1_800_000_900n }),
+    ownerHold: async () => ({ paused: false, recoveryPending: false }),
     kya: async () => ({ agentKey: '0x00000000000000000000000000000000000a6e47' as Address, validUntil: 1_900_000_000n, riskProfile: 2 }),
     caps: async () => ({ perTx: 1_000_000_000n, daily: 2_000_000_000n, monthly: 10_000_000_000n }),
     spent: async () => ({ day: 0n, month: 0n, count: 0n, rebalances: 0n }),
@@ -257,6 +258,38 @@ describe('get_status when the consortium tightened the account (#6)', () => {
     const r = await withStatus(Status.ACTIVE, Status.ACTIVE);
     expect(r.text).toMatch(/^Status: ACTIVE/);
     expect(r.text).not.toMatch(/consortium/);
+  });
+});
+
+describe('get_status when the owner paused the agent or a key recovery is pending', () => {
+  const withHold = (hold: { paused: boolean; recoveryPending: boolean }, account = Status.ACTIVE) => {
+    const p = ports();
+    p.reader.status = async () => ({ effective: account, account, global: Status.ACTIVE, heartbeatValidUntil: 1_800_000_900n });
+    p.reader.ownerHold = async () => hold;
+    return new PraetorTools(ACCOUNT, p).getStatus();
+  };
+
+  it('the owner\'s pause: RESTRICTED, set by the owner (not the consortium), lifted by the owner resuming the agent', async () => {
+    const r = await withHold({ paused: true, recoveryPending: false });
+    expect(r.text).toMatch(/^Status: RESTRICTED/);
+    expect(r.text).toMatch(/The owner paused the agent: every payment or rebalance the agent makes needs the owner's approval until the owner resumes it\./);
+    expect(r.text).not.toMatch(/Set by the consortium/);
+    expect(r.structured).toMatchObject({ status: 'RESTRICTED', accountStatus: 'ACTIVE', globalStatus: 'ACTIVE', ownerPaused: true, recoveryPending: false });
+  });
+
+  it('a pending key recovery: RESTRICTED until it completes or the owner cancels it', async () => {
+    const r = await withHold({ paused: false, recoveryPending: true });
+    expect(r.text).toMatch(/^Status: RESTRICTED/);
+    expect(r.text).toMatch(/A key recovery of this account is pending: every payment or rebalance the agent makes needs the owner's approval until it completes or the owner cancels it\./);
+    expect(r.text).not.toMatch(/Set by the consortium/);
+    expect(r.structured).toMatchObject({ status: 'RESTRICTED', ownerPaused: false, recoveryPending: true });
+  });
+
+  it('a consortium freeze stays FROZEN and names the owner\'s pause as well', async () => {
+    const r = await withHold({ paused: true, recoveryPending: false }, Status.FROZEN);
+    expect(r.text).toMatch(/^Status: FROZEN/);
+    expect(r.text).toMatch(/Set by the consortium/);
+    expect(r.text).toMatch(/The owner paused the agent/);
   });
 });
 

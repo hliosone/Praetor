@@ -21,6 +21,8 @@ export type Ports = {
     price(token: Address): Promise<PriceInfo>;
     policy(account: Address): Promise<Policy | null>;
     status(account: Address): Promise<{ effective: number; account: number; global: number; heartbeatValidUntil: bigint }>;
+    /** The owner's pause and a pending key recovery: the hook restricts on both, statusOf shows neither. */
+    ownerHold(account: Address): Promise<{ paused: boolean; recoveryPending: boolean }>;
     kya(account: Address): Promise<{ agentKey: Address; validUntil: bigint; riskProfile: number }>;
     caps(account: Address): Promise<{ perTx: bigint; daily: bigint; monthly: bigint }>;
     spent(account: Address): Promise<{ day: bigint; month: bigint; count: bigint; rebalances: bigint }>;
@@ -131,9 +133,10 @@ export class PraetorTools {
   }
 
   async getStatus(): Promise<ToolResult> {
-    const [st, kya, now] = await Promise.all([this.p.reader.status(this.account), this.p.reader.kya(this.account), this.p.reader.now()]);
+    const [st, hold, kya, now] = await Promise.all([this.p.reader.status(this.account), this.p.reader.ownerHold(this.account), this.p.reader.kya(this.account), this.p.reader.now()]);
     const name = (s: number) => STATUSES[s] ?? 'UNKNOWN';
-    const effective = name(st.effective);
+    // What the hook applies: the consortium's status, tightened to RESTRICTED by the owner's pause or a pending recovery.
+    const effective = st.effective === Status.ACTIVE && (hold.paused || hold.recoveryPending) ? name(Status.RESTRICTED) : name(st.effective);
     const heartbeat = st.heartbeatValidUntil > now ? 'fresh' : 'stale (autonomous actions are paused until the operator heartbeat returns)';
     const kyaOk = kya.validUntil > now;
     // The model invented a cause for a regulator freeze (#6): say what the status stops and who can lift it (I3), and
@@ -153,9 +156,11 @@ export class PraetorTools {
         'The tools do not say why it was set: do not guess a reason.',
       );
     }
+    if (hold.paused) tightened.push("The owner paused the agent: every payment or rebalance the agent makes needs the owner's approval until the owner resumes it.");
+    if (hold.recoveryPending) tightened.push("A key recovery of this account is pending: every payment or rebalance the agent makes needs the owner's approval until it completes or the owner cancels it.");
     return {
       text: [`Status: ${effective}`, ...tightened, `Heartbeat: ${heartbeat}`, `KYA: ${kyaOk ? 'valid' : 'expired'}`].join('\n'),
-      structured: { status: effective, accountStatus: name(st.account), globalStatus: name(st.global), heartbeatFresh: st.heartbeatValidUntil > now, kyaValid: kyaOk },
+      structured: { status: effective, accountStatus: name(st.account), globalStatus: name(st.global), ownerPaused: hold.paused, recoveryPending: hold.recoveryPending, heartbeatFresh: st.heartbeatValidUntil > now, kyaValid: kyaOk },
     };
   }
 

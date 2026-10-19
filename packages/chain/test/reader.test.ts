@@ -26,6 +26,11 @@ describe('account reader (shared by mcp and the api)', () => {
     expect(await r.spent(A)).toEqual({ day: 1n, month: 2n, count: 3n, rebalances: 0n });
   });
 
+  it('reads the owner\'s pause and a pending key recovery, which the hook treats as RESTRICTED and statusOf does not show', async () => {
+    expect(await accountReader(client({ isPaused: true, isRecoveryPending: false }), d).ownerHold(A)).toEqual({ paused: true, recoveryPending: false });
+    expect(await accountReader(client({ isPaused: false, isRecoveryPending: true }), d).ownerHold(A)).toEqual({ paused: false, recoveryPending: true });
+  });
+
   it('has no policy when validUntil is zero', async () => {
     expect(await accountReader(client({ policyOf: { validUntil: 0n } }), d).policy(A)).toBeNull();
   });

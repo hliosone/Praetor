@@ -15,7 +15,7 @@ class MemTokens implements TokenStore {
 }
 const ports = {
   tokens: { usdc: '0x00000000000000000000000000000000000000a1', txau: '0x00000000000000000000000000000000000000a2', txag: '0x00000000000000000000000000000000000000a3', desk: '0x00000000000000000000000000000000000000d5' },
-  explorer: 'x', reader: { status: async () => ({ effective: 0, account: 0, global: 0, heartbeatValidUntil: 2n }), kya: async () => ({ agentKey: '0x0', validUntil: 2n, riskProfile: 2 }), now: async () => 1n },
+  explorer: 'x', reader: { status: async () => ({ effective: 0, account: 0, global: 0, heartbeatValidUntil: 2n }), ownerHold: async () => ({ paused: false, recoveryPending: false }), kya: async () => ({ agentKey: '0x0', validUntil: 2n, riskProfile: 2 }), now: async () => 1n },
 } as unknown as Ports;
 
 function app(remote = '10.90.0.5') {
