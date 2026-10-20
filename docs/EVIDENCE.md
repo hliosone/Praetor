@@ -2,6 +2,8 @@
 
 Every transaction of the evidence run on **Base Sepolia (live)**, executed and refused, per flow. Written by `scripts/evidence/collect.ts` from the chains themselves; do not edit by hand. Two edits by hand on 2026-10-19, which a regeneration from `.run/evidence/base-sepolia.json` would undo: this paragraph's deployment note and the F5b title (the run file still holds the old title).
 
+The public server's run of 2026-10-20 (its own deployment, the TEEs on Phala Cloud, an approval with Face ID in WeChat) is in [EVIDENCE-SERVER.md](EVIDENCE-SERVER.md), written by hand; this line is a third hand edit.
+
 Every hash below belongs to the **M16 deployment** of 2026-10-18 (`infra/deployments/base-sepolia-m16.json`, deployment block 48253270). The public server uses a later deployment of 2026-10-19 (`infra/deployments/base-sepolia.json`, MandateHook `0x6411cc907Ace53F1Bdf8607a85991d3b38E79a5f`, D101), on which none of these transactions ran.
 
 Run started 2026-10-18T05:14:49.180Z. Contracts of the M16 deployment: MandateHook [`0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`](https://sepolia.basescan.org/address/0x839E104c8C2df983213a89CAcB58440Da4AdC2A9), RefusalLog [`0xA51F27AebA7491Bc96961912e81eb6Ec81549adE`](https://sepolia.basescan.org/address/0xA51F27AebA7491Bc96961912e81eb6Ec81549adE), Anchor [`0x3D32A53ac6F76647F940797976D2Bc75D7aA57B4`](https://sepolia.basescan.org/address/0x3D32A53ac6F76647F940797976D2Bc75D7aA57B4). FISCO AuditLog `0x766a83f2f21F055B6cEB0769D82109F60C57bD33` (chain 20200).
