@@ -25,4 +25,10 @@ describe('api hardening', () => {
     await request(a).post('/api/onboarding/start').send({ email: 'y@example.com' }).expect(200);
     await request(a).get('/api/health').expect(200);
   });
+
+  it('rate-limits the public x402 route per client: every proof costs Base RPC reads (D107)', async () => {
+    const a = app(2);
+    for (let i = 0; i < 2; i++) expect((await request(a).get('/api/x402/market-brief')).status).not.toBe(429);
+    await request(a).get('/api/x402/market-brief').expect(429);
+  });
 });

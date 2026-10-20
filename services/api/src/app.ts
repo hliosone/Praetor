@@ -69,6 +69,8 @@ export function createApiApp(d: ApiDeps) {
   app.use('/api/auth', limited('auth'));
   app.use(['/api/onboarding/start', '/api/onboarding/passkey'], limited('onboarding'));
   app.use('/api/recover', limited('recover'));
+  // The demo x402 merchant: each payment proof costs Base RPC reads (D107).
+  app.use('/api/x402', limited('x402'));
   // Each mini program sign-in reaches WeChat's code2Session.
   app.use('/mp/session', limited('mp'));
   const secure = d.origin.startsWith('https:');
