@@ -15,6 +15,7 @@ import { clients, UpstreamError } from './clients.js';
 import { Rotation } from './rotation.js';
 import { SandboxFaucet } from './sandbox.js';
 import { DemoMarket } from './demo-market.js';
+import { X402Merchant, marketBrief, x402Routes } from './x402.js';
 import { MySqlPushStore } from './push.js';
 import { MySqlApiStore, MySqlApprovalStore, MySqlMpBindingStore, MySqlProposalStore } from './mysql.js';
 import { StandingOrders, type Directory } from './standing-orders.js';
@@ -58,6 +59,10 @@ const env = z.object({
   FISCO_DEPLOYMENTS_FILE: z.string(),
   INTERNAL_TOKEN_API: z.string().min(32),
   CHAIN_MODE: z.enum(['fork', 'live']).default('fork'),
+  // The demo x402 merchant (D107). The address has no key: what it receives is testnet USDC set aside for the demo.
+  X402_PAY_TO: z.string().regex(/^0x[0-9a-fA-F]{40}$/).default('0x102D12aEAD7B784e1A1002A8dE3eA7A4Ad454f53'),
+  X402_PRICE_USDC6: z.string().regex(/^\d+$/).optional(),
+  X402_MAX_AGE_S: z.coerce.number().int().positive().default(600),
   SANDBOX_ENABLED: z.enum(['0', '1', '']).default('0').transform((v) => v === '1'),
   SANDBOX_RATE_LIMIT_PER_HOUR: z.coerce.number().int().positive().default(3),
   VAPID_PUBLIC: z.string().default(''),
@@ -274,6 +279,25 @@ const demo = new DemoMarket({
   },
 });
 
+// The demo x402 merchant (D107): 1 USDC on the fork, 0.05 on Base Sepolia (DEMO_SCALE 100) unless X402_PRICE_USDC6.
+const x402 = new X402Merchant({
+  usdc: d.usdc, hook: d.mandateHook, payTo: env.X402_PAY_TO as Address, maxAgeS: env.X402_MAX_AGE_S,
+  amount: BigInt(env.X402_PRICE_USDC6 ?? (env.CHAIN_MODE === 'live' ? 50_000 : 1_000_000)),
+  resourceUrl: `${env.PUBLIC_URL.replace(/\/$/, '')}/api/x402/market-brief`,
+  chain: {
+    // The public RPC is load-balanced: wait a little for a node that has the receipt (D98).
+    receipt: (hash) => pub.waitForTransactionReceipt({ hash, timeout: 10_000, retryCount: 5 })
+      .then((x) => ({ status: x.status, blockNumber: x.blockNumber, logs: x.logs.map((l) => ({ address: l.address, topics: l.topics as Hex[], data: l.data })) }))
+      .catch(() => null),
+    blockTime: async (blockNumber) => (await pub.getBlock({ blockNumber })).timestamp,
+    now,
+  },
+  brief: async () => {
+    const [xau, xag] = await Promise.all([reader.price(d.txau), reader.price(d.txag)]);
+    return marketBrief({ xau, xag }, await now());
+  },
+});
+
 const agentKeyOf = async (account: Address) => (await pub.readContract({ address: d.mandateHook, abi: MandateHookAbi, functionName: 'kyaOf', args: [account] }))[0] as Address;
 
 // F10 recovery as Base records it: the last of RecoveryScheduled / Cancelled / Executed for the account.
@@ -303,7 +327,9 @@ const app = createApiApp({
     status: recoveryStatus,
     execute: (account) => c.bundler.tx(d.mandateHook, encodeFunctionData({ abi: MandateHookAbi, functionName: 'executeRecovery', args: [account] })),
   },
-  extend: (r, h, session) => apiRoutes(r, h, session, {
+  extend: (r, h, session) => {
+    x402Routes(r, h, x402);
+    apiRoutes(r, h, session, {
     onboarding, ownerActions, approvals, link, standingOrders, audit, statement, views, config, bank: c.bank, runner: c.runner,
     chainNowMs: async () => Number(await now()) * 1000,
     sandbox,
@@ -322,7 +348,8 @@ const app = createApiApp({
     },
     agentKeyOf,
     bindingOf, onWechatUnlinked: (account) => mpSessions.unlinked(account),
-  }),
+    });
+  },
   mount: (a, h) => {
     const mp = express.Router();
     mpRoutes(mp, h, { link, sessions: mpSessions, approvals, views, standingOrders, runner: c.runner, config });
