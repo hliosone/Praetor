@@ -48,7 +48,7 @@ To read over the edited cut, scene by scene. About 4:45 in all, at a calm pace (
 
 ## 5. Rebalancing (1:31 to 1:55)
 
-**On screen:** Home with USDC at 84 %, outside its band; then the agent's rebalance in Decisions, the rings back inside. BaseScan `0x77a74427...5ad5937a88`.
+**On screen:** Home with USDC at 84 %, outside its band; then the agent's rebalance in Decisions, the rings back inside. BaseScan `0x77a74427...d5937a88`.
 
 > Lin deposits 20 USDC. Her portfolio is now 84 percent cash, above its band.
 > The scheduler wakes the agent, and it buys gold and silver back toward its targets, within its trade and daily limits.
@@ -70,7 +70,7 @@ To read over the edited cut, scene by scene. About 4:45 in all, at a calm pace (
 
 ## 7. One Face ID in WeChat (2:32 to 3:11)
 
-**On screen:** the chat "Pay 0.15 USDC to 0x8549...807a", refused; the iPhone: WeChat, the Praetor mini program, the approval page, Face ID, executed. BaseScan `0x23a62b45...c57fea00`, `0x2a707c5d...6c588fa3d9`, `0x08b37d27...9ce0212b8`.
+**On screen:** the chat "Pay 0.15 USDC to 0x8549...807a", refused; the iPhone: WeChat, the Praetor mini program, the approval page, Face ID, executed. BaseScan `0x23a62b45...c57fea00`, `0x2a707c5d...588fa3d9`, `0x08b37d27...ce0212b8`.
 
 > A new payee is different. Lin asks for 0.15 USDC to an address her mandate doesn't know.
 > The contract refuses it on Base: unknown payee. This is tier two: it needs Lin.
@@ -82,18 +82,18 @@ To read over the edited cut, scene by scene. About 4:45 in all, at a calm pace (
 
 ## 8. KYC and KYA (3:11 to 3:38)
 
-**On screen:** deck slide 10 (identity), then Home, "Your agent: KYA level 2, BALANCED, HK".
+**On screen:** deck slide 10 (identity), then Home, "Your agent: KYA level 2, BALANCED, HK". BaseScan `0x92f5437c...d2734141` (KYAApplied).
 
 > The bank knows Lin, and knows her agent.
-> Her KYC and the agent's mandate are WeIdentity credentials on FISCO BCOS.
-> Her personal data stays encrypted in the bank; on chain, only identifiers, hashes, her KYC level, risk profile and country.
-> Without a valid agent credential, the contract refuses every call.
+> Lin signs her agent's credential, a WeIdentity AgentMandate with its key, its scopes and the TEE that holds it, and the bank countersigns it. Its KYA reaches Base through WeCross.
+> Every payment the agent signs is checked against it: the right key, a valid credential, and the bank's caps for Lin's profile.
+> Personal data stays in the bank; on chain, only identifiers, hashes, her KYC level, risk profile and country.
 
 ---
 
 ## 9. The regulator's freeze (3:38 to 4:14)
 
-**On screen:** the console, Freeze signed by the regulator; Home turns red; the agent's payment refused; Loosen signed by the regulator, then the bank; Active again. BaseScan `0x1adb003c...775be758`, `0x5ff2ae9d...9e683e0d`, `0x5ef02cd6...5f0795b`.
+**On screen:** the console, Freeze signed by the regulator; Home turns red; the agent's payment refused; Loosen signed by the regulator, then the bank; Active again. BaseScan `0x1adb003c...775be758`, `0x5ff2ae9d...9e683e0d`, `0x5ef02cd6...55f0795b`.
 
 > Now the regulator. In the consortium console, one regulator signature freezes Lin's account.
 > WeCross carries that decision from FISCO to Base, and the hook verifies the member's signature itself.

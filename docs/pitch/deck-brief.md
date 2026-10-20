@@ -110,10 +110,10 @@ Speaker notes on every slide: 2 to 4 sentences to say, plus the duration. Total 
 
 ### 6. "Inside the mandate, the agent acts alone." (0:40)
 
-- Two real examples, each with its Base Sepolia transaction in mono:
-  - "Pays Café Lumen alone, under the auto cap": `0xa695c52e...f5f7b6be` (executed).
-  - "Rent paid via Alipay+ (standing order, payout partner)": `0xbf4f43b2...b6db4daf` (executed).
-- One line: "When gold leaves its band, the agent sells back to target, within its trade and daily limits."
+- Three real examples on Base Sepolia (the public server, 2026-10-20), each with its transaction in mono:
+  - "Pays Café Lumen alone, under the auto cap": `0xeb400c2d...a43a85f0` (executed, T1).
+  - "Rent paid via Alipay+ (standing order, payout partner)": `0xb4104cad...b45ce329` (executed, T1).
+  - "Cash above its band after a deposit: the agent buys gold and silver back to target, alone": `0x77a74427...d5937a88` (executed, T1).
 - `payments-1440.png` small.
 
 ### 7. "Every call takes one path, and ends one of three ways." (0:45)
@@ -130,14 +130,15 @@ Speaker notes on every slide: 2 to 4 sentences to say, plus the duration. Total 
   4. The refused attempt is written on Base, and the refusal log recomputes the reason itself.
 - The real transaction, large in mono: `0x5a38adfe...e63bb9af` (refused SANCTIONED, Base Sepolia).
 - One small line: "Our red-team suite: 100 attack runs, 0 executed."
+- One small line: "x402 too: the agent pays an HTTP 402 merchant through its mandate, then proves the payment; the off-chain signature other agent wallets use is closed by design."
 
 ### 9. "One Face ID approves exactly one payment, inside WeChat." (0:55)
 
 - `05-wechat-approval.png`, with a phone-frame placeholder labelled "WeChat screenshot".
 - Real run on Base Sepolia (the public server, 2026-10-20), approved with Face ID inside WeChat (Tencent SOTER), three transactions in mono:
-  - refused UNKNOWN_PAYEE: `0x2ef41395...83a945ab`;
-  - approval registered (SOTER): `0x9a6633db...f5b3ee18`;
-  - executed once: `0x0a900425...689b1ab2`.
+  - refused UNKNOWN_PAYEE: `0x23a62b45...c57fea00`;
+  - approval registered (SOTER): `0x2a707c5d...588fa3d9`;
+  - executed once: `0x08b37d27...ce0212b8`.
 - Notes:
   - The attester service, running in a Phala Cloud TEE (Intel TDX), checks the Face ID signature with Tencent; the contract checks the attester's approval.
   - The approval is spent with the payment: sent again, it is refused (DigestUsed), as our iPhone test on the local fork showed.
@@ -151,7 +152,10 @@ Speaker notes on every slide: 2 to 4 sentences to say, plus the duration. Total 
 ### 11. "One signature stops it. Two of three let it go." (0:50)
 
 - `03-freeze.png`, with `console-freeze-1440.png` small. The 6.3 s and 7.5 s timings come from our phone test on the local fork: never write "on Base Sepolia" next to them.
-- The real transaction: `0x66d57e47...7c4ac187` (refused FROZEN, after a freeze carried by WeCross).
+- Real transactions on Base Sepolia (the public server, 2026-10-20), in mono:
+  - frozen by one regulator signature, carried by WeCross: `0x1adb003c...775be758`;
+  - the agent's next payment refused FROZEN: `0x5ff2ae9d...9e683e0d`;
+  - loosened with two of three signatures (regulator and bank): `0x5ef02cd6...55f0795b`.
 - One line: "If the operator goes silent for 15 minutes, the agent loses its autonomy."
 
 ### 12. "Every action leaves evidence a bank can verify." (0:30)
@@ -159,7 +163,7 @@ Speaker notes on every slide: 2 to 4 sentences to say, plus the duration. Total 
 - `audit-1440.png` in a laptop frame.
 - Three short lines:
   - "Hash-chained audit on FISCO."
-  - "Anchored on Base by two members": `0x1f3ab980...8ca0fd5a`.
+  - "Anchored on Base by two members": `0x71dedbdf...c823d778`.
   - "Exported as an ISO 20022 statement (camt.053)."
 
 ### 13. Close (0:20)
