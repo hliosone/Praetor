@@ -33,8 +33,11 @@ export async function verifyTeeQuote(a: { quote: string; address: Hex; nonce: He
 export function phalaVerifier(fetchImpl: typeof fetch = fetch, url = 'https://cloud-api.phala.com/api/v1/attestations/verify'): PhalaVerifier {
   return async (quote) => {
     const r = await fetchImpl(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ hex: quote.replace(/^0x/, '') }) });
-    const j = (await r.json().catch(() => ({}))) as { success?: boolean; quote?: { verified?: boolean }; app_info?: { compose_hash?: string } };
-    const compose = j.app_info?.compose_hash ?? '';
+    const j = (await r.json().catch(() => ({}))) as { success?: boolean; quote?: { verified?: boolean; body?: { mr_config_id?: string } }; app_info?: { compose_hash?: string } };
+    // Since 2026-10 the answer has no app_info: dstack writes 0x01 || compose hash into MRCONFIGID, which the quote
+    // carries and the hardware measures.
+    const mrConfig = /^(?:0x)?01([0-9a-f]{64})/i.exec(j.quote?.body?.mr_config_id ?? '')?.[1];
+    const compose = j.app_info?.compose_hash ?? mrConfig ?? '';
     return { verified: r.ok && j.success !== false && j.quote?.verified === true, composeHash: (compose.startsWith('0x') ? compose : `0x${compose}`) as Hex };
   };
 }
