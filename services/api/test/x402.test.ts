@@ -105,6 +105,20 @@ describe('x402 demo merchant (praetor-mandate scheme)', () => {
     receipt = paid();
     await request(a).get('/api/x402/market-brief').set('PAYMENT-SIGNATURE', proof(TX)).expect(200);
   });
+
+  it('a valid proof whose content then fails to build is not burnt either: the payer can present it again', async () => {
+    let fail = true;
+    const m = new X402Merchant({
+      usdc: USDC, hook: HOOK, payTo: PAY_TO, amount: 1_000_000n, maxAgeS: 600, resourceUrl: 'https://praetor.example/api/x402/market-brief',
+      chain: { receipt: async () => receipt, blockTime: async () => blockTime, now: async () => NOW },
+      brief: async () => { if (fail) throw new Error('rpc down'); return { demo: true }; },
+    });
+    const a = app(m);
+    a.use((_e: unknown, _q: express.Request, s: express.Response, _n: express.NextFunction) => { s.status(500).end(); });
+    await request(a).get('/api/x402/market-brief').set('PAYMENT-SIGNATURE', proof(TX)).expect(500);
+    fail = false;
+    await request(a).get('/api/x402/market-brief').set('PAYMENT-SIGNATURE', proof(TX)).expect(200);
+  });
 });
 
 describe('the paid market brief', () => {

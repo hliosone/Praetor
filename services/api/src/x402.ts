@@ -95,8 +95,14 @@ export class X402Merchant {
     return { payer: t.from, transaction: hash };
   }
 
-  brief() {
-    return this.c.brief();
+  /** The content for a verified payment; if it cannot be built, the hash is released so the payer can try again. */
+  async serve(transaction: Hex): Promise<unknown> {
+    try {
+      return await this.c.brief();
+    } catch (e) {
+      this.used.delete(transaction);
+      throw e;
+    }
   }
 }
 
@@ -110,7 +116,8 @@ export function x402Routes(r: express.Router, h: typeof handler, m: X402Merchant
     if (!header) return refuse();
     const v = await m.verify(header);
     if ('error' in v) return refuse(v.error);
-    res.set('PAYMENT-RESPONSE', b64({ success: true, transaction: v.transaction, network: X402_NETWORK, payer: v.payer })).json(await m.brief());
+    const body = await m.serve(v.transaction);
+    res.set('PAYMENT-RESPONSE', b64({ success: true, transaction: v.transaction, network: X402_NETWORK, payer: v.payer })).json(body);
   }));
 }
 
