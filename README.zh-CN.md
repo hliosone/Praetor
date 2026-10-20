@@ -10,7 +10,7 @@ FinTechathon 2026（深圳，微众银行 x 清华五道口），国际赛道，
 
 | | |
 |---|---|
-| **在线体验** | **https://app.praetorwallet.com**（Base Sepolia，仅测试网）。任何人都可以在 `/start` 用通行密钥（passkey）开户；链上 1 USDC 代表故事中的 100，演示资金很少，可向团队申请。以下部分按设计只对员工开放：联盟控制台（已登记的员工设备）和微信（小程序测试账号的测试者）；一键沙盒只在本地分叉上运行（`make up`）。 |
+| **在线体验** | **https://app.praetorwallet.com**（Base Sepolia，仅测试网）。任何人都可以在 `/start` 用通行密钥（passkey）开户；链上 1 USDC 代表故事中的 100，演示资金很少，可向团队申请。以下部分按设计不对访客开放：联盟控制台（已登记的员工设备）和微信（小程序测试账号的测试者）；一键沙盒只在本地分叉上运行（`make up`）。 |
 | **链上证据** | [EVIDENCE-SERVER.md](docs/zh-CN/EVIDENCE-SERVER.md)（[English](docs/EVIDENCE-SERVER.md)）：公开服务器、Phala Cloud 上的两个 TEE，以及 Base Sepolia 上一次微信 Face ID 审批。[EVIDENCE.md](docs/EVIDENCE.md)：2026-10-18 的证据运行，10 个流程，21 个 BaseScan 链接，包括已执行与被拒绝的交易。 |
 | **演示视频** | [VIDEO_URL] |
 | **演示文稿** | [DECK_URL] |
@@ -33,7 +33,7 @@ FinTechathon 2026（深圳，微众银行 x 清华五道口），国际赛道，
 | 能力 | 作用 | 位置 |
 |---|---|---|
 | 智能体钱包 | 每个用户一个 Safe7579（ERC-4337）账户；所有者最多持有四个通行密钥；智能体密钥保存在 TEE 中（Phala Cloud，Intel TDX） | `contracts/base`、`services/agent-signer`、`services/bundler` |
-| Mandate hook（授权委托钩子） | 执行所有者的规则和银行的限额，取更严格者；默认拒绝；每笔调用都有一个等级，T0 至 T4（见下） | `contracts/base/src/MandateHook.sol`、`src/hook/` |
+| Mandate hook（授权委托钩子） | 执行所有者的规则和银行的限额，取更严格者；默认拒绝；每个操作都属于一个等级，T0 至 T4（见下） | `contracts/base/src/MandateHook.sol`、`src/hook/` |
 | 身份（KYC） | 银行作为 WeIdentity 发行方，向用户的 WeID 签发 `PersonKYC` 凭证；个人数据加密保存在银行内 | `services/bank`、`services/identity` |
 | 了解你的智能体（KYA） | 智能体 WeID；`AgentMandate` 由用户签署、银行联署；银行核验 TEE quote，向 Base 发送带 TEE 度量值的 KYA | `services/bank`、`MandateRegistry.sol` |
 | 选择性披露 | EUDI 钱包路径（OpenID4VP、SD-JWT：只披露出生日期和国家），已用测试数据做单元测试；WeIdentity 选择性披露已构建并有集成测试，未用于演示流程 | `services/bank/src/eudiw.ts`、`test/integration/identity.test.ts` |
@@ -105,7 +105,7 @@ make e2e          # 通过 api 和 Web 应用运行流程 F1 至 F10，最后运
 
 ## 状态
 
-- **已在本地分叉上构建并测试**：上表中的全部能力，里程碑 M0 至 M18（[PROGRESS.md](docs/PROGRESS.md)）。
+- **已在本地分叉上构建并测试**：上表中的全部能力（TEE 运行在 dstack 模拟器上），里程碑 M0 至 M18（[PROGRESS.md](docs/PROGRESS.md)）。
 - **Base Sepolia 实链运行（2026-10-18）**：证据运行使用 Pyth 的真实价格、真实模型，并以 WeCross 为传输（[EVIDENCE.md](docs/EVIDENCE.md)）。
 - **公开服务器（2026-10-20）**：https://app.praetorwallet.com，部署在香港的 Google Cloud 上，有自己的 Base 部署（MandateHook `0x6411cc907Ace53F1Bdf8607a85991d3b38E79a5f`）和自己的 FISCO 联盟。
 - **Phala Cloud 上的 TEE**：agent-signer 与 soter-attester 运行在 Intel TDX CVM 中；银行核验了证明服务的 quote 并在 Base 上激活它。dstack 模拟器只用于本地运行。

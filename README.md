@@ -10,7 +10,7 @@ FinTechathon 2026 (Shenzhen, WeBank x Tsinghua PBCSF), International Track, Topi
 
 | | |
 |---|---|
-| **Try it** | **https://app.praetorwallet.com** (Base Sepolia, testnet only). Anyone can onboard at `/start` with a passkey; 1 USDC on chain stands for 100 in the story, and demo funds are small, on request from the team. Staff-only by design: the consortium console (enrolled staff devices) and WeChat (testers of the mini program's test account); the one-click sandbox runs on a local fork (`make up`). |
+| **Try it** | **https://app.praetorwallet.com** (Base Sepolia, testnet only). Anyone can onboard at `/start` with a passkey; 1 USDC on chain stands for 100 in the story, and demo funds are small, on request from the team. Not open to visitors, by design: the consortium console (enrolled staff devices) and WeChat (testers of the mini program's test account); the one-click sandbox runs on a local fork (`make up`). |
 | **On-chain evidence** | [EVIDENCE-SERVER.md](docs/EVIDENCE-SERVER.md): the public server, its two TEEs on Phala Cloud and a WeChat Face ID approval on Base Sepolia. [EVIDENCE.md](docs/EVIDENCE.md): the evidence run of 2026-10-18, 10 flows, 21 BaseScan links, executed and refused. |
 | **Demo video** | [VIDEO_URL] |
 | **Deck** | [DECK_URL] |
@@ -33,7 +33,7 @@ FinTechathon 2026 (Shenzhen, WeBank x Tsinghua PBCSF), International Track, Topi
 | Capability | What it does | Where |
 |---|---|---|
 | Smart agent wallet | Safe7579 (ERC-4337) account per user; the owner holds up to four passkeys; the agent key lives in a TEE (Phala Cloud, Intel TDX) | `contracts/base`, `services/agent-signer`, `services/bundler` |
-| Mandate hook | Applies the owner's rules and the bank's caps, the stricter wins; default deny; every call gets a tier, T0 to T4 (below) | `contracts/base/src/MandateHook.sol`, `src/hook/` |
+| Mandate hook | Applies the owner's rules and the bank's caps, the stricter wins; default deny; every action falls in a tier, T0 to T4 (below) | `contracts/base/src/MandateHook.sol`, `src/hook/` |
 | Identity (KYC) | The bank, a WeIdentity issuer, issues a `PersonKYC` credential to the user's WeID; personal data stays sealed in the bank | `services/bank`, `services/identity` |
 | Know your agent (KYA) | Agent WeID; an `AgentMandate` signed by the user, then countersigned by the bank; the bank checks the TEE quote and sends Base a KYA with the TEE measurement | `services/bank`, `MandateRegistry.sol` |
 | Selective disclosure | EUDI wallet path (OpenID4VP, SD-JWT: birthdate and country only), unit-tested on fixtures; WeIdentity selective disclosure built and integration-tested, not used in the demo flows | `services/bank/src/eudiw.ts`, `test/integration/identity.test.ts` |
@@ -105,7 +105,7 @@ Open **https://praetor.localhost** (Caddy's internal CA: accept the warning, or 
 
 ## Status
 
-- **Built and tested on the local fork**: every capability above, milestones M0 to M18 ([PROGRESS.md](docs/PROGRESS.md)).
+- **Built and tested on the local fork**: every capability above (TEEs on the dstack simulator), milestones M0 to M18 ([PROGRESS.md](docs/PROGRESS.md)).
 - **Live on Base Sepolia (2026-10-18)**: the evidence run, with real Pyth prices, the real model and WeCross as the transport ([EVIDENCE.md](docs/EVIDENCE.md)).
 - **Public server (2026-10-20)**: https://app.praetorwallet.com, Google Cloud in Hong Kong, its own Base deployment (MandateHook `0x6411cc907Ace53F1Bdf8607a85991d3b38E79a5f`) and its own FISCO consortium.
 - **TEEs on Phala Cloud**: agent-signer and soter-attester in Intel TDX CVMs; the bank verified the attester's quote and activated it on Base. The dstack simulator runs only locally.
