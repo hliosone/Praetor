@@ -29,6 +29,8 @@ const env = z.object({
   SESSION_SECRET: z.string().min(32),
   CHAIN_MODE: z.enum(['fork', 'live']).default('fork'),
   EXPLORER_URL: z.string().url().default('https://sepolia.basescan.org'),
+  // x402 merchants the agent may buy from (D107), comma-separated https origins; default: the stack's own public origin.
+  X402_ALLOWED_ORIGINS: z.string().optional(),
   PORT: z.coerce.number().int().default(3080),
 }).parse(process.env);
 
@@ -54,6 +56,16 @@ const ports: Ports = {
   proposals: apiProposals(env.API_URL, env.INTERNAL_TOKEN_API),
   labels: dbLabels(conn.runner),
   standingOrders: { execute: (account, id) => bundlerTx(d.standingOrders, encodeFunctionData({ abi: StandingOrdersAbi, functionName: 'execute', args: [account, id] })) },
+  x402: {
+    allowedOrigins: (env.X402_ALLOWED_ORIGINS ?? new URL(env.PUBLIC_URL).origin).split(',').map((o) => new URL(o.trim()).origin),
+    // The stack's own demo merchant is reached inside the network: the public name is loopback locally, and the server
+    // need not reach its own public address. Only that exact origin and path go to the api.
+    fetch: (input, init) => {
+      const u = new URL(String(input));
+      const local = env.API_URL && u.origin === new URL(env.PUBLIC_URL).origin && u.pathname.startsWith('/api/x402/');
+      return fetch(local ? `${env.API_URL!.replace(/\/$/, '')}${u.pathname}${u.search}` : u, init);
+    },
+  },
 };
 
 const app = createMcpApp({

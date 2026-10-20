@@ -93,6 +93,10 @@ export function buildMcpServer(account: Address, ports: Ports): McpServer {
     title: 'Propose a standing order', description: 'Asks the owner to set a fixed recurring payment, either to a payee (direct USDC) or to a merchant code (paid through the payout partner, e.g. rent). Creates an owner request only; nothing happens on-chain until the owner and the bank sign it.',
     inputSchema: { payee: z.string().max(100).optional(), merchant: z.string().max(64).optional(), amount: usd, period: z.enum(['weekly', 'monthly']) },
   }, async (a) => out(await t.proposeStandingOrder(a)));
+  s.registerTool('x402_fetch', {
+    title: 'Buy from an x402 merchant', description: 'Fetches a URL of an allowed x402 merchant. If it asks for payment (HTTP 402, scheme praetor-mandate), pays it in USDC through the mandate exactly like pay (done, waiting for the owner, or blocked), then presents the transaction as proof and returns the content. Set transaction only to collect a resource already paid (the executeTx of an approved request).',
+    inputSchema: { url: z.string().max(2048), transaction: z.string().max(66).optional() },
+  }, async (a) => out(await t.x402Fetch(a)));
   s.registerTool('trigger_standing_order', { title: 'Run a standing order', description: 'Executes a standing order the owner set, when it is due.', inputSchema: { id: z.number().int().min(0) } }, async ({ id }) => out(await t.triggerStandingOrder(id)));
   return s;
 }

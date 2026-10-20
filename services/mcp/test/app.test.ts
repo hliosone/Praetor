@@ -130,7 +130,7 @@ describe('mcp app', () => {
     const t = await tokens.issueAgent(ACCOUNT);
     const list = await mcp(a, t, rpc('tools/list')).expect(200);
     const names = parse(list.text).result.tools.map((x: { name: string }) => x.name).sort();
-    expect(names).toEqual(['explain', 'get_activity', 'get_approval', 'get_mandate', 'get_portfolio', 'get_status', 'pay', 'propose_standing_order', 'rebalance', 'trigger_standing_order']);
+    expect(names).toEqual(['explain', 'get_activity', 'get_approval', 'get_mandate', 'get_portfolio', 'get_status', 'pay', 'propose_standing_order', 'rebalance', 'trigger_standing_order', 'x402_fetch']);
     const call = await mcp(a, t, rpc('tools/call', { name: 'get_status', arguments: {} })).expect(200);
     expect(parse(call.text).result.content[0].text).toMatch(/Status: ACTIVE/);
   });
