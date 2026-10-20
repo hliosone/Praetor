@@ -58,6 +58,8 @@ export type RouteModules = {
   push: Pick<PushStore, 'subscribe' | 'list'>;
   /** Judges' sandbox (interim, D48): demo USDC for a sandbox account on the fork. */
   sandbox: { fund(account: Address, client: string): Promise<unknown> };
+  /** Demo price buttons (local fork only): a DEMO price for tXAU or tXAG. */
+  demo: { shock(asset: 'XAU' | 'XAG', pct: number): Promise<unknown> };
   /** F10: the next agent key version, through the onboarding's agent steps. */
   rotation: { rotate(account: Address): Promise<unknown> };
   /** F10 step 2: the bank revokes the AgentMandates of agent keys Base no longer holds (it reads the chain itself). */
@@ -142,6 +144,10 @@ export function apiRoutes(r: Router, h: typeof handler, session: express.Request
   }));
 
   r.post('/sandbox/faucet', session, h(async (req, res) => send(res, await m.sandbox.fund(acct(res), req.ip ?? 'unknown'))));
+  r.post('/demo/shock', session, h(async (req, res) => {
+    const b = z.object({ asset: z.enum(['XAU', 'XAG']), pct: z.number() }).parse(req.body);
+    send(res, await m.demo.shock(b.asset, b.pct));
+  }));
 
   r.post('/agent/rotate', session, h(async (_req, res) => send(res, await m.rotation.rotate(acct(res)))));
 

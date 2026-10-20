@@ -1,6 +1,6 @@
 // The dashboard of an account whose onboarding stopped before its policy (issue #1): a way back, not a dead end.
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { I18nProvider } from '../i18n/index.js';
 
@@ -8,8 +8,11 @@ const POLICY = { autoCap: '1', hardCap: '1', dailyBudget: '1', monthlyBudget: '1
 let policy: unknown = null;
 let effective = 'ACTIVE';
 let explorer: string | null = 'https://sepolia.basescan.org';
-const api = vi.fn(async (_method: string, path: string) => {
+let demoMarket = false;
+const shocks: unknown[] = [];
+const api = vi.fn(async (_method: string, path: string, body?: unknown) => {
   const p = path.split('?')[0];
+  if (p === '/demo/shock') { shocks.push(body); return { asset: 'XAU', price8: '318000000000', txHash: '0xabc' }; }
   if (p === '/policy') return { policy, caps: { perTx: '0', daily: '0', monthly: '0' }, spent: {} };
   if (p === '/portfolio') return { totalUsd6: '0', assets: [] };
   if (p === '/status') return { effective, heartbeatValidUntil: '0', now: '0' };
@@ -17,10 +20,10 @@ const api = vi.fn(async (_method: string, path: string) => {
   if (p === '/activity') return { items: [] };
   if (p === '/approvals') return { approvals: [] };
   if (p === '/me') return { userId: 'u', email: 'lin@example.com', account: '0x00000000000000000000000000000000000c0ffe' };
-  if (p === '/config') return { chainId: 84532, domainName: 'Praetor', mandateHook: '0x1', usdc: '0x2', txau: '0x3', txag: '0x4', deskSpreadBps: 0, explorer };
+  if (p === '/config') return { chainId: 84532, domainName: 'Praetor', mandateHook: '0x1', usdc: '0x2', txau: '0x3', txag: '0x4', deskSpreadBps: 0, explorer, demoMarket };
   throw new Error(`unexpected ${path}`);
 });
-vi.mock('../lib/api.js', async (orig) => ({ ...(await orig<typeof import('../lib/api.js')>()), api: (...a: unknown[]) => api(...(a as [string, string])) }));
+vi.mock('../lib/api.js', async (orig) => ({ ...(await orig<typeof import('../lib/api.js')>()), api: (...a: unknown[]) => api(...(a as [string, string, unknown])) }));
 vi.mock('../lib/passkey.js', () => ({ signAndSubmit: vi.fn() }));
 
 const { Home } = await import('./Home.js');
@@ -90,5 +93,26 @@ describe('Home wallet', () => {
     show();
     expect((await screen.findByTestId('wallet')).textContent).toBe('0x00000000000000000000000000000000000c0ffe');
     expect(screen.queryByRole('link', { name: '0x00000000000000000000000000000000000c0ffe' })).toBeNull();
+  });
+});
+
+describe('Home demo market', () => {
+  it('on the local fork, moves gold by a demo price from a button and says the new price', async () => {
+    policy = POLICY;
+    demoMarket = true;
+    show();
+    fireEvent.click(await screen.findByRole('button', { name: 'Gold +20%' }));
+    expect(await screen.findByText('Gold now 3,180.00 USD (demo price)')).toBeTruthy();
+    expect(shocks.at(-1)).toEqual({ asset: 'XAU', pct: 20 });
+    expect(screen.getByRole('button', { name: 'Gold -20%' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Silver +20%' })).toBeTruthy();
+  });
+
+  it('has no demo prices on the live server, where the oracle takes Pyth prices', async () => {
+    demoMarket = false;
+    show();
+    await screen.findByTestId('status');
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByRole('button', { name: 'Gold +20%' })).toBeNull();
   });
 });

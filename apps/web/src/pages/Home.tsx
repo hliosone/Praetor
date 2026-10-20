@@ -1,5 +1,6 @@
 // Dashboard (spec 07): total value, the vault rings with bands, the status pill, the agent, the decision feed and
 // what waits for the owner. Polls the api every few seconds: the chain is the source of truth.
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { OwnerActionKind as K } from '@praetor/protocol';
 import { useI18n } from '../i18n/index.js';
@@ -22,6 +23,16 @@ export function Home() {
   const policy = useLoad(() => api<{ policy: unknown }>('GET', '/policy'), []);
   const cfg = useLoad(() => api<Config>('GET', '/config'), []);
   const me = useLoad(() => api<Me>('GET', '/me'), []);
+  const [market, setMarket] = useState<string>();
+  // Demo price buttons (local fork only, /config says so): the agent reacts as it would to a real move.
+  const shock = (asset: 'XAU' | 'XAG', pct: number) => async () => {
+    setMarket(undefined);
+    try {
+      const r = await api<{ price8: string }>('POST', '/demo/shock', { asset, pct });
+      setMarket(t('demo.now', { asset: t(asset === 'XAU' ? 'demo.gold' : 'demo.silver'), price: usd(String(BigInt(r.price8) / 100n)) }));
+      void portfolio.reload();
+    } catch (e) { setMarket((e as Error).message); }
+  };
 
   return (
     <div className="stack">
@@ -33,6 +44,17 @@ export function Home() {
       )}
       {/* The pill alone is easy to miss: a frozen account says what it means where the owner looks first. */}
       {status.data?.effective === 'FROZEN' && <p className="notice frozen" role="alert" data-testid="frozen-banner">{t('home.frozen')}</p>}
+      {cfg.data?.demoMarket && (
+        <section className="panel row between">
+          <span className="label">{t('demo.title')}</span>
+          <div className="row">
+            <button onClick={shock('XAU', 20)}>{t('demo.goldUp')}</button>
+            <button onClick={shock('XAU', -20)}>{t('demo.goldDown')}</button>
+            <button onClick={shock('XAG', 20)}>{t('demo.silverUp')}</button>
+          </div>
+          {market && <p role="status" className="small">{market}</p>}
+        </section>
+      )}
       <section className="grid two">
         <article className="panel stack">
           <div className="row between">

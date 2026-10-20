@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { createWalletClient, encodeFunctionData, erc20Abi, http, parseAbi, parseAbiItem, type Address, type Hex } from 'viem';
 import { baseSepolia } from 'viem/chains';
 import { AuditLogAbi, fiscoClients } from '@praetor/fisco-client';
-import { AgentKeyValidatorAbi, AnchorAbi, MandateHookAbi, PasskeyValidatorAbi, StandingOrdersAbi, accountReader, baseClients, baseNow, boundedGetLogs, loadDeployments } from '@praetor/chain';
+import { AgentKeyValidatorAbi, AnchorAbi, MandateHookAbi, PasskeyValidatorAbi, PriceOracleAbi, StandingOrdersAbi, accountReader, baseClients, baseNow, boundedGetLogs, loadDeployments } from '@praetor/chain';
 import { connect, loadMigrations, migrate } from '@praetor/db';
 import { explorerUrl } from '@praetor/config';
 import { prepareAccount } from '@praetor/userop';
@@ -14,6 +14,7 @@ import { createApiApp, HttpError } from './app.js';
 import { clients, UpstreamError } from './clients.js';
 import { Rotation } from './rotation.js';
 import { SandboxFaucet } from './sandbox.js';
+import { DemoMarket } from './demo-market.js';
 import { MySqlPushStore } from './push.js';
 import { MySqlApiStore, MySqlApprovalStore, MySqlMpBindingStore, MySqlProposalStore } from './mysql.js';
 import { StandingOrders, type Directory } from './standing-orders.js';
@@ -215,6 +216,8 @@ const config = {
   demoScale: env.DEMO_SCALE,
   // The one-click sandbox mints demo USDC, so it exists only on the fork (the web app hides it elsewhere).
   sandbox: env.SANDBOX_ENABLED && env.CHAIN_MODE === 'fork',
+  // The demo price buttons, fork only: Base Sepolia takes real prices from Pyth.
+  demoMarket: env.CHAIN_MODE === 'fork',
 };
 const push = new MySqlPushStore(conn.runner);
 const MEMBERS = { bank: env.BANK_URL, regulator: env.REGULATOR_URL, operator: env.OPERATOR_URL } as const;
@@ -256,6 +259,21 @@ const sandbox = new SandboxFaucet({
   },
 });
 
+// The demo price buttons (fork only): anvil impersonates the oracle's feeder, as the shock script signs with its key.
+const demo = new DemoMarket({
+  fork: env.CHAIN_MODE === 'fork', tokens: { XAU: d.txau, XAG: d.txag },
+  price: async (token) => (await pub.readContract({ address: d.priceOracle, abi: PriceOracleAbi, functionName: 'getPrice', args: [token] }))[0] as bigint,
+  setDemoPrice: async (token, price8) => {
+    const feeder = (await pub.readContract({ address: d.priceOracle, abi: PriceOracleAbi, functionName: 'feeder' })) as Address;
+    await pub.request({ method: 'anvil_impersonateAccount' as never, params: [feeder] as never });
+    await pub.request({ method: 'anvil_setBalance' as never, params: [feeder, '0xde0b6b3a7640000'] as never });
+    const w = createWalletClient({ chain: baseSepolia, transport: http(env.BASE_RPC_URL) });
+    const hash = await w.writeContract({ address: d.priceOracle, abi: PriceOracleAbi, functionName: 'setPrice', args: [token, price8, await now(), 1], account: feeder, chain: baseSepolia });
+    await pub.waitForTransactionReceipt({ hash });
+    return hash;
+  },
+});
+
 const agentKeyOf = async (account: Address) => (await pub.readContract({ address: d.mandateHook, abi: MandateHookAbi, functionName: 'kyaOf', args: [account] }))[0] as Address;
 
 // F10 recovery as Base records it: the last of RecoveryScheduled / Cancelled / Executed for the account.
@@ -289,6 +307,7 @@ const app = createApiApp({
     onboarding, ownerActions, approvals, link, standingOrders, audit, statement, views, config, bank: c.bank, runner: c.runner,
     chainNowMs: async () => Number(await now()) * 1000,
     sandbox,
+    demo,
     push,
     rotation: new Rotation({
       agentKeyOf,
