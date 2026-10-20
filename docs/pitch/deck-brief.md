@@ -54,6 +54,7 @@ No generic claims ("secure", "scalable", "revolutionary"): show the mechanism in
   - `05-wechat-approval.png`
 - Phone-size screens: `landing-390.png`, `home-390.png`, `approve-390.png`, `home-frozen-390.png`.
 - Desktop screens: `mandate-1440.png`, `console-freeze-1440.png`, `audit-1440.png`, `payments-1440.png`.
+- QR codes for slide 13: `qr-try-it.png`, `qr-evidence.png`.
 - Optional desktop screen: `agent-1440.png`, the chat: two payments the agent makes alone, then a new payee it sends to Lin for approval.
 
 ## Slides
@@ -164,8 +165,11 @@ Speaker notes on every slide: 2 to 4 sentences to say, plus the duration. Total 
 ### 13. Close (0:20)
 
 - The pitch line, large.
-- Three QR code placeholders with labels: "Try it" [DEMO_URL], "Demo video" [VIDEO_URL], "On-chain evidence" [EVIDENCE_URL].
-- Small: Alexandre Huou, Stan Stelcher, [EMAIL].
+- Three QR codes with labels:
+  - "Try it": `qr-try-it.png` (attached), https://app.praetorwallet.com
+  - "Demo video": a placeholder labelled [VIDEO_URL]
+  - "On-chain evidence": `qr-evidence.png` (attached), the server run on Base Sepolia
+- Small: Alexandre Huou (alex.huou@gmail.com), Stan Stelcher (stanstelcher@gmail.com).
 
 ## Rules
 
