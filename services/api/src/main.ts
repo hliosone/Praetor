@@ -32,6 +32,7 @@ import { apiRoutes, internalRoutes, mpRoutes } from './routes.js';
 const env = z.object({
   BASE_RPC_URL: z.string().url(),
   DEPLOYMENTS_FILE: z.string(),
+  DEMO_SCALE: z.coerce.number().int().min(1).default(1),
   MYSQL_HOST: z.string().default('mysql'),
   MYSQL_PASSWORD_API: z.string().min(1),
   SESSION_SECRET: z.string().min(32),
@@ -210,6 +211,8 @@ const config = {
   vapidPublic: env.VAPID_PUBLIC,
   // Where the clients link a transaction: BaseScan when live, null on the fork (they show the bare hash).
   explorer: explorerUrl(env),
+  // Live amounts are a hundredth of the story's (D74): the web app scales the first policy it proposes.
+  demoScale: env.DEMO_SCALE,
 };
 const push = new MySqlPushStore(conn.runner);
 const MEMBERS = { bank: env.BANK_URL, regulator: env.REGULATOR_URL, operator: env.OPERATOR_URL } as const;

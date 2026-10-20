@@ -49,6 +49,13 @@ describe('web app logic', () => {
     expect(p.bands.map((b) => [b.minBps, b.targetBps, b.maxBps])).toEqual([[4000, 5500, 6000], [2000, 3000, 3500], [0, 1500, 1500]]);
   });
 
+  it('scales the first policy to the live demo scale, with a 1 USDC buffer the demo funds can keep (a tester\'s payments were all BUFFER_BREACH)', () => {
+    const c = { chainId: 84532, domainName: 'Praetor', mandateHook: '0x01', usdc: '0x02', txau: '0x03', txag: '0x04', deskSpreadBps: 30, demoScale: 100 } as never;
+    const p = defaultPolicy(c, 1_800_000_000);
+    expect(p).toMatchObject({ autoCap: '2000000', hardCap: '20000000', dailyBudget: '5000000', monthlyBudget: '30000000', bufferUsdc: '1000000', maxTradeUsd: '10000000' });
+    expect(p.bands.map((b) => [b.minBps, b.targetBps, b.maxBps])).toEqual([[4000, 5500, 6000], [2000, 3000, 3500], [0, 1500, 1500]]);
+  });
+
   it('formats USD amounts of 6 decimals', () => {
     expect(usd('1234560000')).toMatch(/1.?234\.56/);
   });

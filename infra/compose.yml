@@ -428,6 +428,7 @@ services:
       SOTER_FAKE_TENCENT: ${SOTER_FAKE_TENCENT}
       # Judges' sandbox (interim, D48): the demo USDC faucet, on the fork only.
       CHAIN_MODE: ${CHAIN_MODE}
+      DEMO_SCALE: ${DEMO_SCALE:-1}
       SANDBOX_ENABLED: ${SANDBOX_ENABLED}
       SANDBOX_RATE_LIMIT_PER_HOUR: ${SANDBOX_RATE_LIMIT_PER_HOUR}
       # The web app subscribes to web push with this public key (the notifier holds the private one).

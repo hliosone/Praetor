@@ -2,7 +2,7 @@
 // starts from. Amounts in USDC base units as decimal strings, as the api takes them.
 import type { Policy } from '@praetor/protocol';
 
-export type Config = { chainId: number; domainName: string; mandateHook: `0x${string}`; usdc: `0x${string}`; txau: `0x${string}`; txag: `0x${string}`; deskSpreadBps: number; explorer?: string | null };
+export type Config = { chainId: number; domainName: string; mandateHook: `0x${string}`; usdc: `0x${string}`; txau: `0x${string}`; txag: `0x${string}`; deskSpreadBps: number; explorer?: string | null; demoScale?: number };
 
 export type PolicyJson = {
   autoCap: string; hardCap: string; dailyBudget: string; monthlyBudget: string; dailyCount: number; bufferUsdc: string;
@@ -14,15 +14,19 @@ export type PolicyJson = {
 const usdc = (n: number) => String(BigInt(n) * 1_000_000n);
 
 export function defaultPolicy(c: Config, now = Math.floor(Date.now() / 1000)): PolicyJson {
+  // Live amounts are Lin's divided by DEMO_SCALE (D74). The buffer is 1 USDC there: a tenth of the demo funds an
+  // account gets, where Lin's scaled 10 would refuse every payment (BUFFER_BREACH).
+  const scale = BigInt(c.demoScale ?? 1);
+  const at = (n: number) => String(BigInt(usdc(n)) / scale);
   return {
-    autoCap: usdc(200), hardCap: usdc(2000), dailyBudget: usdc(500), monthlyBudget: usdc(3000), dailyCount: 10, bufferUsdc: usdc(1000),
+    autoCap: at(200), hardCap: at(2000), dailyBudget: at(500), monthlyBudget: at(3000), dailyCount: 10, bufferUsdc: scale > 1n ? usdc(1) : usdc(1000),
     payees: [], merchants: [],
     bands: [
       { token: c.usdc, minBps: 4000, targetBps: 5500, maxBps: 6000 },
       { token: c.txau, minBps: 2000, targetBps: 3000, maxBps: 3500 },
       { token: c.txag, minBps: 0, targetBps: 1500, maxBps: 1500 },
     ],
-    maxRebalancesPerDay: 1, maxTradeUsd: usdc(1000), maxSlippageBps: 100, validUntil: String(now + 365 * 86_400), soterEnabled: true,
+    maxRebalancesPerDay: 1, maxTradeUsd: at(1000), maxSlippageBps: 100, validUntil: String(now + 365 * 86_400), soterEnabled: true,
   };
 }
 
