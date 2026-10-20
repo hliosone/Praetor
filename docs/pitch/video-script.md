@@ -32,20 +32,25 @@ Tags used below:
 
 ### Where each part runs
 
-- **Server**: the Base deployment of 2026-10-19 that the server uses (`infra/deployments/base-sepolia.json`; MandateHook `0x6411cc907Ace53F1Bdf8607a85991d3b38E79a5f` per `docs/DEPLOY.md` section 5) [CHECK AFTER DEPLOY]. Not the M16 hook `0x839E104c...4AdC2A9` that `docs/EVIDENCE.md` cites.
+- **Server**: https://app.praetorwallet.com, on the Base deployment of 2026-10-19 (`infra/deployments/base-sepolia.json`; MandateHook `0x6411cc907Ace53F1Bdf8607a85991d3b38E79a5f`, D101, D106). Not the M16 hook `0x839E104c...4AdC2A9` that `docs/EVIDENCE.md` cites.
 - **Fork**: `make up` on the laptop, for S5 only.
 - **Rehearse the whole sequence on the fork first**, with the same amounts: it costs nothing and shows which takes need care.
 
-### Server checks [CHECK AFTER DEPLOY]
+### Server checks
 
-1. The smoke check of `docs/DEPLOY.md` section 11 passes and [DEMO_URL] serves the web app with a real certificate.
-2. The consortium bootstrap reached Base: the caps of risk profile 2 (5,000 / 10,000 / 50,000 USDC per payment, day, month), tXAU and tXAG active, the payout partner, the demo sanctions list (it contains `0x2AdFBB4aF4dE13aeD4a5c90dC8bC09951a9EFB23`) and a fresh heartbeat (the home page says "Active").
-3. The oracle feeder pushes Pyth prices on Base (`PYTH_API_KEY` present; report present or missing only).
-4. agent-runner runs the real model (no `FAKE_LLM_URL`).
-5. For S7: the SOTER attester is active on the live hook, `MP_APPID` and `MP_SECRET` are present and `SOTER_FAKE_TENCENT=0`, the mini program's request domain is the server, and the iPhone is a tester of the test account with debug mode on (`docs/MANUAL.md` section 5).
-6. A regulator and a bank staff passkey are enrolled on the console, in two browser profiles (S9).
-7. The onboarding Agent step: note whether it still says "TEE MEASUREMENT (SIMULATOR)". If it does, keep the default S2 line and the caption "TEE: simulator"; use the alternative line and "Phala Cloud, Intel TDX" only once the agent-signer CVM runs with `ATTESTATION_MODE=phala`.
-8. The treasury (`LIVE_TREASURY`) holds at least 9 USDC and the paymaster deposit is funded.
+Known on 2026-10-20 (D106, [EVIDENCE-SERVER.md](../EVIDENCE-SERVER.md)):
+
+- https://app.praetorwallet.com serves the web app with a Let's Encrypt certificate.
+- The consortium bootstrap reached Base with Pyth prices (tXAU 4,132.30 USD, tXAG 56.89 USD at bootstrap).
+- Both TEEs run on Phala Cloud with `ATTESTATION_MODE=phala`. The soter-attester (`0xd690B2E7312082D48d7667f78FD04482bE91b846`) is active on the hook, and the WeChat path passed on the server with an iPhone (account `0xd157b7fd428bfe7217ea9d013fe9017774678731`: link, Refused UNKNOWN_PAYEE, SOTER approval, executed once), so S7 is recorded on the server.
+- Agent keys come from the agent-signer CVM: S2 takes the alternative line and the caption "TEE: Phala Cloud, Intel TDX" once the Agent step is seen without "SIMULATOR".
+- Funds: the paymaster's EntryPoint deposit held 0.00299 ETH and the WeChat run's account 3.50 USDC (read on 2026-10-20). There is no faucet on the server: Lin is funded with `fund-account.ts` on the server (below).
+
+Still to check before recording:
+
+1. agent-runner runs the real model (no `FAKE_LLM_URL`).
+2. A regulator and a bank staff passkey are enrolled on the console, in two browser profiles (S9).
+3. The treasury (`LIVE_TREASURY`) holds at least 9 USDC (report the amount, never the key).
 
 ### Lin's account on the server (live budget: about 10 USDC)
 
