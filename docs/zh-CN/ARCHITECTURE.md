@@ -12,7 +12,7 @@ Praetor 是一个智能体钱包（FinTechathon 2026，国际赛道，赛题 F�
 - **有界（Bounded）**：账户发出的每一笔调用都要经过链上的 **Mandate hook**，它执行用户的规则和银行的上限，默认拒绝。任何异常操作都需要所有者的 Face ID（passkey，或微信内的 SOTER）。
 - **受监管（Regulated）**：由银行、监管方、运营方组成的 **FISCO BCOS** 联盟链掌握身份、获准资产、制裁名单、智能体状态以及只追加的审计日志。其决定以成员签名的形式到达 Base，由 hook 自行验证。监管方一个签名即可冻结智能体；放宽需要三分之二。
 
-本文档是面向评委的技术文档：先给出全景图，再介绍核心算法、安全设计和部署。它描述 2026-10-18 时实际构建的代码，此时 Web 应用、小程序、智能体密钥轮换与恢复（F10）、Base Sepolia 部署以及生产 compose 均已加入，红队测试、M18 演练和实链上的 Pyth 喂价也已完成（D86 至 D90），队友真机测试发现的问题已修复（D91、D93 至 D95），Base Sepolia 上的 M16 实链运行也已完成（D92、D96）；Phase B 的所有里程碑关卡均已通过，第 7 节给出各部分的状态（D85）。构建与 `spec/` 不一致之处，引用 [DECISIONS.md](../DECISIONS.md) 中的条目。英文版：[ARCHITECTURE.md](../ARCHITECTURE.md)。安全证据：[SELF_ASSESSMENT.md](SELF_ASSESSMENT.md)（英文版 [security/SELF_ASSESSMENT.md](../security/SELF_ASSESSMENT.md)）。
+本文档是面向评委的技术文档：先给出全景图，再介绍核心算法、安全设计和部署。它描述 2026-10-18 时实际构建的代码，此时 Web 应用、小程序、智能体密钥轮换与恢复（F10）、Base Sepolia 部署以及生产 compose 均已加入，红队测试、M18 演练和实链上的 Pyth 喂价也已完成（D86 至 D90），队友真机测试发现的问题已修复（D91、D93 至 D95），Base Sepolia 上的 M16 实链运行也已完成（D92、D96），公开服务器及其两台 Phala Cloud CVM 已于 2026-10-20 上线（第 6 节，D106）；Phase B 的所有里程碑关卡均已通过，第 7 节给出各部分的状态（D85）。构建与 `spec/` 不一致之处，引用 [DECISIONS.md](../DECISIONS.md) 中的条目。英文版：[ARCHITECTURE.md](../ARCHITECTURE.md)。安全证据：[SELF_ASSESSMENT.md](SELF_ASSESSMENT.md)（英文版 [security/SELF_ASSESSMENT.md](../security/SELF_ASSESSMENT.md)）。
 
 ## 1. 系统全景图
 
@@ -310,7 +310,7 @@ flowchart LR
 - 银行处的 **KYC**：演示 KYC 提供方（已标注的模拟：证件、自拍、活体检测、制裁名单姓名筛查；kycLevel 2），或欧盟数字身份钱包（OpenID4VP，只披露出生日期和国家；kycLevel 1，D30）。个人数据以 AES-256-GCM 加密存放在银行数据库中，绝不离开银行（I9）。
 - 同一条 FISCO 链上的 **WeIdentity**：银行是权威发行方（`KYC_PROVIDER`）；它向用户的 WeID 签发 `PersonKYC` 凭证，以及一份 `AgentMandate`，由用户用账户上登记的 passkey 批准、银行联署。验证是失败即关闭的：签名、由固定发行方出具的存证、无错误地读取撤销状态（D28）。WeIdentity 的 REST 服务是托管式且无认证的，因此它位于独立的网络上（D29）。
 - **智能体身份**：智能体的 WeID 由智能体公钥创建，包含服务 `AgentWallet = eip155:84532:<account>` 和 `MCP = <public URL>/mcp`，在 TEE 内签名（D32）。
-- **KYA**（了解你的智能体）：银行验证 agent-signer 的 quote（密钥绑定到银行 nonce，度量值在白名单中），然后只根据自己的记录构建 `KYAAttestation`：智能体密钥、kycLevel、风险等级、司法辖区、凭证哈希、智能体度量值（D37）。只有它到达 Base 之后，所有者才能把该密钥设为智能体密钥（`SET_AGENT_KEY`，所有者 + 银行）。
+- **KYA**（了解你的智能体）：银行验证 agent-signer 的 quote（密钥绑定到银行 nonce，度量值在白名单中；在生产环境中由 Phala 的验证服务检查 TDX quote，银行从已验证 quote 的 MRCONFIGID 中读取 dstack 写入的 compose hash，D106），然后只根据自己的记录构建 `KYAAttestation`：智能体密钥、kycLevel、风险等级、司法辖区、凭证哈希、智能体度量值（D37）。只有它到达 Base 之后，所有者才能把该密钥设为智能体密钥（`SET_AGENT_KEY`，所有者 + 银行）。
 
 ### 4.12 价格与资金台
 
@@ -372,7 +372,7 @@ notifier 把每条消息分发到账户的每个渠道，并保留一个发件�
 
 ### 4.17 临时评委沙盒
 
-spec 00 中独立的沙盒部署（域名 `Praetor-sandbox`，SANDBOX 密钥集）尚未构建；`/sandbox` 是它在主部署上的临时替代（D48、D73）。一次点击即可用浏览器自己的 passkey 创建一个一次性账户，通过演示 KYC，安装智能体和默认授权委托，并从水龙头充值：`POST /api/sandbox/faucet` 为每个账户铸造一次 5,000 演示 USDC，每个客户端每小时最多 `SANDBOX_RATE_LIMIT_PER_HOUR` 次，且只在分叉链上进行。场景按钮运行真实流程并显示其交易：向一家新咖啡馆支付 300 USDC（真实模型，用 passkey 批准）、指向演示制裁地址的提示注入、一笔房租定期付款、审计验证。冻结按钮链接到控制台：任何成员密钥都不会为某个按钮签名。
+spec 00 中独立的沙盒部署（域名 `Praetor-sandbox`，SANDBOX 密钥集）尚未构建；`/sandbox` 是它在主部署上的临时替代（D48、D73）。一次点击即可用浏览器自己的 passkey 创建一个一次性账户，通过演示 KYC，安装智能体和默认授权委托，并从水龙头充值：`POST /api/sandbox/faucet` 为每个账户铸造一次 5,000 演示 USDC，每个客户端每小时最多 `SANDBOX_RATE_LIMIT_PER_HOUR` 次，且只在分叉链上进行。场景按钮运行真实流程并显示其交易：向一家新咖啡馆支付 300 USDC（真实模型，用 passkey 批准）、指向演示制裁地址的提示注入、一笔房租定期付款、审计验证。冻结按钮链接到控制台：任何成员密钥都不会为某个按钮签名。公开服务器上沙盒是关闭的（`/config` 返回 `sandbox: false`，`/sandbox` 转到 `/start` 开户页）：评委在本地分叉上使用它（`make up`）。
 
 ## 5. 安全设计
 
@@ -394,7 +394,7 @@ spec 00 中独立的沙盒部署（域名 `Praetor-sandbox`，SANDBOX 密钥集�
 
 **实链模式**（M16，D74、D75）。`make up LIVE=1` 会加入 `infra/live.env`：整个栈使用 `LIVE_` 密钥在 Base Sepolia 上运行，不启动 anvil，使用域名为 `Praetor` 的 `infra/deployments/base-sepolia.json`（M16 运行时为 MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`，在区块 48253270 部署，现保存在 `infra/deployments/base-sepolia-m16.json`；自 2026-10-19 起，该文件保存为服务器重新部署的合约，MandateHook `0x6411cc907Ace53F1Bdf8607a85991d3b38E79a5f`，区块 48301428，D101），`DEMO_SCALE=100`，心跳与价格检查采用生产间隔，XAU 与 XAG 使用来自 Pyth Hermes 的真实价格（`FEED_INTERVAL_S=300`，D89）。FISCO 仍是本地链，由 `LOCAL` 密钥集治理（`FISCO_KEYSET=LOCAL`），其上另有一个绑定到 M16 hook 的联盟部署（`infra/deployments/fisco-live.json`，直到服务器提交自己的部署文件）；Base 信任的每一把密钥都来自 `LIVE_` 密钥集。实链模式通过 `https://base-sepolia-rpc.publicnode.com` 读取 Base（`infra/live.env` 中的 `BASE_RPC_URL`）：`sepolia.base.org` 把 `eth_getLogs` 限制在 200 个区块以内，而多个服务读取的范围更宽；publicnode 允许 50,000 个区块，因此每次读取 Base 日志都按最多 `BASE_LOGS_MAX_RANGE` 个区块（默认 10,000，D98）的窗口进行。WeCross 的 EVM stub 发送自己的 User-Agent，因为公共 RPC 前面的 Cloudflare 会拒绝 Java 的默认值（D92）。实链预算很小：`scripts/deploy/fund-live.ts` 把部署者的测试网 ETH 分发给需要支付 gas 的账户（不加 `--send` 时只是试运行），一次带 0.004 ETH paymaster 押金的部署共花费约 0.0045 ETH。`scripts/evidence/live-run.ts` 用真实模型运行证据流程，`scripts/evidence/collect.ts` 根据链上数据写入证据。2026-10-18 的证据运行（M16，D96）见 [EVIDENCE.md](../EVIDENCE.md)：在同一个账户上运行 C0 至 F8，使用 Pyth 价格、真实模型和 WeCross，并在预算之内（D74）。这次运行还发现：scheduler 和 oracle feeder 必须在 30 秒内重试失败的一轮，payout partner 必须恢复在提取与结算之间被中断的出款；两者均已修复（D96）。
 
-**生产环境**（Phase C，与人工一起完成）：一台服务器运行整个栈，另加两台 Phala Cloud CVM（Intel TDX，dstack）运行 agent-signer 和 soter-attester，配置 `ATTESTATION_MODE=phala`，compose hash 由银行登记，机密以加密环境变量传入，并使用线上 Base Sepolia 部署。`infra/compose.prod.yml` 在同一个基础文件之上，为每个长期运行的服务加上重启策略、为所有服务加上日志轮转，不启动脚本化模型（放入 `test` profile），让 Caddy 获取真实证书（`CADDY_TLS` 为 ACME 账户邮箱，而不是 `internal`），并停用明文 HTTP 的隧道站点（其主机名永远无法解析）。`make rehearsal` 用它启动整个栈（`PRAETOR_ENV=rehearsal`），运行流程的冒烟子集，然后运行 `scripts/deploy/prod-refusals.sh`，检查每个服务在 `PRAETOR_ENV=prod` 下都拒绝其仅测试设置（I13）；它已于 2026-10-18 在分叉上通过（D90）。在域名可用之前，手机通过 `make tunnel` 访问笔记本上的栈：一个通过明文 HTTP 连接 Caddy 的 cloudflared 快速隧道，它把 URL 写入 `.run/tunnel-url`，并把小程序的 develop 环境指向它（[TESTER.md](../TESTER.md)）。步骤：[DEPLOY.md](DEPLOY.md)（英文版 [DEPLOY.md](../DEPLOY.md)）；TEE 检查清单：[security/tee-checklist.md](../security/tee-checklist.md)。
+**生产环境**（已于 2026-10-20 部署，D104、D106）：一台服务器运行整个栈，即 https://app.praetorwallet.com（香港的 Google Cloud `e2-standard-4`，由 Caddy 获取 Let's Encrypt 证书），另加两台运行在真实 Intel TDX 中的 Phala Cloud CVM（dstack 0.5.12，生产系统镜像）运行 agent-signer 和 soter-attester，配置 `ATTESTATION_MODE=phala`，compose hash 由银行登记，机密以加密环境变量传入，并使用 2026-10-19 的线上 Base Sepolia 部署（D101）和服务器自己的 FISCO 联盟。银行通过 Phala 的验证服务核验了证明服务的 quote（compose hash 从 quote 的 MRCONFIGID 读取），并在 Base 上激活了它；app id、compose hash 以及第一次微信运行的交易见 [EVIDENCE-SERVER.md](EVIDENCE-SERVER.md)。调用方经 Phala 的网关访问每台 CVM，TLS 在 CVM 之外终止（TEE 检查清单第 6 项）。`infra/compose.prod.yml` 在同一个基础文件之上，为每个长期运行的服务加上重启策略、为所有服务加上日志轮转，不启动脚本化模型（放入 `test` profile），让 Caddy 获取真实证书（`CADDY_TLS` 为 ACME 账户邮箱，而不是 `internal`），并停用明文 HTTP 的隧道站点（其主机名永远无法解析）。`make rehearsal` 用它启动整个栈（`PRAETOR_ENV=rehearsal`），运行流程的冒烟子集，然后运行 `scripts/deploy/prod-refusals.sh`，检查每个服务在 `PRAETOR_ENV=prod` 下都拒绝其仅测试设置（I13）；它已于 2026-10-18 在分叉上通过（D90）。在域名可用之前，手机通过 `make tunnel` 访问笔记本上的栈：一个通过明文 HTTP 连接 Caddy 的 cloudflared 快速隧道，它把 URL 写入 `.run/tunnel-url`，并把小程序的 develop 环境指向它（[TESTER.md](../TESTER.md)）。步骤：[DEPLOY.md](DEPLOY.md)（英文版 [DEPLOY.md](../DEPLOY.md)）；TEE 检查清单：[security/tee-checklist.md](../security/tee-checklist.md)。
 
 ## 7. 2026-10-18 时的构建状态
 
@@ -410,6 +410,7 @@ spec 00 中独立的沙盒部署（域名 `Praetor-sandbox`，SANDBOX 密钥集�
 | 国密（SM）配置冒烟测试 | 已运行并记录在 [SMOKE.md](../SMOKE.md) 中：11 项自检和 37 项链上检查通过；WeIdentity 场景 43 项中 39 项通过（BLOCKERS B3） |
 | Base Sepolia 部署与实链模式 | 合约已部署到 Base Sepolia，联盟已部署到 FISCO（D74、D75），2026-10-19 又为服务器重新部署了 Base 合约（MandateHook `0x6411cc907Ace53F1Bdf8607a85991d3b38E79a5f`，D101；M16 的地址保留在 `infra/deployments/base-sepolia-m16.json`）；仅在实链上使用来自 Pyth Hermes 的真实 XAU 与 XAG 价格，每 5 分钟一次请求（D89；分叉保留其测试设定的预置演示价格）；实链证据运行已于 2026-10-18 05:35 UTC 通过 M16 关卡（D96）：在同一个账户上运行 C0 至 F8，`DEMO_SCALE=100`，使用 Pyth 价格、真实模型和 WeCross，共 10 个流程（F6 出现两次：第一次因智能体使用旧指令而失败，issue #4，D93 之后在同一账户上重新运行），21 个指向 Base 交易的 BaseScan 链接以及 FISCO 调用见 [EVIDENCE.md](../EVIDENCE.md)；实链模式通过 publicnode 读取 Base（D92） |
 | 红队测试套件 | 已构建，并于 2026-10-18 针对本地栈运行，2026-10-19 作为公开服务器上线前的最终运行再次运行，数字相同（[security/redteam.md](../security/redteam.md)）：脚本化运行 85 个攻击，0 个得逞；全局运行（`make redteam-global`，共享状态事后恢复）3 个攻击，0 个得逞；真实模型（经 OpenCode 调用 DeepSeek）12 个攻击，0 个得逞（3 个被系统拦截，9 个被模型拒绝；对应的脚本化用例证明系统同样会拦截这些攻击）。早先运行中的发现均未转移任何价值，已全部修复并重新测试（D86 至 D88）。留出用例通过 `REDTEAM_HELDOUT_DIR` 运行（D64），尚未运行。属于 M16 关卡，该关卡已于 2026-10-18 随实链证据运行通过（D96） |
-| 生产 compose、演练目标、生产拒绝检查、手机隧道 | 已构建并完成演练（M18，关卡已通过，D90）：在分叉上以 `compose.prod.yml` 运行 `make rehearsal`，冒烟测试 F1、F5、F8 16/16（脚本化模型），五项生产拒绝检查均通过。未演练：实链 Base、Phala TEE、真实证书；云端部署属于 Phase C |
+| 生产 compose、演练目标、生产拒绝检查、手机隧道 | 已构建并完成演练（M18，关卡已通过，D90）：在分叉上以 `compose.prod.yml` 运行 `make rehearsal`，冒烟测试 F1、F5、F8 16/16（脚本化模型），五项生产拒绝检查均通过。未演练：实链 Base、Phala TEE、真实证书；三者都已包含在服务器部署中 |
+| 公开服务器与 Phala Cloud 上的 TEE | 已于 2026-10-20 部署（D106）：https://app.praetorwallet.com，基于 D101 的 Base 部署和服务器自己的 FISCO 联盟，以 Pyth 价格完成初始化；agent-signer 与 soter-attester 运行在 Phala Cloud CVM（Intel TDX）中，银行核验证明服务的 quote 后在 Base 上激活了它；在 iPhone 上完成了微信绑定、一笔因 UNKNOWN_PAYEE 被拒的付款、经证明服务 CVM 的 SOTER 审批，以及只执行一次的付款（[EVIDENCE-SERVER.md](EVIDENCE-SERVER.md)） |
 
 WeBASE 浏览器在 Phase 0（V9）中得到验证，但不属于该栈（削减清单，D4）。
