@@ -110,6 +110,13 @@ export function Sandbox() {
       <Topbar app={false} />
       <main className="stack" style={{ maxWidth: 980 }}>
         <h1 style={{ fontSize: 'var(--s-30)' }}>{t('sandbox.title')}</h1>
+        {cfg.data?.sandbox === false ? (
+          // The one-click account needs demo USDC minted on the fork: on the live server the real onboarding is the demo.
+          <section className="panel stack">
+            <p>{t('sandbox.forkOnly')}</p>
+            <Link className="button primary" to="/start">{t('sandbox.toStart')}</Link>
+          </section>
+        ) : <>
         <p className="muted">{t('sandbox.lede')}</p>
         {!account ? (
           <section className="panel stack">
@@ -142,6 +149,7 @@ export function Sandbox() {
           </section>
         )}
         {error && <p className="error" role="alert">{t('common.error', { e: error })}</p>}
+        </>}
       </main>
     </>
   );

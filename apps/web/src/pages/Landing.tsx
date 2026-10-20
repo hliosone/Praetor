@@ -20,6 +20,9 @@ export function Landing() {
   const nav = useNavigate();
   const [beat, setBeat] = useState(0);
   const [error, setError] = useState<string>();
+  // The one-click sandbox exists only where demo USDC can be minted (the local fork): /config says so.
+  const [sandbox, setSandbox] = useState(false);
+  useEffect(() => { api<{ sandbox?: boolean }>('GET', '/config').then((c) => setSandbox(c.sandbox === true), () => undefined); }, []);
   useEffect(() => {
     const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (still) return;
@@ -46,7 +49,7 @@ export function Landing() {
             <div className="row">
               <Link className="button primary" to="/start">{t('landing.start')}</Link>
               <button onClick={() => signIn().then(landingAfterSignIn).then((to) => nav(to), (e: Error) => setError(e.message))}>{t('landing.signin')}</button>
-              <Link className="button" to="/sandbox">{t('landing.sandbox')}</Link>
+              {sandbox && <Link className="button" to="/sandbox">{t('landing.sandbox')}</Link>}
               <Link className="button" to="/console">{t('landing.console')}</Link>
             </div>
             <p className="small"><Link to="/recover">{t('landing.lost')}</Link></p>

@@ -5,8 +5,10 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { I18nProvider } from '../i18n/index.js';
 
 let step: unknown = 'kyc';
+let sandbox = true;
 const api = vi.fn(async (_method: string, path: string) => {
   if (path === '/onboarding/step') { if (step instanceof Error) throw step; return { step }; }
+  if (path === '/config') return { sandbox };
   throw new Error(`unexpected ${path}`);
 });
 vi.mock('../lib/api.js', () => ({ api: (...a: unknown[]) => api(...(a as [string, string])) }));
@@ -50,5 +52,23 @@ describe('Landing sign-in (issue #1)', () => {
     step = new Error('bank');
     signIn();
     await screen.findByText('home page');
+  });
+});
+
+describe('Landing sandbox button', () => {
+  const show = () => render(<I18nProvider><MemoryRouter><Landing /></MemoryRouter></I18nProvider>);
+
+  it('offers the one-click sandbox where it can mint demo USDC (the local fork)', async () => {
+    sandbox = true;
+    show();
+    expect(await screen.findByRole('link', { name: 'Open sandbox' })).toBeTruthy();
+  });
+
+  it('hides it on the live server, where its faucet cannot exist', async () => {
+    sandbox = false;
+    show();
+    await screen.findByRole('link', { name: 'Start' });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByRole('link', { name: 'Open sandbox' })).toBeNull();
   });
 });

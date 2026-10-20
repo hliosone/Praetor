@@ -213,6 +213,8 @@ const config = {
   explorer: explorerUrl(env),
   // Live amounts are a hundredth of the story's (D74): the web app scales the first policy it proposes.
   demoScale: env.DEMO_SCALE,
+  // The one-click sandbox mints demo USDC, so it exists only on the fork (the web app hides it elsewhere).
+  sandbox: env.SANDBOX_ENABLED && env.CHAIN_MODE === 'fork',
 };
 const push = new MySqlPushStore(conn.runner);
 const MEMBERS = { bank: env.BANK_URL, regulator: env.REGULATOR_URL, operator: env.OPERATOR_URL } as const;
