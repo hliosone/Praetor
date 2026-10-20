@@ -22,7 +22,7 @@
 | agent-signer | `aaa39dc0d68be17ce5fa793b7d73e04d804270b3` | `0x0263abb547f749c270694185ecdc45be1f8ede2b7dc6a35b338aad3485f9f8d2` |
 | soter-attester | `00071068a34978c975ece991044599f80c75d138` | `0x7328c4f30902aedf162b865698b2f73602bb38449c932c57a2d6966fac150469` |
 
-**证明服务（attester）的激活。** 银行把 soter-attester 的 TDX quote（报告数据将证明服务密钥绑定到银行的一次性随机数）交给 Phala 的验证服务，验证通过后从 quote 的 MRCONFIGID 读取 compose 哈希（dstack 在其中写入 `0x01` 加 compose 哈希；Phala 的应答已不再包含 `app_info.compose_hash`，提交 `9056861`）。哈希在允许列表中，银行签署的 `AttesterAttestation` 在 [`0x58cafa3e...4b9f3c24`](https://sepolia.basescan.org/tx/0x58cafa3eeb77dd5c6cccc2c5d5586e92b2fe4be3837dda5d7931c3f24b9f3c24) 到达 Base：attester `0xd690B2E7312082D48d7667f78FD04482bE91b846`，度量值为 soter-attester 的 compose 哈希，状态为激活。2026-10-20 读取钩子的 `attesterOf` 返回该哈希和 `true`。
+**证明服务（attester）的激活。** 银行把 soter-attester 的 TDX quote（报告数据将证明服务密钥绑定到银行的一次性随机数）交给 Phala 的验证服务，验证通过后从 quote 的 MRCONFIGID 读取 compose 哈希（dstack 在其中写入 `0x01` 加 compose 哈希；Phala 的应答已不再包含 `app_info.compose_hash`，提交 `9056861`）。哈希在允许列表中，银行签署的 `AttesterAttestation` 经 WeCross 在 [`0x58cafa3e...4b9f3c24`](https://sepolia.basescan.org/tx/0x58cafa3eeb77dd5c6cccc2c5d5586e92b2fe4be3837dda5d7931c3f24b9f3c24) 到达 Base：attester `0xd690B2E7312082D48d7667f78FD04482bE91b846`，度量值为 soter-attester 的 compose 哈希，状态为激活。2026-10-20 读取钩子的 `attesterOf` 返回该哈希和 `true`。
 
 **智能体密钥。** 服务器上的智能体密钥来自 agent-signer CVM；生产配置拒绝模拟器（I13）。该账户的 KYA 经 WeCross 在 [`0xdccb5c43...2056aee0`](https://sepolia.basescan.org/tx/0xdccb5c433526c782f7c61806d7b95cc74d90a80e153ca5e8fdbc119a2056aee0) 送达，其智能体度量值为 agent-signer 的 compose 哈希 `0x0263abb5...85f9f8d2`。
 
@@ -34,7 +34,7 @@
 
 | 时间（UTC） | 步骤 | Base 上的事件 | 交易 |
 |---|---|---|---|
-| 00:21:00 | 银行激活 soter-attester | `AttesterApplied`，激活 | [`0x58cafa3e...4b9f3c24`](https://sepolia.basescan.org/tx/0x58cafa3eeb77dd5c6cccc2c5d5586e92b2fe4be3837dda5d7931c3f24b9f3c24) |
+| 00:21:00 | 银行激活 soter-attester，经 WeCross 送达 | `AttesterApplied`，激活 | [`0x58cafa3e...4b9f3c24`](https://sepolia.basescan.org/tx/0x58cafa3eeb77dd5c6cccc2c5d5586e92b2fe4be3837dda5d7931c3f24b9f3c24) |
 | 00:28:16 | 银行为该账户的智能体密钥签发 KYA，经 WeCross 送达 | `KYAApplied` | [`0xdccb5c43...2056aee0`](https://sepolia.basescan.org/tx/0xdccb5c433526c782f7c61806d7b95cc74d90a80e153ca5e8fdbc119a2056aee0) |
 | 00:28:36 | 所有者用通行密钥设置授权委托 | `OwnerActionApplied` SET_POLICY（0），PASSKEY；`PolicySet` | [`0xa92215aa...a5bbd6d8`](https://sepolia.basescan.org/tx/0xa92215aa4297750213f8207f4e47b4f12a4f1268b04df059ce203952a5bbd6d8) |
 | 00:33:04 | 所有者用通行密钥更新授权委托 | `OwnerActionApplied` SET_POLICY（0），PASSKEY；`PolicySet` | [`0x93843b33...c5972fee`](https://sepolia.basescan.org/tx/0x93843b330f19da6d91eba3fa1c9d3136f2958e9ed8d449df6510107bc5972fee) |
