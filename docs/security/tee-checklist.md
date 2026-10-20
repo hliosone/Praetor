@@ -21,5 +21,7 @@ On the local stack the measurement is `keccak256(RTMR3)` of a simulator quote an
 
 | CVM | App id | Compose hash | Non-debug | Digests pinned | Registered by the bank | Encrypted env | TLS | Date |
 |---|---|---|---|---|---|---|---|---|
-| agent-signer | Phase C | Phase C | Phase C | Phase C | Phase C | Phase C | Phase C | |
-| soter-attester | Phase C | Phase C | Phase C | Phase C | Phase C | Phase C | Phase C | |
+| agent-signer | `aaa39dc0d68be17ce5fa793b7d73e04d804270b3` | `0x0263abb5...85f9f8d2` | production OS image (`dstack-0.5.12`, `--no-dev-os`); DEBUG bit left to Phala's verifier | yes (private GHCR, built at `4b0f53b`) | yes; the first account's KYA carries this measurement | yes | no: TLS ends at Phala's gateway | 2026-10-20 |
+| soter-attester | `00071068a34978c975ece991044599f80c75d138` | `0x7328c4f3...ac150469` | production OS image (`dstack-0.5.12`, `--no-dev-os`); DEBUG bit left to Phala's verifier | yes (private GHCR, built at `4b0f53b`) | yes; activated on Base with this measurement after Phala's verifier accepted its quote | yes | no: TLS ends at Phala's gateway | 2026-10-20 |
+
+Both CVMs run on Phala Cloud (`tdx.small`, Intel TDX) since 2026-10-20 (D104, D106); the full compose hashes and the Base transactions are in [EVIDENCE-SERVER.md](../EVIDENCE-SERVER.md).
