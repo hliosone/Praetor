@@ -4,8 +4,8 @@
 // .run/tunnel-url.
 const API_BASE = {
   develop: 'https://praetor-tunnel.trycloudflare.com',
-  trial: 'https://praetor.example.com',
-  release: 'https://praetor.example.com',
+  trial: 'https://app.praetorwallet.com',
+  release: 'https://app.praetorwallet.com',
 };
 
 function apiBase(envVersion) {
