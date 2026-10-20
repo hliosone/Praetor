@@ -38,6 +38,11 @@ describe('prompts', () => {
     expect(AGENTS_MD).toMatch(/refusal is final/i);
     expect(AGENTS_MD).toMatch(/中文/);
   });
+
+  it('AGENTS.md names x402_fetch as the one way to buy a paid resource, never another tool or payment method (D107)', () => {
+    expect(md).toMatch(/x402_fetch/);
+    expect(md).toMatch(/402/);
+  });
   it('AGENTS.md: a payment the user asked for that needs the owner (T2) is submitted with pay so the owner gets the request; only a T0 refusal is final (#4)', () => {
     expect(md).toMatch(/When the user asks for a payment that needs the owner's approval \(T2: a new payee, above the amount you may pay alone/);
     expect(md).toMatch(/call pay once: that is what sends the owner the approval request/);
