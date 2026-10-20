@@ -54,7 +54,7 @@ Still to check before recording:
 
 ### Lin's account on the server (live budget: about 10 USDC)
 
-Lin is created on camera in S2: Safari on the iPhone, Face ID passkey, the demo KYC vendor with a made-up persona only (for example "Lin Demo", born 1990-04-02, nationality HK, document "DEMO-0001"; never real personal data), and suitability answers that give the BALANCED profile (the home page then shows "KYA level 2, BALANCED, HK"). The onboarding's Policy step sets the full-scale defaults (auto cap 200 USDC, keep 1,000 USDC), which an 8 USDC account cannot use. Then, off camera and in this order:
+Lin is created on camera in S2: Safari on the iPhone, Face ID passkey, the demo KYC vendor with a made-up persona only (for example "Lin Demo", born 1990-04-02, nationality HK, document "DEMO-0001"; never real personal data), and suitability answers that give the BALANCED profile (the home page then shows "KYA level 2, BALANCED, HK"). The onboarding's Policy step proposes on the server Lin's defaults divided by `DEMO_SCALE` 100 (auto cap 2 USDC, never more than 20, daily budget 5, monthly 30, keep 1 USDC; commit `240b2a3`); the tighter values below fit an 8 USDC account. Then, off camera and in this order:
 
 1. **Mandate > Propose changes** (Face ID; the bank checks it on FISCO and co-signs):
 
@@ -64,7 +64,7 @@ Lin is created on camera in S2: Safari on the iPhone, Face ID passkey, the demo 
    | Never more than | 2 USDC | |
    | Daily budget | 3 USDC | room for three takes a day |
    | Monthly budget | 9 USDC | |
-   | Keep at least | 1 USDC | the default 1,000 USDC buffer would refuse every payment |
+   | Keep at least | 1 USDC | the server's default already (a 1,000 USDC buffer would refuse every payment) |
    | Largest rebalance | 2 USDC | |
    | Payments a day (not editable) | 10 | at most three full takes a day |
    | Bands (onboarding defaults) | USDC 40 to 60 % (target 55), tXAU 20 to 35 % (30), tXAG 0 to 15 % (15) | |
