@@ -4,7 +4,7 @@ Praetor 交付文档的简体中文版本（spec 12）。英文版本为准；�
 
 | 文档 | 内容 | 英文版本 |
 |---|---|---|
-| [项目简介 README.zh-CN.md](../../README.zh-CN.md) | 项目简介、五步演示、快速开始、仓库结构 | [README.md](../../README.md) |
+| [项目简介 README.zh-CN.md](../../README.zh-CN.md) | 项目简介、架构图、能力、流程、安全、运行、状态 | [README.md](../../README.md) |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | 技术文档：系统总览、两条链与跨链桥、密钥托管、核心算法、安全设计、部署 | [ARCHITECTURE.md](../ARCHITECTURE.md) |
 | [SELF_ASSESSMENT.md](SELF_ASSESSMENT.md) | 安全自评估：分级授权、不变量与测试、威胁模型、已知风险、工具结果 | [SELF_ASSESSMENT.md](../security/SELF_ASSESSMENT.md) |
 | [DEPLOY.md](DEPLOY.md) | 部署指南（Phase C，与团队成员一起完成） | [DEPLOY.md](../DEPLOY.md) |

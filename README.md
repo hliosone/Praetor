@@ -1,24 +1,54 @@
 # Praetor
 
-> **Self-driving money; the regulator holds the brakes.**
+**The control plane for regulated AI agent wallets.**
+
+> Self-driving money. The regulator holds the brakes.
+
+An AI agent operates an ERC-4337 smart account on **Base Sepolia** under an on-chain mandate. The authority over it (identity, compliance, governance, audit) sits with a **bank, a regulator and an operator** on a **FISCO BCOS** consortium, built with WeBank's open-source stack: **FISCO BCOS, WeIdentity and WeCross**. Every action of the agent is checked on-chain, bound to a verified identity, and governable by the consortium.
 
 FinTechathon 2026 (Shenzhen, WeBank x Tsinghua PBCSF), International Track, Topic F "Agent Wallet". 中文: [README.zh-CN.md](README.zh-CN.md).
 
-**Try it: https://app.praetorwallet.com** (Base Sepolia, testnet only; onboard at `/start` with a passkey; 1 USDC on chain stands for 100 in the story, and demo funds are small, on request from the team). Not open to visitors there, by design: the consortium console (staff devices approved by an enrolled staff member, D99) and WeChat (testers of the mini program's test account only), so the freeze and the WeChat approval are shown in the video and in [docs/EVIDENCE-SERVER.md](docs/EVIDENCE-SERVER.md); the one-click sandbox runs only on a local fork (`make up`).
+| | |
+|---|---|
+| **Try it** | **https://app.praetorwallet.com** (Base Sepolia, testnet only). Anyone can onboard at `/start` with a passkey; 1 USDC on chain stands for 100 in the story, and demo funds are small, on request from the team. Staff-only by design: the consortium console (enrolled staff devices) and WeChat (testers of the mini program's test account); the one-click sandbox runs on a local fork (`make up`). |
+| **On-chain evidence** | [EVIDENCE-SERVER.md](docs/EVIDENCE-SERVER.md): the public server, its two TEEs on Phala Cloud and a WeChat Face ID approval on Base Sepolia. [EVIDENCE.md](docs/EVIDENCE.md): the evidence run of 2026-10-18, 10 flows, 21 BaseScan links, executed and refused. |
+| **Demo video** | [VIDEO_URL] |
+| **Deck** | [DECK_URL] |
+| **Docs** | [Architecture](docs/ARCHITECTURE.md), [security self-assessment](docs/security/SELF_ASSESSMENT.md), [specification](spec/README.md), [deployment](docs/DEPLOY.md), [中文](docs/zh-CN/README.md) |
 
-An AI agent manages your portfolio (USDC, tokenized gold and silver) and pays your bills on its own, from an ERC-4337 smart account on **Base Sepolia**. Every call the account makes passes an on-chain **Mandate hook** that applies your rules and the bank's caps, default deny; anything unusual asks you for Face ID (a passkey, or SOTER inside WeChat). A **FISCO BCOS** consortium of a bank, a regulator and an operator holds the authority: identity (WeIdentity), approved assets, sanctions, the agent's status and an append-only audit log. Its decisions reach Base as member signatures the hook verifies itself, carried by **WeCross** with a relayer as watchdog. The agent's key is held by a separate signing service in a **TEE**: on the public server, a Phala Cloud CVM in Intel TDX (dstack) whose quote the bank verifies; local and fork runs use the dstack simulator. One regulator signature freezes the agent at contract level; loosening needs two of three.
+## Architecture: two chains, one rulebook
 
-![The landing page: the 3D phone shows an approval of 300 USDC to Café Lumen](docs/screens/web/landing-1440.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/pitch/diagrams/dark/01-architecture.png">
+  <img alt="Praetor architecture: the web app, the WeChat mini program and the AI agent reach an untrusted backend (api, bundler and paymaster, MCP wallet tools), and the agent key signs in a TEE; Base Sepolia holds the money in a Safe7579 account whose Mandate hook checks every call; FISCO BCOS holds the authority (bank, regulator, operator, WeIdentity, audit chain); WeCross carries signed decisions to the hook and the audit head is anchored on Base" src="docs/pitch/diagrams/01-architecture.png">
+</picture>
 
-## The demo in five lines
+- **Base Sepolia holds the money.** Each user's Safe7579 account has one ERC-7579 hook, `MandateHook`, which every execution passes: executed, asks the owner, or refused with a logged reason.
+- **FISCO BCOS holds the authority.** The bank, the regulator and the operator run member services on a four-node FISCO BCOS 3.17.1 chain: identity, compliance lists, the agent's status, the audit log.
+- **WeCross carries the decisions.** A consortium decision is an EIP-712 message that members sign on FISCO; the WeCross router delivers it to Base, and a relayer delivers whatever WeCross has not applied within 120 s.
+- **The hook re-verifies every signature** (distinct members, threshold, nonce, deadline). The backend, the model, the bundler, WeCross and the relayer are untrusted: they can delay a decision, never forge one. The 6.3 s in the picture (a freeze from FISCO to Base) was measured on the local fork.
 
-1. **Onboard with Face ID**: a passkey creates the smart account, demo KYC at the bank, the agent's key is derived by the TEE signing service (the dstack simulator outside Phala Cloud) and checked by the bank, the mandate is signed by you and co-signed by the bank.
-2. **Gold jumps 20 %** (demo price, on the local fork): the agent wakes up and sells about 650 USD of tXAU to get back into its band, alone (T1).
-3. **"Pay 300 to a new payee"**: refused on-chain (unknown payee), you approve with your passkey (or Face ID in WeChat, M14), then it pays (T2).
-4. **A prompt injection** asks the agent to pay a sanctioned address: the model declines; the same payment signed with the agent's own key is refused on-chain, and `RefusalLog` records the reason the hook computed (SANCTIONED).
-5. **The regulator freezes the agent** from the console with one signature: FISCO, WeCross, Base; the next action is refused FROZEN; unfreezing needs two members. Then the audit chain verifies against FISCO and its Base anchor, and exports as an ISO 20022 camt.053 statement.
+## What Praetor provides
 
-## How it is bounded
+| Capability | What it does | Where |
+|---|---|---|
+| Smart agent wallet | Safe7579 (ERC-4337) account per user; the owner holds up to four passkeys; the agent key lives in a TEE (Phala Cloud, Intel TDX) | `contracts/base`, `services/agent-signer`, `services/bundler` |
+| Mandate hook | Applies the owner's rules and the bank's caps, the stricter wins; default deny; every call gets a tier, T0 to T4 (below) | `contracts/base/src/MandateHook.sol`, `src/hook/` |
+| Identity (KYC) | The bank, a WeIdentity issuer, issues a `PersonKYC` credential to the user's WeID; personal data stays sealed in the bank | `services/bank`, `services/identity` |
+| Know your agent (KYA) | Agent WeID; an `AgentMandate` signed by the user, then countersigned by the bank; the bank checks the TEE quote and sends Base a KYA with the TEE measurement | `services/bank`, `MandateRegistry.sol` |
+| Selective disclosure | EUDI wallet path (OpenID4VP, SD-JWT: birthdate and country only), unit-tested on fixtures; WeIdentity selective disclosure built and integration-tested, not used in the demo flows | `services/bank/src/eudiw.ts`, `test/integration/identity.test.ts` |
+| Compliance | Sanctions, payout jurisdictions, approved assets and counterparties, bank caps per risk profile, set on FISCO and enforced by the hook; ERC-3643 `IdentityRegistry` and `Compliance` gate the tokenized metals | `contracts/fisco/src`, `contracts/base/src/tokens` |
+| Consortium governance | 1 of 3 tightens, 2 of 3 loosen, the bank alone for caps and KYA; nonces allocated on FISCO; operator silent for 15 min (production), the agent loses its autonomy | `contracts/fisco/src/Board.sol`, `services/bank`, `regulator`, `operator` |
+| Cross-chain transport | WeCross router 1.4.0 with Praetor's EVM stub for Base; holds transport keys only; the bridge-relayer is the watchdog | `wecross/evm-stub`, `services/bridge-relayer` |
+| Asset management | USDC, tokenized gold (tXAU) and silver (tXAG) in bands; the agent rebalances against a treasury desk at Pyth prices on Base Sepolia | `TreasuryDesk.sol`, `PriceOracle.sol`, `services/scheduler`, `oracle-feeder` |
+| Payments and approvals | Agent payments to known payees under the auto cap; the owner approves the exact call by passkey, or Face ID in WeChat (SOTER, checked by an attester in a TEE) | `services/mcp`, `services/api`, `services/soter-attester` |
+| Standing orders and payouts | Recurring bills held on-chain by the account's executor; paid through an escrow rail by a payout partner over Alipay+ or WeChat Pay (mocks) | `StandingOrders.sol`, `PayoutRail.sol`, `services/payout-partner` |
+| Channels | Web app (PWA, EN and 中文), WeChat mini program, consortium console, MCP over OAuth 2.1 for outside agents | `apps/web`, `apps/miniprogram`, `services/mcp` |
+| Audit | Hash-chained log on FISCO, anchored on Base by two members, verified from three sources; ISO 20022 camt.053 export | `services/operator`, `AuditLog.sol`, `Anchor.sol` |
+| Agent runtime | Real model (DeepSeek through OpenCode); built-in tools denied; it reaches money only through Praetor's ten MCP tools | `services/agent-runner`, `services/mcp` |
+| Key rotation and recovery | Stop or rotate the agent key; add devices; every passkey lost: bank re-KYC, then a 48 h delay that any passkey still held can cancel | `services/api`, `services/bank`, `MandateHook.sol` |
+
+Who may do what, enforced by the hook:
 
 | Tier | Who | Example |
 |---|---|---|
@@ -28,72 +58,80 @@ An AI agent manages your portfolio (USDC, tokenized gold and silver) and pays yo
 | T3 Owner + bank | the owner and the bank (the owner alone to make things stricter) | change the mandate, standing orders, the agent key |
 | T4 Consortium | 1 of 3 to tighten, 2 of 3 to loosen, the bank for caps and KYA | freeze, sanctions, assets, heartbeat |
 
-Read the [architecture](docs/ARCHITECTURE.md) for the picture and the algorithms, and the [security self-assessment](docs/security/SELF_ASSESSMENT.md) for the invariants and the tests that prove them.
+## Flows
 
-## Quick start (local stack)
+Every flow is an e2e test (`test/e2e`) and passes through the api and through the web app (Playwright) on fresh local forks. The Base Sepolia column links the transactions.
 
-Prerequisites: Linux x86_64 (tested on Ubuntu 24.04) with Docker (Compose v2), Node 22 with pnpm 10.29.1, Foundry 1.7.1, 16 GB of RAM recommended (the production server's size). Java runs only inside pinned images.
+| Flow | What happens | On Base Sepolia |
+|---|---|---|
+| F1 Onboarding | Passkey, smart account, KYC at the bank, agent key in the TEE, AgentMandate, KYA | [run](docs/EVIDENCE.md#f1--onboarding-passkey-account-kyc-agent-in-the-tee-agentmandate-kya-agent-key), [server](docs/EVIDENCE-SERVER.md#the-wechat-run-2026-10-20-a-real-iphone) |
+| F2 Link WeChat | Binds a WeChat SOTER key to the account (passkey and bank) | [server](docs/EVIDENCE-SERVER.md#the-wechat-run-2026-10-20-a-real-iphone) |
+| F3 Mandate | The owner sets the rules; the bank checks them on FISCO and co-signs | [run](docs/EVIDENCE.md#f3--mandate-set-with-the-passkey-after-the-banks-fisco-check-then-funded), [server](docs/EVIDENCE-SERVER.md#the-wechat-run-2026-10-20-a-real-iphone) |
+| F4 Rebalancing | A demo price shock wakes the agent, which sells tXAU back into its band alone (T1) | local fork only |
+| F5 Agent payment | A known payee paid alone (T1); a prompt-injected payment to a sanctioned address refused on-chain (SANCTIONED) | [T1](docs/EVIDENCE.md#f5--the-agent-pays-a-known-payee-alone-t1-real-model), [SANCTIONED](docs/EVIDENCE.md#f5b--prompt-injection-to-a-sanctioned-address-the-real-model-declined-the-same-payment-signed-with-the-agent-key-refused-on-chain-sanctioned) |
+| F6 Human approval | A new payee refused (UNKNOWN_PAYEE); the owner approves that exact call; it executes once | [passkey](docs/EVIDENCE.md#f6--a-new-payee-is-t2-the-owner-approves-the-exact-call-with-the-passkey-it-executes-once-1), [WeChat SOTER](docs/EVIDENCE-SERVER.md#the-wechat-run-2026-10-20-a-real-iphone) |
+| F7 Standing order | Rent (owner + bank) paid through the payout rail and the Alipay+ mock | [run](docs/EVIDENCE.md#f7--rent-standing-order-owner--bank-paid-through-the-payout-rail-alipay-mock) |
+| F8 Audit | Head anchored on Base by two members, verified, camt.053 | [run](docs/EVIDENCE.md#f8--audit-the-head-anchored-on-base-by-two-members-verified-camt053) |
+| F9 Governance | Regulator freeze with one signature through WeCross, next payment refused FROZEN, loosening needs two; heartbeat, sanctions, assets, jurisdictions, caps | [freeze and loosen](docs/EVIDENCE.md#f9--the-regulator-freezes-with-one-signature-via-wecross-an-agent-payment-is-refused-frozen-loosening-needs-two); the rest on the local fork |
+| F10 Rotation and recovery | Stop and rotate the agent key; owner recovery with the 48 h delay | local fork only (48 h time warp) |
+
+"run" is the evidence run of 2026-10-18 on the M16 deployment; "server" is the public server on its own deployment of 2026-10-19. They are two different Base Sepolia deployments.
+
+## Security
+
+- **19 invariants**, I1 to I19 ([spec/01-system.md](spec/01-system.md#invariants-tests-must-prove-each-numbering-used-across-the-spec)), each mapped to the tests that prove it in the [self-assessment](docs/security/SELF_ASSESSMENT.md#3-invariants-and-the-tests-that-prove-them), with 34 known risks stated.
+- **Red team: 100 attack runs, 0 executed**, all on the local fork (2026-10-19): 85 scripted, 3 on shared state, 12 with the real model (3 blocked by the stack, 9 declined by the model; their scripted twins show the stack blocks the same attacks). "Executed" is judged from on-chain state, never from what the model said. Held-out cases not run yet. [redteam.md](docs/security/redteam.md)
+- **Contracts**: 235 Foundry unit, fuzz and invariant tests plus 13 fork tests on the real Safe7579; `MandateHook.sol` line coverage 99.52 %. Slither on Praetor's Base code: High 0, Medium 27, all explained ([slither.md](docs/security/slither.md)).
+- **No personal data on Base (I19)**: `make i19-scan` found none on the M16 deployment nor on the local fork after the red team.
+- **TEEs**: both CVMs on Phala Cloud with their compose hashes on the bank's allowlists; two items stay open (TLS ends at Phala's gateway, the debug bit is left to Phala's verifier): [tee-checklist.md](docs/security/tee-checklist.md).
+
+## Run it
+
+Prerequisites: Linux x86_64 (tested on Ubuntu 24.04), Docker with Compose v2, Node 22 with pnpm 10.29.1, Foundry 1.7.1, 16 GB of RAM recommended. Java runs only inside pinned images.
 
 ```bash
-git clone --recurse-submodules <repository> praetor && cd praetor   # or: git submodule update --init --recursive
+git clone --recurse-submodules <repository> praetor && cd praetor
 make setup        # commit-msg hook + pnpm install --frozen-lockfile
 pnpm keys         # fills every missing key and secret into .env (mode 600); prints public addresses only
-make up           # the whole stack: anvil fork of Base Sepolia, 4 FISCO nodes, WeIdentity, WeCross, TEE simulator,
-                  # member services, agent, mocks; deploys the contracts on a fresh fork; builds the web app
-make test         # guards (em dash, links, attribution), gitleaks, type-check, every unit test, Foundry (needs Docker)
-make test-int     # integration tests, one per link of the architecture (needs make up)
-make e2e          # flows F1 to F10 through the api and the web app (Playwright), then the 48 h recovery (needs make up)
+make up           # anvil fork of Base Sepolia, 4 FISCO nodes, WeIdentity, WeCross, TEE simulator,
+                  # member services, agent, mocks; deploys the contracts; builds the web app
 pnpm seed         # optional: the demo persona Lin, onboarded and funded
+make test         # guards, gitleaks, type-check, every unit test, Foundry
+make test-int     # one integration test per link of the architecture (needs make up)
+make e2e          # flows F1 to F10 through the api and the web app, then the 48 h recovery (needs make up)
 ```
 
-Then open **https://praetor.localhost**. The certificate comes from Caddy's internal CA: accept the browser warning, or trust the root certificate at `/data/caddy/pki/authorities/local/root.crt` in the `caddy` container. More targets: `make help` (`make test-contracts-full` for 10,000 fuzz runs, `make test-fork` for the Safe7579 fork tests, `make slither`, `make deploy-contracts`, `make deploy-fisco`).
-
-## Repository layout
-
-```
-contracts/base      Base Sepolia contracts (Foundry): MandateHook and its libraries, validators, NoOwner,
-                    StandingOrders, PayoutRail, PriceOracle, TreasuryDesk, RefusalLog, Anchor, paymaster, tokens
-contracts/fisco     FISCO BCOS contracts: member registry, consortium boards, audit log, Base outbox
-contracts/lib       pinned Solidity libraries (git submodules)
-packages/           protocol (EIP-712 types, reason codes, golden vectors in TS and Solidity), chain, userop,
-                    config, db, fisco-client, member-kit, weid-client
-services/           api, mcp, agent-runner, scheduler, bundler, oracle-feeder, notifier, bridge-relayer,
-                    bank, regulator, operator, agent-signer and soter-attester (TEEs), identity (WeIdentity),
-                    payout-partner and the labelled mocks (Alipay+, WeChat Pay, KYC vendor), fake-llm (tests)
-wecross/evm-stub    Praetor's WeCross stub for Base (Java 8)
-apps/web            the web app: landing with the 3D phone, onboarding, dashboard, approvals, console, sandbox (EN, 中文)
-apps/miniprogram    the WeChat mini program: home, chat, SOTER approvals, WeChat link (EN, 中文)
-infra/              compose.yml, compose.prod.yml, live.env, Caddyfile, FISCO, WeIdentity, WeCross and TEE simulator
-                    images, deployments
-test/               integration (one file per link), e2e (flows F1 to F10), warp (the 48 h recovery), infra checks
-scripts/            keys, demo (seed, price shock), deploy (contracts, live funding, prod refusals), evidence (live run),
-                    checks (em dash, links, gitleaks, slither)
-spec/               the build specification (start with spec/README.md)
-docs/               architecture, security pack, deployment, progress, decisions, manual, evidence
-spikes/             Phase 0 verification spikes
-```
-
-## Documentation
-
-| Document | What it covers |
-|---|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | The system in one picture, core algorithms, security design, deployment |
-| [docs/security/SELF_ASSESSMENT.md](docs/security/SELF_ASSESSMENT.md) | Tiers, invariants I1 to I19 with their tests, threat model, known risks, tool results |
-| [docs/security/README.md](docs/security/README.md) | The security pack: Slither, dependency audit, TEE checklist, WeCross notes, gas |
-| [docs/DEPLOY.md](docs/DEPLOY.md) | Deploying to a server and Phala Cloud (Phase C) |
-| [spec/README.md](spec/README.md) | The specification the build follows |
-| [docs/PROGRESS.md](docs/PROGRESS.md), [docs/DECISIONS.md](docs/DECISIONS.md) | Where the build stands; decisions taken since the spec |
-| [docs/MANUAL.md](docs/MANUAL.md) | The guided acceptance steps that need a human (phones, WeChat, cloud) |
-| [docs/TESTER.md](docs/TESTER.md) | For a teammate testing on real phones: own stack, WeChat test account, tunnel, what to report |
-| [docs/EVIDENCE.md](docs/EVIDENCE.md) | Transaction hashes of the live run on Base Sepolia (2026-10-18, D96; the M16 deployment, `infra/deployments/base-sepolia-m16.json`), executed and refused, with the FISCO calls of each flow |
-| [docs/EVIDENCE-SERVER.md](docs/EVIDENCE-SERVER.md) | The public server (2026-10-20, D106): its deployment, the two Phala Cloud CVMs with their app ids and compose hashes, the attester's activation, and the BaseScan links of the WeChat run (refused UNKNOWN_PAYEE, approved with SOTER, executed once) |
-| [docs/PREEXISTING.md](docs/PREEXISTING.md) | Code reused from the team's earlier projects |
-| 中文 | [README.zh-CN.md](README.zh-CN.md), [docs/zh-CN/](docs/zh-CN/README.md) |
+Open **https://praetor.localhost** (Caddy's internal CA: accept the warning, or trust `/data/caddy/pki/authorities/local/root.crt` from the `caddy` container). The one-click sandbox is at `/sandbox` on the fork. More targets: `make help`. Server and Phala Cloud deployment: [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## Status
 
-Built and tested on the local fork: the Base and FISCO contracts, the protocol, the bundler and paymaster, the consortium services, WeIdentity identity and KYC, both TEEs on the dstack simulator, the agent with its MCP server, the api, standing orders and payouts, the audit chain with anchors and camt.053, the WeCross transport, the web app with the consortium console and an interim judges' sandbox (D48), the WeChat mini program (logic and api; on phones, see below), agent key rotation and owner recovery (F10), the Guomi profile smoke, the production compose override and its refusal checks. Flows F1 to F10 pass through the api and through the web app (Playwright, virtual authenticator) on fresh forks: the gates of M12 (WeCross as the transport, 2026-10-17), M13 (the web journey, the sandbox and 34 screenshots with axe) and M15 (F10 and the 48 h recovery) passed, the last two on 2026-10-18. The contracts are deployed on Base Sepolia twice: the M16 deployment of 2026-10-18 (MandateHook `0x839E104c8C2df983213a89CAcB58440Da4AdC2A9`, `infra/deployments/base-sepolia-m16.json`), which the evidence run used, and the server's deployment of 2026-10-19 (MandateHook `0x6411cc907Ace53F1Bdf8607a85991d3b38E79a5f`, `infra/deployments/base-sepolia.json`, D101). On Base Sepolia the oracle takes real XAU and XAG prices from Pyth Hermes once every 5 minutes (the fork keeps its seeded demo prices, D89). The red team (spec 08) ran against the local stack on 2026-10-18, and again on 2026-10-19 as the final run before the public server: 85 scripted attacks, 3 on shared state and 12 with the real model, 0 executed ([docs/security/redteam.md](docs/security/redteam.md)); the findings of the earlier runs, none of which moved value, are fixed and re-tested (D86 to D88). The deployment rehearsal passed (M18, D90): `make rehearsal` on the fork with `compose.prod.yml`, smoke F1, F5, F8 16/16 and the five prod refusals. On 2026-10-18 the team passed the WeChat steps on an iPhone (link, SOTER Face ID approval, replay refused, regulator freeze, unlink, Chinese UI; [docs/MANUAL.md](docs/MANUAL.md) section 5). M16 closed on 2026-10-18 with the live evidence run (D96): on Base Sepolia, with real Pyth prices (tXAU 4,165.33 USD, tXAG 56.99 USD at Friday's close), the real model (DeepSeek through OpenCode) and WeCross as the transport, at `DEMO_SCALE` 100 and within the human's budget (D74). [docs/EVIDENCE.md](docs/EVIDENCE.md), generated from the chains, lists 10 flows (C0 to F8, F6 twice) with 21 BaseScan links to Base transactions and the FISCO calls: an autonomous T1 payment, a prompt injection to a sanctioned address that the real model declined, with the same payment signed with the agent key refused on-chain (SANCTIONED), a new payee refused (UNKNOWN_PAYEE) then approved with the owner's passkey and executed once, the rent standing order paid through the payout rail (Alipay+ mock), the regulator's freeze delivered through WeCross with an agent payment refused (FROZEN) and the freeze loosened by two members, and audit anchors on Base. F6 failed on its first pass (old agent instructions, issue #4) and was re-run on the same account after D93; both attempts are in the evidence. The teammates' issues #1 to #11 from their phone tests are fixed and merged (D88, D91, D93 to D95). The public server went live on 2026-10-20 (D106): https://app.praetorwallet.com on a Google Cloud VM in Hong Kong with a Let's Encrypt certificate, on the Base deployment of 2026-10-19 and its own FISCO consortium, bootstrapped with real Pyth prices (tXAU 4,132.30 USD, tXAG 56.89 USD). Its two TEEs run in real Intel TDX CVMs on Phala Cloud (agent-signer and soter-attester, dstack 0.5.12): the bank verified the attester's quote through Phala's verifier and activated it on Base, and the agent keys on the server come from the agent-signer CVM; the dstack simulator is used only in local and fork runs. On the server, with an iPhone, an account linked WeChat, a payment to a new payee was refused on-chain (UNKNOWN_PAYEE), approved with Face ID inside WeChat (SOTER, checked with Tencent by the attester in its CVM) and executed once ([docs/EVIDENCE-SERVER.md](docs/EVIDENCE-SERVER.md)). Still to come, in Phase C with the human: the WeChat Official Account messages, the EUDI wallet scan, the demo video, the Android fingerprint, web push on a phone, the pentest and the held-out red-team cases. The I19 scan of Base data is built (`make i19-scan`, D102) and found no personal data on the M16 deployment, nor on the local fork after the final red-team runs. Details: [docs/PROGRESS.md](docs/PROGRESS.md).
+- **Built and tested on the local fork**: every capability above, milestones M0 to M18 ([PROGRESS.md](docs/PROGRESS.md)).
+- **Live on Base Sepolia (2026-10-18)**: the evidence run, with real Pyth prices, the real model and WeCross as the transport ([EVIDENCE.md](docs/EVIDENCE.md)).
+- **Public server (2026-10-20)**: https://app.praetorwallet.com, Google Cloud in Hong Kong, its own Base deployment (MandateHook `0x6411cc907Ace53F1Bdf8607a85991d3b38E79a5f`) and its own FISCO consortium.
+- **TEEs on Phala Cloud**: agent-signer and soter-attester in Intel TDX CVMs; the bank verified the attester's quote and activated it on Base. The dstack simulator runs only locally.
+- **WeChat on an iPhone**: on the server, a refused payment approved with Face ID (SOTER) and executed once; on the local fork, replay refused, freeze, unlink, Chinese UI.
+- **Production rehearsal** (on the fork): `make rehearsal` with `compose.prod.yml`, smoke 16/16 and the five production refusals.
+- **Guomi (SM) profile**: smoke recorded in [SMOKE.md](docs/SMOKE.md).
+- **Labelled mocks**: the KYC vendor, the payout partner, Alipay+ and WeChat Pay; the sandbox is an interim stand-in.
+- **Still to come**: WeChat Official Account messages, an EUDI scan with a real wallet, the demo video, the Android fingerprint, web push on a phone, the pentest, the held-out red-team cases.
 
-## Licence
+| Document | What it covers |
+|---|---|
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | The system, core algorithms, security design, deployment |
+| [SELF_ASSESSMENT.md](docs/security/SELF_ASSESSMENT.md), [security/](docs/security/README.md) | Tiers, invariants and their tests, threat model, known risks, tool results |
+| [EVIDENCE-SERVER.md](docs/EVIDENCE-SERVER.md), [EVIDENCE.md](docs/EVIDENCE.md) | Transactions on Base Sepolia, executed and refused |
+| [DEPLOY.md](docs/DEPLOY.md), [MANUAL.md](docs/MANUAL.md), [TESTER.md](docs/TESTER.md) | Deployment, guided acceptance steps, phone testing |
+| [spec/](spec/README.md), [DECISIONS.md](docs/DECISIONS.md), [PREEXISTING.md](docs/PREEXISTING.md) | The build specification, decisions taken since, reused code |
+| 中文 | [README.zh-CN.md](README.zh-CN.md), [docs/zh-CN/](docs/zh-CN/README.md) |
+
+## Screens
+
+| The owner approves the exact call | One regulator signature freezes | The audit chain, verified |
+|---|---|---|
+| <img alt="Approval page: pay 380 USDC to a payee not in the mandate, with the reasons and Approve with Face ID" src="docs/screens/web/approve-390.png" width="220"> | <img alt="Consortium console: bank, regulator and operator panels; the account is FROZEN after one regulator signature" src="docs/screens/web/console-freeze-1440.png"> | <img alt="Audit trail: entries verified against FISCO and the Base anchor, with a camt.053 export" src="docs/screens/web/audit-1440.png"> |
+
+## Team and licence
+
+Alexandre Huou (EPFL), Stan Stelcher (HEIG-VD).
 
 Copyright © 2026 the Praetor team. All rights reserved. Source made available for evaluation by FinTechathon 2026 organisers and judges ([LICENSE](LICENSE)). Third-party components keep their own licences: [NOTICE](NOTICE), [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
