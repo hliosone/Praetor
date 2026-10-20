@@ -133,7 +133,6 @@ async function prepare({ repoUrl, rootUrl }) {
     for (const d of document.querySelectorAll('div.mermaid')) if (!d.querySelector('svg') || /Syntax error/i.test(d.textContent)) problems.push('a mermaid diagram did not render');
   }
   await document.fonts.ready;
-  if (!document.fonts.check('12px "IBM Plex Sans"')) problems.push('IBM Plex Sans did not load');
   if (document.body.textContent.includes(String.fromCharCode(0x2014))) problems.push('U+2014 in the text');
   return problems;
 }

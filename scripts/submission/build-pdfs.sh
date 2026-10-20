@@ -5,7 +5,8 @@
 # Sources are read as committed at HEAD, so the commit in each footer is the one the text comes from; SOURCE=worktree
 # reads the working tree instead (the footer then says so). PLAYWRIGHT_FROM=<dir with node_modules> resolves Playwright
 # from another checkout (a git worktree has no node_modules of its own).
-# Fails on a missing image, an internal link without its target, a mermaid error or a U+2014 in a PDF.
+# Fails on a missing image, an internal link without its target, a mermaid error, a U+2014 in a PDF or a PDF
+# without IBM Plex.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 command -v pandoc >/dev/null || { echo "build-pdfs: pandoc is missing" >&2; exit 1; }
@@ -18,6 +19,11 @@ SOURCE="${SOURCE:-head}" WORK="$work" node scripts/submission/render-pdfs.mjs
 for f in docs/submission/README.pdf docs/submission/ARCHITECTURE.pdf docs/submission/SELF_ASSESSMENT.pdf docs/submission/EVIDENCE.pdf; do
   if pdftotext "$f" - | grep -qP '\x{2014}'; then
     echo "build-pdfs: U+2014 in $f" >&2
+    exit 1
+  fi
+  # A font CDN failure would fall back to Noto silently.
+  if ! pdffonts "$f" | grep -q IBMPlexSans; then
+    echo "build-pdfs: IBM Plex Sans is not embedded in $f" >&2
     exit 1
   fi
   echo "build-pdfs: $f, $(pdfinfo "$f" | awk '/^Pages:/ {print $2}') pages"
