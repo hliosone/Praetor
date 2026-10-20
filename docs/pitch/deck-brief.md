@@ -133,13 +133,13 @@ Speaker notes on every slide: 2 to 4 sentences to say, plus the duration. Total 
 ### 9. "One Face ID approves exactly one payment, inside WeChat." (0:55)
 
 - `05-wechat-approval.png`, with a phone-frame placeholder labelled "WeChat screenshot".
-- Real run on Base Sepolia, approved with the passkey in that run, three transactions in mono:
-  - refused UNKNOWN_PAYEE: `0x05226d47...4d0aacb0`;
-  - approval registered (passkey): `0xc97fad10...3bb8cf97`;
-  - executed once: `0xf93ddb77...4398261b`.
+- Real run on Base Sepolia (the public server, 2026-10-20), approved with Face ID inside WeChat (Tencent SOTER), three transactions in mono:
+  - refused UNKNOWN_PAYEE: `0x2ef41395...83a945ab`;
+  - approval registered (SOTER): `0x9a6633db...f5b3ee18`;
+  - executed once: `0x0a900425...689b1ab2`.
 - Notes:
-  - In our iPhone test on the local fork, a payment was approved with WeChat Face ID (Tencent SOTER), and the same approval sent again was refused (DigestUsed).
-  - The attester service checks the Face ID signature with Tencent; the contract checks the attester's approval.
+  - The attester service, running in a Phala Cloud TEE (Intel TDX), checks the Face ID signature with Tencent; the contract checks the attester's approval.
+  - The approval is spent with the payment: sent again, it is refused (DigestUsed), as our iPhone test on the local fork showed.
   - Each screen recomputes the payment fingerprint and refuses to sign if it differs.
 
 ### 10. "The bank knows Lin, and knows her agent." (0:50)
