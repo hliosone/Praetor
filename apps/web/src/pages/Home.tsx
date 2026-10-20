@@ -6,7 +6,7 @@ import { useI18n } from '../i18n/index.js';
 import { Rings } from '../components/Rings.js';
 import { StatusPill, TierBadge } from '../components/StatusPill.js';
 import { TxLink } from '../components/TxLink.js';
-import { api, usd, type Activity, type ApprovalView, type Portfolio, type Prepared, type Status } from '../lib/api.js';
+import { api, usd, type Activity, type ApprovalView, type Portfolio, type Prepared, type Status, type Me } from '../lib/api.js';
 import { useLoad } from '../lib/useLoad.js';
 import { signAndSubmit } from '../lib/passkey.js';
 import type { Config } from '../lib/policy.js';
@@ -21,6 +21,7 @@ export function Home() {
   // No policy: the onboarding stopped before its last step (a discarded tab), and the way back is here.
   const policy = useLoad(() => api<{ policy: unknown }>('GET', '/policy'), []);
   const cfg = useLoad(() => api<Config>('GET', '/config'), []);
+  const me = useLoad(() => api<Me>('GET', '/me'), []);
 
   return (
     <div className="stack">
@@ -38,6 +39,14 @@ export function Home() {
             <div><div className="label">{t('home.total')}</div><div className="big" data-testid="total">${usd(portfolio.data?.totalUsd6)}</div></div>
             {status.data && <StatusPill status={status.data} />}
           </div>
+          {me.data && (
+            <div>
+              <div className="label">{t('home.wallet')}</div>
+              {cfg.data?.explorer
+                ? <a className="mono small" href={`${cfg.data.explorer}/address/${me.data.account}`} target="_blank" rel="noopener">{me.data.account}</a>
+                : <span className="mono small" data-testid="wallet">{me.data.account}</span>}
+            </div>
+          )}
           {portfolio.data && <Rings assets={portfolio.data.assets} label={t('phone.portfolio')} />}
           {portfolio.data?.assets.some((a) => a.demoPrice) && <p className="muted small">Demo price (labelled): no live feed for this asset here.</p>}
         </article>

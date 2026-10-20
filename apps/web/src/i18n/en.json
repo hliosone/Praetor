@@ -10,7 +10,7 @@
   "step.wallet": "Create your wallet with Face ID", "step.identity": "Verify your identity", "step.mandate": "Give your agent a mandate",
   "phone.approve": "Approve {amount} USDC", "phone.to": "to {payee}", "phone.frozen": "Frozen by the regulator", "phone.portfolio": "Your portfolio",
   "status.ACTIVE": "Active", "status.RESTRICTED": "Restricted", "status.FROZEN": "Frozen",
-  "home.total": "Total value", "home.agent": "Your agent", "home.feed": "Decisions", "home.pending": "Waiting for you", "home.none": "Nothing waiting.", "home.pause": "Pause agent", "home.chat": "Chat",
+  "home.total": "Total value", "home.wallet": "Your wallet", "home.agent": "Your agent", "home.feed": "Decisions", "home.pending": "Waiting for you", "home.none": "Nothing waiting.", "home.pause": "Pause agent", "home.chat": "Chat",
   "home.frozen": "Your account is frozen by the consortium. No payment, rebalance or standing order can move money, yours included, until two of its three members lift the freeze.",
   "approve.title": "Approve this payment?", "approve.why": "Why it asks you", "approve.details": "What you sign", "approve.passkey": "Approve with Face ID", "approve.reject": "Reject", "approve.expires": "expires in {s} s", "approve.done": "Approved and executed.",
   "mandate.title": "Your mandate", "mandate.propose": "Propose changes", "mandate.caps": "Bank caps for your profile",
