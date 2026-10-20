@@ -42,10 +42,11 @@ FinTechathon 2026（深圳，微众银行 x 清华五道口），国际赛道，
 | 跨链传输 | WeCross 路由 1.4.0 加 Praetor 为 Base 编写的 EVM 插件；只持有传输密钥；bridge-relayer 作为看门狗 | `wecross/evm-stub`、`services/bridge-relayer` |
 | 资产管理 | USDC、代币化黄金（tXAU）和白银（tXAG）各有区间；智能体按 Base Sepolia 上的 Pyth 价格与资金台（treasury desk）进行再平衡 | `TreasuryDesk.sol`、`PriceOracle.sol`、`services/scheduler`、`oracle-feeder` |
 | 付款与审批 | 智能体在自动限额内向已知收款方付款；所有者用通行密钥或微信内的 Face ID（SOTER，由 TEE 中的证明服务核验）批准确切的那一笔调用 | `services/mcp`、`services/api`、`services/soter-attester` |
+| 经授权规则的 x402 支付 | 智能体用自定义方案 `praetor-mandate` 购买 x402 资源（演示：`GET /api/x402/market-brief`）：收到 402 后，先通过受 hook 检查的智能体操作付款，再携带交易哈希重试；商户在 Base 上核验该交易（USDC 转账、hook 对这笔转账的允许 `Decision`、时间较近、从未用过）。标准 x402 `exact` 需要链下 EIP-3009 签名，而账户从不提供此类签名（I16）；只访问白名单内的 https 源（D107） | `services/mcp`、`services/api/src/x402.ts` |
 | 定期付款与出款 | 定期账单由账户的执行器保存在链上；由出款合作方通过托管出款通道，经 Alipay+ 或微信支付（模拟服务）支付 | `StandingOrders.sol`、`PayoutRail.sol`、`services/payout-partner` |
 | 渠道 | Web 应用（PWA，EN 与中文）、微信小程序、联盟控制台、供外部智能体使用的 MCP（OAuth 2.1） | `apps/web`、`apps/miniprogram`、`services/mcp` |
 | 审计 | FISCO 上的哈希链日志，由两个成员锚定到 Base，从三个来源校验；导出 ISO 20022 camt.053 对账单 | `services/operator`、`AuditLog.sol`、`Anchor.sol` |
-| 智能体运行时 | 真实模型（经 OpenCode 调用 DeepSeek）；内置工具全部禁用；只能通过 Praetor 的十个 MCP 工具接触资金 | `services/agent-runner`、`services/mcp` |
+| 智能体运行时 | 真实模型（经 OpenCode 调用 DeepSeek）；内置工具全部禁用；只能通过 Praetor 的十一个 MCP 工具接触资金 | `services/agent-runner`、`services/mcp` |
 | 密钥轮换与恢复 | 停止或轮换智能体密钥；添加设备；所有通行密钥丢失时：银行重新 KYC，之后有 48 小时延迟，期间任何仍持有的通行密钥都可以取消 | `services/api`、`services/bank`、`MandateHook.sol` |
 
 分级授权，由钩子执行：

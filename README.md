@@ -42,10 +42,11 @@ FinTechathon 2026 (Shenzhen, WeBank x Tsinghua PBCSF), International Track, Topi
 | Cross-chain transport | WeCross router 1.4.0 with Praetor's EVM stub for Base; holds transport keys only; the bridge-relayer is the watchdog | `wecross/evm-stub`, `services/bridge-relayer` |
 | Asset management | USDC, tokenized gold (tXAU) and silver (tXAG) in bands; the agent rebalances against a treasury desk at Pyth prices on Base Sepolia | `TreasuryDesk.sol`, `PriceOracle.sol`, `services/scheduler`, `oracle-feeder` |
 | Payments and approvals | Agent payments to known payees under the auto cap; the owner approves the exact call by passkey, or Face ID in WeChat (SOTER, checked by an attester in a TEE) | `services/mcp`, `services/api`, `services/soter-attester` |
+| x402 payments through the mandate | The agent buys an x402 resource (demo: `GET /api/x402/market-brief`) with the custom scheme `praetor-mandate`: on the 402 it pays through its hook-checked operation, then retries with the transaction hash, which the merchant checks on Base (the USDC transfer, the hook's allowed `Decision` for it, recent, never reused). Standard x402 `exact` needs an off-chain EIP-3009 signature, which the account never gives (I16); only allowlisted https origins are fetched (D107) | `services/mcp`, `services/api/src/x402.ts` |
 | Standing orders and payouts | Recurring bills held on-chain by the account's executor; paid through an escrow rail by a payout partner over Alipay+ or WeChat Pay (mocks) | `StandingOrders.sol`, `PayoutRail.sol`, `services/payout-partner` |
 | Channels | Web app (PWA, EN and 中文), WeChat mini program, consortium console, MCP over OAuth 2.1 for outside agents | `apps/web`, `apps/miniprogram`, `services/mcp` |
 | Audit | Hash-chained log on FISCO, anchored on Base by two members, verified from three sources; ISO 20022 camt.053 export | `services/operator`, `AuditLog.sol`, `Anchor.sol` |
-| Agent runtime | Real model (DeepSeek through OpenCode); built-in tools denied; it reaches money only through Praetor's ten MCP tools | `services/agent-runner`, `services/mcp` |
+| Agent runtime | Real model (DeepSeek through OpenCode); built-in tools denied; it reaches money only through Praetor's eleven MCP tools | `services/agent-runner`, `services/mcp` |
 | Key rotation and recovery | Stop or rotate the agent key; add devices; every passkey lost: bank re-KYC, then a 48 h delay that any passkey still held can cancel | `services/api`, `services/bank`, `MandateHook.sol` |
 
 Who may do what, enforced by the hook:
