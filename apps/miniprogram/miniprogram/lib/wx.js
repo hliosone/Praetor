@@ -10,7 +10,8 @@ module.exports = {
   login: () => call('login').then((r) => r.code),
   /** Resolves with {statusCode, data} for any HTTP status; rejects only when the request did not complete. */
   request: (o) => call('request', o),
-  scanCode: () => call('scanCode', { onlyFromCamera: true, scanType: ['qrCode'] }).then((r) => r.result),
+  // A saved photo too: on one phone the web app shows the code and WeChat runs beside it.
+  scanCode: () => call('scanCode', { onlyFromCamera: false, scanType: ['qrCode'] }).then((r) => r.result),
   soterSupport: () => call('checkIsSupportSoterAuthentication').then((r) => r.supportMode),
   soterEnrolled: (mode) => call('checkIsSoterEnrolledInDevice', { checkAuthMode: mode }),
   /** Both callbacks carry errCode: the caller decides (lib/soter.js checkResult). */

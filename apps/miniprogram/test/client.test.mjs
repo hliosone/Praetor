@@ -144,6 +144,14 @@ describe('WeChat adapter (lib/wx.js)', () => {
     expect(wxa.envVersion()).toBe('trial');
     expect(wxa.systemLanguage()).toBe('zh_CN');
   });
+
+  it('scans the link code from the camera or from a saved photo (one phone shows the code and runs WeChat)', async () => {
+    let opts;
+    globalThis.wx = { scanCode: (o) => { opts = o; o.success({ result: 'https://x/mp/link?id=1' }); } };
+    await wxa.scanCode();
+    expect(opts.onlyFromCamera).toBe(false);
+    expect(opts.scanType).toEqual(['qrCode']);
+  });
 });
 
 describe('api base per environment (config.js)', () => {
